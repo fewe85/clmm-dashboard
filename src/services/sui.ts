@@ -4,6 +4,7 @@ import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts }
 const RPC = 'https://sui-mainnet.nodeinfra.com'
 const POOL_ID = '0x198af6ff81028c6577e94465d534c4e2cfcbbab06a95724ece7011c55a9d1f5a'
 const BOT_WALLET = '0x379ca6ed6398c76e103fb0e4c302b40aa4ccb72f1aae6503dbfe84af9c0a4c10'
+const TURBOS_PACKAGE = '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1'
 
 const DECIMALS_DEEP = 6
 const DECIMALS_USDC = 6
@@ -11,6 +12,9 @@ const DECIMALS_SUI = 9
 
 const COIN_DEEP = '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP'
 const COIN_USDC = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC'
+
+const Q64 = BigInt(1) << BigInt(64)
+const Q128 = BigInt(1) << BigInt(128)
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -31,6 +35,14 @@ async function getObject(objectId: string): Promise<Record<string, unknown>> {
   return result as Record<string, unknown>
 }
 
+async function getDynamicFieldObject(parentId: string, nameType: string, nameValue: unknown): Promise<any> {
+  const result = await rpcCall('suix_getDynamicFieldObject', [
+    parentId,
+    { type: nameType, value: nameValue },
+  ])
+  return (result as any).data.content.fields
+}
+
 async function getOwnedObjects(owner: string): Promise<Record<string, unknown>[]> {
   const result = await rpcCall('suix_getOwnedObjects', [
     owner,
@@ -48,6 +60,36 @@ async function getCoinBalance(owner: string, coinType: string): Promise<number> 
   } catch {
     return 0
   }
+}
+
+// Modular subtraction for u128 fee_growth values (unsigned wraparound)
+function subMod128(a: bigint, b: bigint): bigint {
+  return ((a - b) % Q128 + Q128) % Q128
+}
+
+// Compute fee_growth_inside for a tick range using Uniswap v3 formula
+function computeGrowthInside(
+  tickCurrent: number,
+  tickLower: number,
+  tickUpper: number,
+  growthGlobal: bigint,
+  growthOutsideLower: bigint,
+  growthOutsideUpper: bigint,
+): bigint {
+  const growthBelow = tickCurrent >= tickLower
+    ? growthOutsideLower
+    : subMod128(growthGlobal, growthOutsideLower)
+  const growthAbove = tickCurrent < tickUpper
+    ? growthOutsideUpper
+    : subMod128(growthGlobal, growthOutsideUpper)
+  return subMod128(subMod128(growthGlobal, growthBelow), growthAbove)
+}
+
+// Fetch tick data from pool's dynamic field table
+async function getTickData(poolId: string, tickBits: number): Promise<any> {
+  const i32Type = `${TURBOS_PACKAGE}::i32::I32`
+  const fields = await getDynamicFieldObject(poolId, i32Type, { bits: tickBits })
+  return fields.value.fields
 }
 
 // Find DEEP price in USD using pool price (DEEP/USDC)
@@ -129,7 +171,13 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
     const tickUpperBits = Number(posFields.tick_upper_index.fields.bits)
     const tickLower = decodeI32(tickLowerBits)
     const tickUpper = decodeI32(tickUpperBits)
-    const liquidity = Number(posFields.liquidity)
+    const liquidity = BigInt(posFields.liquidity)
+
+    // Fetch tick data for fee_growth_outside computation
+    const [tickLowerData, tickUpperData] = await Promise.all([
+      getTickData(POOL_ID, tickLowerBits),
+      getTickData(POOL_ID, tickUpperBits),
+    ])
 
     const priceLower = tickToPrice(tickLower, DECIMALS_DEEP, DECIMALS_USDC)
     const priceUpper = tickToPrice(tickUpper, DECIMALS_DEEP, DECIMALS_USDC)
@@ -137,23 +185,54 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
 
     // Calculate position amounts
     const { amountA, amountB } = calculatePositionAmounts(
-      liquidity, tickCurrent, tickLower, tickUpper, DECIMALS_DEEP, DECIMALS_USDC
+      Number(liquidity), tickCurrent, tickLower, tickUpper, DECIMALS_DEEP, DECIMALS_USDC
     )
 
     const deepPrice = getDeepPriceUsd(currentPrice)
     const positionValueUsd = amountA * deepPrice + amountB
 
-    // Pending fees
-    const feesA = Number(posFields.tokens_owed_a) / Math.pow(10, DECIMALS_DEEP)
-    const feesB = Number(posFields.tokens_owed_b) / Math.pow(10, DECIMALS_USDC)
+    // Compute actual pending fees using fee_growth_inside delta (Uniswap v3 formula)
+    const feeGrowthInsideA = computeGrowthInside(
+      tickCurrent, tickLower, tickUpper,
+      BigInt(poolContent.fee_growth_global_a),
+      BigInt(tickLowerData.fee_growth_outside_a),
+      BigInt(tickUpperData.fee_growth_outside_a),
+    )
+    const feeGrowthInsideB = computeGrowthInside(
+      tickCurrent, tickLower, tickUpper,
+      BigInt(poolContent.fee_growth_global_b),
+      BigInt(tickLowerData.fee_growth_outside_b),
+      BigInt(tickUpperData.fee_growth_outside_b),
+    )
+    const posFeeGrowthInsideA = BigInt(posFields.fee_growth_inside_a)
+    const posFeeGrowthInsideB = BigInt(posFields.fee_growth_inside_b)
+
+    const feesARaw = BigInt(posFields.tokens_owed_a) + subMod128(feeGrowthInsideA, posFeeGrowthInsideA) * liquidity / Q64
+    const feesBRaw = BigInt(posFields.tokens_owed_b) + subMod128(feeGrowthInsideB, posFeeGrowthInsideB) * liquidity / Q64
+    const feesA = Number(feesARaw) / Math.pow(10, DECIMALS_DEEP)
+    const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_USDC)
     const pendingFeesUsd = feesA * deepPrice + feesB
 
-    // DEEP reward incentives
-    const rewardInfos = posFields.reward_infos || []
+    // DEEP reward incentives — compute using reward_growth_inside delta
+    const poolRewardInfos = poolContent.reward_infos || []
+    const posRewardInfos = posFields.reward_infos || []
+    const deepTypeSuffix = '::deep::DEEP'
     let rewardAmount = 0
-    for (const ri of rewardInfos) {
-      const owed = Number(ri.fields?.amount_owed || 0)
-      if (owed > 0) rewardAmount += owed / Math.pow(10, DECIMALS_DEEP)
+    for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
+      const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
+      if (!vaultType.endsWith(deepTypeSuffix)) continue
+
+      const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
+      const growthOutsideLower = BigInt(tickLowerData.reward_growths_outside[i])
+      const growthOutsideUpper = BigInt(tickUpperData.reward_growths_outside[i])
+      const growthInside = computeGrowthInside(
+        tickCurrent, tickLower, tickUpper,
+        growthGlobal, growthOutsideLower, growthOutsideUpper,
+      )
+      const posGrowthInside = BigInt(posRewardInfos[i].fields.reward_growth_inside)
+      const amountOwed = BigInt(posRewardInfos[i].fields.amount_owed)
+      const rewardRaw = amountOwed + subMod128(growthInside, posGrowthInside) * liquidity / Q64
+      rewardAmount += Number(rewardRaw) / Math.pow(10, DECIMALS_DEEP)
     }
     const pendingRewardsUsd = rewardAmount * deepPrice
 
