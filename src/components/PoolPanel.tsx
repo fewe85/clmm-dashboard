@@ -33,11 +33,6 @@ function formatTimestamp(iso: string | null): string {
   return `${diffH}h ${diffM}m ago`
 }
 
-const chainColors: Record<string, string> = {
-  sui: '#4da2ff',
-  aptos: '#2ed8a3',
-}
-
 export function PoolPanel({ pool, loading }: PoolPanelProps) {
   if (!pool && loading) {
     return (
@@ -56,34 +51,20 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
 
   if (!pool) return null
 
-  const chainColor = chainColors[pool.chain] || 'var(--accent-blue)'
   const totalApr = pool.feesApr + pool.rewardsApr
-  const wb = pool.walletBalance
   const bs = pool.botState
 
   return (
     <div
-      className="rounded-xl p-5 transition-colors"
+      className="rounded-lg p-4 transition-colors"
       style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
+        background: 'var(--bg-primary)',
       }}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-semibold">{pool.name}</h2>
-          <div className="flex items-center gap-2 mt-1">
-            <span
-              className="text-xs px-2 py-0.5 rounded-full font-medium"
-              style={{ background: `${chainColor}20`, color: chainColor }}
-            >
-              {pool.chain.toUpperCase()}
-            </span>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {pool.protocol}
-            </span>
-          </div>
+          <h2 className="text-base font-semibold">{pool.name}</h2>
         </div>
         <div className="flex flex-col items-end gap-1">
           <div
@@ -169,41 +150,6 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
           <span>{formatAmount(pool.amountB, 2)} {pool.tokenB}</span>
         </div>
       </div>
-
-      {/* Wallet Balance */}
-      {wb && (
-        <div
-          className="rounded-lg p-3 mb-3"
-          style={{ background: 'var(--bg-primary)' }}
-        >
-          <div className="flex justify-between items-baseline mb-1">
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Wallet Balance</span>
-            <span className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-              {formatUsd(wb.totalIdleUsd + wb.gasValueUsd)}
-            </span>
-          </div>
-          <div className="space-y-0.5 text-xs" style={{ color: 'var(--text-secondary)' }}>
-            <div className="flex justify-between">
-              <span>
-                {formatAmount(wb.gasBalance, wb.gasToken === 'APT' ? 4 : 4)} {wb.gasToken}
-                <span
-                  className="ml-1 px-1 py-px rounded text-xs"
-                  style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--accent-yellow)', fontSize: '10px' }}
-                >
-                  GAS
-                </span>
-              </span>
-              <span style={{ color: 'var(--text-muted)' }}>{formatUsd(wb.gasValueUsd)}</span>
-            </div>
-            {wb.idleBalances.map(b => (
-              <div key={b.token} className="flex justify-between">
-                <span>{formatAmount(b.amount, b.token === 'USDC' ? 2 : 4)} {b.token}</span>
-                <span style={{ color: 'var(--text-muted)' }}>{formatUsd(b.valueUsd)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Fees */}
       <div

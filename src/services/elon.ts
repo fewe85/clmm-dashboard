@@ -1,4 +1,4 @@
-import type { PoolData, WalletBalance } from '../types'
+import type { PoolData } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts } from './math'
 
 const RPC = 'https://fullnode.mainnet.aptoslabs.com/v1'
@@ -102,8 +102,7 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
   return Math.min((distFromCenter / halfRange) * 100, 100)
 }
 
-async function fetchWalletBalances(elonPriceUsdc: number): Promise<WalletBalance> {
-  // ELON balance only (USDC idle is tracked by APT pool to avoid double-counting)
+export async function fetchElonWalletRaw(): Promise<{ elon: number }> {
   let elonRaw = 0
   try {
     const result = await aptosView(
@@ -113,21 +112,7 @@ async function fetchWalletBalances(elonPriceUsdc: number): Promise<WalletBalance
     )
     elonRaw = Number(result[0] ?? 0)
   } catch { /* stay 0 */ }
-
-  const elonBalance = elonRaw / Math.pow(10, DECIMALS_ELON)
-  const elonValueUsd = elonBalance * elonPriceUsdc
-
-  // Gas: shared with APT bot, don't double-count
-  // Show 0 for gas since APT pool shows it
-  return {
-    gasToken: 'APT',
-    gasBalance: 0,
-    gasValueUsd: 0,
-    idleBalances: [
-      { token: 'ELON', amount: elonBalance, valueUsd: elonValueUsd },
-    ],
-    totalIdleUsd: elonValueUsd,
-  }
+  return { elon: elonRaw / Math.pow(10, DECIMALS_ELON) }
 }
 
 export async function fetchElonPoolData(): Promise<PoolData> {
@@ -266,8 +251,6 @@ export async function fetchElonPoolData(): Promise<PoolData> {
     const compoundPending = pendingFeesUsd + pendingRewardsUsd
     const triggerDistancePct = calcTriggerDistancePct(tickCurrent, tickLower, tickUpper)
 
-    const walletBalance = await fetchWalletBalances(elonPriceUsdc)
-
     return {
       name: 'ELON / USDC',
       chain: 'aptos',
@@ -295,7 +278,6 @@ export async function fetchElonPoolData(): Promise<PoolData> {
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
-      walletBalance,
       botState: null,
       feesApr: 0,
       rewardsApr: 0,
@@ -335,7 +317,6 @@ function makeErrorResult(error: string): PoolData {
     compoundPending: 0,
     compoundThreshold: 0,
     triggerDistancePct: 0,
-    walletBalance: null,
     botState: null,
     feesApr: 0,
     rewardsApr: 0,

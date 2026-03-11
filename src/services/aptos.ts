@@ -1,4 +1,4 @@
-import type { PoolData, WalletBalance } from '../types'
+import type { PoolData } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts } from './math'
 
 const RPC = 'https://fullnode.mainnet.aptoslabs.com/v1'
@@ -144,27 +144,14 @@ async function getCoinBalance(owner: string, coinType: string): Promise<number> 
   }
 }
 
-async function fetchWalletBalances(aptPrice: number): Promise<WalletBalance> {
+export async function fetchAptosWalletRaw(): Promise<{ apt: number; usdc: number }> {
   const [aptRaw, usdcRaw] = await Promise.all([
     getCoinBalance(BOT_WALLET, '0x1::aptos_coin::AptosCoin'),
     getCoinBalance(BOT_WALLET, COIN_USDC),
   ])
-
-  const aptBalance = aptRaw / Math.pow(10, DECIMALS_APT)
-  const usdcBalance = usdcRaw / Math.pow(10, DECIMALS_USDC)
-
-  const gasValueUsd = aptBalance * aptPrice
-
-  const idleBalances = [
-    { token: 'USDC', amount: usdcBalance, valueUsd: usdcBalance },
-  ]
-
   return {
-    gasToken: 'APT',
-    gasBalance: aptBalance,
-    gasValueUsd,
-    idleBalances,
-    totalIdleUsd: idleBalances.reduce((sum, b) => sum + b.valueUsd, 0),
+    apt: aptRaw / Math.pow(10, DECIMALS_APT),
+    usdc: usdcRaw / Math.pow(10, DECIMALS_USDC),
   }
 }
 
@@ -282,8 +269,6 @@ export async function fetchAptosPoolData(): Promise<PoolData> {
 
     const triggerDistancePct = calcTriggerDistancePct(tickCurrent, tickLower, tickUpper)
 
-    const walletBalance = await fetchWalletBalances(aptPrice)
-
     return {
       name: 'APT / USDC',
       chain: 'aptos',
@@ -311,7 +296,6 @@ export async function fetchAptosPoolData(): Promise<PoolData> {
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
-      walletBalance,
       botState: null, // filled by hook
       feesApr: 0, // calculated by hook
       rewardsApr: 0, // calculated by hook
@@ -351,7 +335,6 @@ function makeErrorResult(error: string): PoolData {
     compoundPending: 0,
     compoundThreshold: 0,
     triggerDistancePct: 0,
-    walletBalance: null,
     botState: null,
     feesApr: 0,
     rewardsApr: 0,

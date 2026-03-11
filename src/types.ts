@@ -38,10 +38,17 @@ export interface PoolData {
   compoundPending: number
   compoundThreshold: number
   triggerDistancePct: number
-  walletBalance: WalletBalance | null
   botState: BotState | null
   feesApr: number
   rewardsApr: number
   lastUpdated: number
   error?: string
+}
+
+export interface PoolGroup {
+  protocol: string
+  chain: 'sui' | 'aptos'
+  chainColor: string
+  walletBalance: WalletBalance | null
+  pools: PoolData[]
 }

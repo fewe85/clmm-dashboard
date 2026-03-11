@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { PoolData } from '../types'
-import { fetchSuiPoolData } from '../services/sui'
-import { fetchAptosPoolData } from '../services/aptos'
-import { fetchElonPoolData } from '../services/elon'
+import type { PoolData, PoolGroup, WalletBalance } from '../types'
+import { fetchSuiPoolData, fetchSuiWalletBalance } from '../services/sui'
+import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
+import { fetchElonPoolData, fetchElonWalletRaw } from '../services/elon'
 import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState } from '../services/botState'
 
 const REFRESH_INTERVAL = 60_000
@@ -27,22 +27,28 @@ function formatUptime(startIso: string): string {
 }
 
 export function usePoolData() {
-  const [suiPool, setSuiPool] = useState<PoolData | null>(null)
-  const [aptosPool, setAptosPool] = useState<PoolData | null>(null)
-  const [elonPool, setElonPool] = useState<PoolData | null>(null)
+  const [groups, setGroups] = useState<PoolGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    const [sui, aptos, elon, turbosState, thalaState, elonState] = await Promise.all([
-      fetchSuiPoolData(),
-      fetchAptosPoolData(),
-      fetchElonPoolData(),
-      fetchTurbosBotState(),
-      fetchThalaBotState(),
-      fetchElonBotState(),
-    ])
+    // Phase 1: fetch pool data + bot state + Thala wallet (no dependency on pool prices)
+    const [sui, aptos, elon, turbosState, thalaState, elonState, aptosWallet, elonWallet] =
+      await Promise.all([
+        fetchSuiPoolData(),
+        fetchAptosPoolData(),
+        fetchElonPoolData(),
+        fetchTurbosBotState(),
+        fetchThalaBotState(),
+        fetchElonBotState(),
+        fetchAptosWalletRaw().catch(() => ({ apt: 0, usdc: 0 })),
+        fetchElonWalletRaw().catch(() => ({ elon: 0 })),
+      ])
+
+    // Phase 2: Sui wallet needs DEEP price from pool data
+    const deepPrice = sui.currentPrice > 0 ? sui.currentPrice : 0.02
+    const suiWallet = await fetchSuiWalletBalance(deepPrice).catch(() => null)
 
     // Enrich with bot state and APR
     if (turbosState) {
@@ -71,14 +77,42 @@ export function usePoolData() {
       elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, lastAction)
       elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, lastAction)
     } else {
-      // Fallback: use bot start time when bot state is unavailable
       elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, ELON_BOT_START)
       elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, ELON_BOT_START)
     }
 
-    setSuiPool(sui)
-    setAptosPool(aptos)
-    setElonPool(elon)
+    // Build Thala shared wallet: APT (gas) + USDC + ELON
+    const aptPrice = aptos.currentPrice || 7.5 // APT/USDC price from pool data
+    const elonPrice = elon.currentPrice || 0.09
+    const thalaWallet: WalletBalance = {
+      gasToken: 'APT',
+      gasBalance: aptosWallet.apt,
+      gasValueUsd: aptosWallet.apt * aptPrice,
+      idleBalances: [
+        { token: 'USDC', amount: aptosWallet.usdc, valueUsd: aptosWallet.usdc },
+        { token: 'ELON', amount: elonWallet.elon, valueUsd: elonWallet.elon * elonPrice },
+      ],
+      totalIdleUsd: aptosWallet.usdc + elonWallet.elon * elonPrice,
+    }
+
+    // Build groups
+    const turbosGroup: PoolGroup = {
+      protocol: 'Turbos Finance',
+      chain: 'sui',
+      chainColor: '#4da2ff',
+      walletBalance: suiWallet,
+      pools: [sui],
+    }
+
+    const thalaGroup: PoolGroup = {
+      protocol: 'Thala Finance',
+      chain: 'aptos',
+      chainColor: '#2ed8a3',
+      walletBalance: thalaWallet,
+      pools: [aptos, elon],
+    }
+
+    setGroups([turbosGroup, thalaGroup])
     setLoading(false)
     setCountdown(REFRESH_INTERVAL / 1000)
   }, [])
@@ -96,12 +130,13 @@ export function usePoolData() {
     return () => clearInterval(timer)
   }, [])
 
-  // Totals: position + idle (excluding gas)
-  const totalPositionUsd = (suiPool?.positionValueUsd || 0) + (aptosPool?.positionValueUsd || 0) + (elonPool?.positionValueUsd || 0)
-  const totalIdleUsd = (suiPool?.walletBalance?.totalIdleUsd || 0) + (aptosPool?.walletBalance?.totalIdleUsd || 0) + (elonPool?.walletBalance?.totalIdleUsd || 0)
+  // Flatten pools for totals
+  const allPools = groups.flatMap(g => g.pools)
+  const totalPositionUsd = allPools.reduce((sum, p) => sum + p.positionValueUsd, 0)
+  const totalIdleUsd = groups.reduce((sum, g) => sum + (g.walletBalance?.totalIdleUsd || 0), 0)
   const totalValueUsd = totalPositionUsd + totalIdleUsd
-  const totalFeesUsd = (suiPool?.pendingFeesUsd || 0) + (aptosPool?.pendingFeesUsd || 0) + (elonPool?.pendingFeesUsd || 0)
-  const totalRewardsUsd = (suiPool?.pendingRewardsUsd || 0) + (aptosPool?.pendingRewardsUsd || 0) + (elonPool?.pendingRewardsUsd || 0)
+  const totalFeesUsd = allPools.reduce((sum, p) => sum + p.pendingFeesUsd, 0)
+  const totalRewardsUsd = allPools.reduce((sum, p) => sum + p.pendingRewardsUsd, 0)
 
   // P&L
   const pnlUsd = totalValueUsd + totalFeesUsd + totalRewardsUsd - INITIAL_CAPITAL
@@ -113,9 +148,7 @@ export function usePoolData() {
   const elonUptime = formatUptime(ELON_BOT_START)
 
   return {
-    suiPool,
-    aptosPool,
-    elonPool,
+    groups,
     loading,
     countdown,
     refresh,

@@ -105,7 +105,7 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
   return Math.min((distFromCenter / halfRange) * 100, 100)
 }
 
-async function fetchWalletBalances(deepPrice: number): Promise<WalletBalance> {
+export async function fetchSuiWalletBalance(deepPrice: number): Promise<WalletBalance> {
   const [suiRaw, deepRaw, usdcRaw] = await Promise.all([
     getCoinBalance(BOT_WALLET, '0x2::sui::SUI'),
     getCoinBalance(BOT_WALLET, COIN_DEEP),
@@ -243,9 +243,6 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
     // Trigger distance
     const triggerDistancePct = calcTriggerDistancePct(tickCurrent, tickLower, tickUpper)
 
-    // Wallet balances
-    const walletBalance = await fetchWalletBalances(deepPrice)
-
     return {
       name: 'DEEP / USDC',
       chain: 'sui',
@@ -273,7 +270,6 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
-      walletBalance,
       botState: null, // filled by hook
       feesApr: 0, // calculated by hook
       rewardsApr: 0, // calculated by hook
@@ -313,7 +309,6 @@ function makeErrorResult(error: string): PoolData {
     compoundPending: 0,
     compoundThreshold: 0,
     triggerDistancePct: 0,
-    walletBalance: null,
     botState: null,
     feesApr: 0,
     rewardsApr: 0,

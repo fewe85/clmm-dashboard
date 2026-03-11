@@ -1,12 +1,10 @@
 import { usePoolData } from './hooks/usePoolData'
-import { PoolPanel } from './components/PoolPanel'
+import { PoolGroup as PoolGroupComponent } from './components/PoolGroup'
 import { PerformanceSection } from './components/PerformanceSection'
 
 function App() {
   const {
-    suiPool,
-    aptosPool,
-    elonPool,
+    groups,
     loading,
     countdown,
     refresh,
@@ -69,11 +67,11 @@ function App() {
         />
       </div>
 
-      {/* Pool Panels */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <PoolPanel pool={suiPool} loading={loading} />
-        <PoolPanel pool={aptosPool} loading={loading} />
-        <PoolPanel pool={elonPool} loading={loading} />
+      {/* Pool Groups */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {groups.map(group => (
+          <PoolGroupComponent key={group.protocol} group={group} loading={loading} />
+        ))}
       </div>
 
       {/* Footer */}
