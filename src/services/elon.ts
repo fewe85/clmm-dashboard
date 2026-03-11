@@ -6,6 +6,8 @@ const INDEXER = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
 const POOL_ID = '0xf6ada118eaa45ddca28f74f1965b6f1f994bef5ebaf651c268238c2ea9ca5695'
 const BOT_WALLET = '0x89cd5907e16439a90c3661a72891667c3634ae6341820767490bbc7dc7b0752b'
 const CLMM_PACKAGE = '0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920'
+const FARMING_PACKAGE = '0xcb8365dc9f7ac6283169598aaad7db9c7b12f52da127007f37fa4565170ff59c'
+const THAPT_INCENTIVE = '0x4adf2625cacbac53ea9f67caffd4935c9f885df00e54e65e2447756fb3b6c905'
 const CLMM_COLLECTION = '0x9447845e7d0ff3d6ed532c23996b29e5db43ecbc33a6fa62ec5667f85fedb3f6'
 
 // Pool token order: token0=USDC(6), token1=ELON(8)
@@ -229,9 +231,36 @@ export async function fetchElonPoolData(): Promise<PoolData> {
     const positionValueUsd = amountElon * elonPriceUsdc + amountUsdc
     const pendingFeesUsd = feesElon * elonPriceUsdc + feesUsdc
 
-    // Rewards: THAPT incentive not yet discovered for ELON pool
-    const rewardAmount = 0
-    const pendingRewardsUsd = 0
+    // Rewards: thAPT via farming incentive
+    let rewardAmount = 0
+    try {
+      const stakeResult = await aptosView(
+        `${FARMING_PACKAGE}::farming::token_stakes`,
+        [],
+        [positionToken],
+      )
+      const stakes = stakeResult[0] as any[]
+      if (stakes.length > 0) {
+        const rewardResult = await aptosView(
+          `${FARMING_PACKAGE}::farming::pending_reward_info`,
+          [],
+          [positionToken, THAPT_INCENTIVE],
+        )
+        if (rewardResult) {
+          rewardAmount = Number(rewardResult[0]) / Math.pow(10, 8) // thAPT has 8 decimals
+        }
+      }
+    } catch { /* rewards stay 0 */ }
+    // thAPT ≈ APT price — fetch from APT/USDC pool
+    let aptPrice = 0.96 // fallback
+    try {
+      const aptPool = await aptosGet(
+        `/accounts/0xa8a355df7d9e75ef16082da2a0bad62c173a054ab1e8eae0f0e26c828adaa4ef/resource/${CLMM_PACKAGE}::pool::Pool`
+      ) as any
+      const aptSqrtPrice = BigInt(aptPool.data.sqrt_price)
+      aptPrice = sqrtPriceX64ToPrice(aptSqrtPrice, 8, 6) // APT(8) / USDC(6)
+    } catch { /* use fallback */ }
+    const pendingRewardsUsd = rewardAmount * aptPrice
 
     const compoundThreshold = positionValueUsd * 0.01
     const compoundPending = pendingFeesUsd + pendingRewardsUsd
