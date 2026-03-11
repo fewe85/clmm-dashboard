@@ -7,7 +7,7 @@ import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState } from '../s
 
 const REFRESH_INTERVAL = 60_000
 
-const INITIAL_CAPITAL = 140 // $55 DEEP/USDC + $50 APT/USDC + $35 ELON/USDC
+const INITIAL_CAPITAL = 155 // $55 DEEP/USDC + $50 APT/USDC + $50 ELON/USDC
 const SUI_BOT_START = '2026-03-07T00:00:00.000Z'
 const APT_BOT_START = '2026-03-10T00:00:00.000Z'
 const ELON_BOT_START = '2026-03-11T00:00:00.000Z'
