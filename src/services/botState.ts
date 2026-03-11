@@ -27,3 +27,12 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     lastCompoundAt: data.lastCompoundAt || null,
   }
 }
+
+export async function fetchElonBotState(): Promise<BotState | null> {
+  const data = await fetchJson('/api/bot-state/elon') as any
+  if (!data) return null
+  return {
+    lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
+    lastCompoundAt: data.lastCompoundAt || null,
+  }
+}

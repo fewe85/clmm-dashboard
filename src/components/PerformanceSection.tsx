@@ -9,6 +9,7 @@ interface PerformanceSectionProps {
   initialCapital: number
   suiUptime: string
   aptosUptime: string
+  elonUptime?: string
 }
 
 function formatUsd(n: number): string {
@@ -26,6 +27,7 @@ export function PerformanceSection({
   initialCapital,
   suiUptime,
   aptosUptime,
+  elonUptime,
 }: PerformanceSectionProps) {
   const pnlPositive = pnlUsd >= 0
 
@@ -83,6 +85,7 @@ export function PerformanceSection({
       >
         <span>DEEP/USDC Bot: <span style={{ color: 'var(--text-secondary)' }}>{suiUptime}</span></span>
         <span>APT/USDC Bot: <span style={{ color: 'var(--text-secondary)' }}>{aptosUptime}</span></span>
+        {elonUptime && <span>ELON/USDC Bot: <span style={{ color: 'var(--text-secondary)' }}>{elonUptime}</span></span>}
       </div>
     </div>
   )

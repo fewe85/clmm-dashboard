@@ -6,6 +6,7 @@ function App() {
   const {
     suiPool,
     aptosPool,
+    elonPool,
     loading,
     countdown,
     refresh,
@@ -18,11 +19,12 @@ function App() {
     pnlPct,
     suiUptime,
     aptosUptime,
+    elonUptime,
     initialCapital,
   } = usePoolData()
 
   return (
-    <div className="min-h-screen p-4 md:p-6 max-w-5xl mx-auto">
+    <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -63,13 +65,15 @@ function App() {
           initialCapital={initialCapital}
           suiUptime={suiUptime}
           aptosUptime={aptosUptime}
+          elonUptime={elonUptime}
         />
       </div>
 
       {/* Pool Panels */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <PoolPanel pool={suiPool} loading={loading} />
         <PoolPanel pool={aptosPool} loading={loading} />
+        <PoolPanel pool={elonPool} loading={loading} />
       </div>
 
       {/* Footer */}

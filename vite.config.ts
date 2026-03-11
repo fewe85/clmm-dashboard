@@ -14,7 +14,8 @@ export default defineConfig({
       configureServer(server) {
         const stateFiles: Record<string, string> = {
           '/api/bot-state/turbos': path.join(os.homedir(), 'claude-workspace/turbos-bot/state.json'),
-          '/api/bot-state/thala': path.join(os.homedir(), 'claude-workspace/thala-bot/state.json'),
+          '/api/bot-state/thala': path.join(os.homedir(), 'claude-workspace/thala-bot/apt-usdc/state.json'),
+          '/api/bot-state/elon': path.join(os.homedir(), 'claude-workspace/thala-bot/elon-usdc/state.json'),
         }
         server.middlewares.use((req, res, next) => {
           const filePath = stateFiles[req.url ?? '']
