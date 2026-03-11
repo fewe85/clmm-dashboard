@@ -47,23 +47,33 @@ export function usePoolData() {
     // Enrich with bot state and APR
     if (turbosState) {
       sui.botState = turbosState
-      const lastAction = turbosState.lastCompoundAt || turbosState.lastRebalanceAt
+      const lastAction = turbosState.lastCompoundAt || turbosState.lastRebalanceAt || SUI_BOT_START
       sui.feesApr = calcApr(sui.pendingFeesUsd, sui.positionValueUsd, lastAction)
       sui.rewardsApr = calcApr(sui.pendingRewardsUsd, sui.positionValueUsd, lastAction)
+    } else {
+      sui.feesApr = calcApr(sui.pendingFeesUsd, sui.positionValueUsd, SUI_BOT_START)
+      sui.rewardsApr = calcApr(sui.pendingRewardsUsd, sui.positionValueUsd, SUI_BOT_START)
     }
 
     if (thalaState) {
       aptos.botState = thalaState
-      const lastAction = thalaState.lastCompoundAt || thalaState.lastRebalanceAt
+      const lastAction = thalaState.lastCompoundAt || thalaState.lastRebalanceAt || APT_BOT_START
       aptos.feesApr = calcApr(aptos.pendingFeesUsd, aptos.positionValueUsd, lastAction)
       aptos.rewardsApr = calcApr(aptos.pendingRewardsUsd, aptos.positionValueUsd, lastAction)
+    } else {
+      aptos.feesApr = calcApr(aptos.pendingFeesUsd, aptos.positionValueUsd, APT_BOT_START)
+      aptos.rewardsApr = calcApr(aptos.pendingRewardsUsd, aptos.positionValueUsd, APT_BOT_START)
     }
 
     if (elonState) {
       elon.botState = elonState
-      const lastAction = elonState.lastCompoundAt || elonState.lastRebalanceAt
+      const lastAction = elonState.lastCompoundAt || elonState.lastRebalanceAt || ELON_BOT_START
       elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, lastAction)
       elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, lastAction)
+    } else {
+      // Fallback: use bot start time when bot state is unavailable
+      elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, ELON_BOT_START)
+      elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, ELON_BOT_START)
     }
 
     setSuiPool(sui)
