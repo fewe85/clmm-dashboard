@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import type { PoolData, PoolGroup, WalletBalance } from '../types'
+import type { PoolGroup, WalletBalance } from '../types'
 import { fetchSuiPoolData, fetchSuiWalletBalance } from '../services/sui'
 import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
 import { fetchElonPoolData, fetchElonWalletRaw } from '../services/elon'
