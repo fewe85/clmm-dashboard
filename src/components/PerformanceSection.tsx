@@ -7,9 +7,11 @@ interface PerformanceSectionProps {
   pnlUsd: number
   pnlPct: number
   initialCapital: number
-  suiUptime: string
+  deepUptime: string
+  walUptime: string
+  suiTurbosUptime: string
   aptosUptime: string
-  elonUptime?: string
+  elonUptime: string
 }
 
 function formatUsd(n: number): string {
@@ -25,7 +27,9 @@ export function PerformanceSection({
   pnlUsd,
   pnlPct,
   initialCapital,
-  suiUptime,
+  deepUptime,
+  walUptime,
+  suiTurbosUptime,
   aptosUptime,
   elonUptime,
 }: PerformanceSectionProps) {
@@ -80,12 +84,14 @@ export function PerformanceSection({
 
       {/* Bot uptime */}
       <div
-        className="flex gap-6 pt-3 text-xs"
+        className="flex flex-wrap gap-x-6 gap-y-1 pt-3 text-xs"
         style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
       >
-        <span>DEEP/USDC Bot: <span style={{ color: 'var(--text-secondary)' }}>{suiUptime}</span></span>
-        <span>APT/USDC Bot: <span style={{ color: 'var(--text-secondary)' }}>{aptosUptime}</span></span>
-        {elonUptime && <span>ELON/USDC Bot: <span style={{ color: 'var(--text-secondary)' }}>{elonUptime}</span></span>}
+        <span>DEEP/USDC: <span style={{ color: 'var(--text-secondary)' }}>{deepUptime}</span></span>
+        <span>WAL/USDC: <span style={{ color: 'var(--text-secondary)' }}>{walUptime}</span></span>
+        <span>SUI/TURBOS: <span style={{ color: 'var(--text-secondary)' }}>{suiTurbosUptime}</span></span>
+        <span>APT/USDC: <span style={{ color: 'var(--text-secondary)' }}>{aptosUptime}</span></span>
+        <span>ELON/USDC: <span style={{ color: 'var(--text-secondary)' }}>{elonUptime}</span></span>
       </div>
     </div>
   )

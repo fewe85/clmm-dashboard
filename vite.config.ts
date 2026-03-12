@@ -13,7 +13,9 @@ export default defineConfig({
       name: 'serve-bot-state',
       configureServer(server) {
         const stateFiles: Record<string, string> = {
-          '/api/bot-state/turbos': path.join(os.homedir(), 'claude-workspace/turbos-bot/state.json'),
+          '/api/bot-state/turbos': path.join(os.homedir(), 'claude-workspace/turbos-bot/deep-usdc/state.json'),
+          '/api/bot-state/wal': path.join(os.homedir(), 'claude-workspace/turbos-bot/wal-usdc/state.json'),
+          '/api/bot-state/sui-turbos': path.join(os.homedir(), 'claude-workspace/turbos-bot/sui-turbos/state.json'),
           '/api/bot-state/thala': path.join(os.homedir(), 'claude-workspace/thala-bot/apt-usdc/state.json'),
           '/api/bot-state/elon': path.join(os.homedir(), 'claude-workspace/thala-bot/elon-usdc/state.json'),
         }

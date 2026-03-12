@@ -15,7 +15,9 @@ function App() {
     totalRewardsUsd,
     pnlUsd,
     pnlPct,
-    suiUptime,
+    deepUptime,
+    walUptime,
+    suiTurbosUptime,
     aptosUptime,
     elonUptime,
     initialCapital,
@@ -61,7 +63,9 @@ function App() {
           pnlUsd={pnlUsd}
           pnlPct={pnlPct}
           initialCapital={initialCapital}
-          suiUptime={suiUptime}
+          deepUptime={deepUptime}
+          walUptime={walUptime}
+          suiTurbosUptime={suiTurbosUptime}
           aptosUptime={aptosUptime}
           elonUptime={elonUptime}
         />

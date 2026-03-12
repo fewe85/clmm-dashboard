@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { PoolGroup, WalletBalance } from '../types'
 import { fetchSuiPoolData, fetchSuiWalletBalance } from '../services/sui'
+import { fetchWalPoolData } from '../services/wal'
+import { fetchSuiTurbosPoolData } from '../services/suiTurbos'
 import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
 import { fetchElonPoolData, fetchElonWalletRaw } from '../services/elon'
-import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState } from '../services/botState'
+import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState, fetchWalBotState, fetchSuiTurbosBotState } from '../services/botState'
 
 const REFRESH_INTERVAL = 60_000
 
-const INITIAL_CAPITAL = 150 // $50 DEEP/USDC + $50 APT/USDC + $50 ELON/USDC
+const INITIAL_CAPITAL = 210 // $50 DEEP + $50 WAL + $10 SUI/TURBOS + $50 APT + $50 ELON
 const SUI_BOT_START = '2026-03-07T00:00:00.000Z'
+const WAL_BOT_START = '2026-03-12T00:00:00.000Z'
+const SUI_TURBOS_BOT_START = '2026-03-12T00:00:00.000Z'
 const APT_BOT_START = '2026-03-10T00:00:00.000Z'
 const ELON_BOT_START = '2026-03-11T00:00:00.000Z'
 
@@ -17,6 +21,15 @@ function calcApr(pendingUsd: number, positionValueUsd: number, lastActionAt: str
   const hoursElapsed = (Date.now() - new Date(lastActionAt).getTime()) / (1000 * 60 * 60)
   if (hoursElapsed <= 0) return 0
   return (pendingUsd / positionValueUsd) * (365 * 24 / hoursElapsed) * 100
+}
+
+function latestAction(...dates: (string | null | undefined)[]): string | null {
+  let best: string | null = null
+  for (const d of dates) {
+    if (!d) continue
+    if (!best || new Date(d).getTime() > new Date(best).getTime()) best = d
+  }
+  return best
 }
 
 function formatUptime(startIso: string): string {
@@ -33,37 +46,71 @@ export function usePoolData() {
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    // Phase 1: fetch pool data + bot state + Thala wallet (no dependency on pool prices)
-    const [sui, aptos, elon, turbosState, thalaState, elonState, aptosWallet, elonWallet] =
-      await Promise.all([
-        fetchSuiPoolData(),
-        fetchAptosPoolData(),
-        fetchElonPoolData(),
-        fetchTurbosBotState(),
-        fetchThalaBotState(),
-        fetchElonBotState(),
-        fetchAptosWalletRaw().catch(() => ({ apt: 0, usdc: 0 })),
-        fetchElonWalletRaw().catch(() => ({ elon: 0 })),
-      ])
+    // Phase 1: fetch all pool data + bot states + wallets in parallel
+    const [
+      deep, wal, suiTurbos, aptos, elon,
+      turbosState, walState, suiTurbosState, thalaState, elonState,
+      aptosWallet, elonWallet,
+    ] = await Promise.all([
+      fetchSuiPoolData(),
+      fetchWalPoolData().catch(() => null),
+      fetchSuiTurbosPoolData().catch(() => null),
+      fetchAptosPoolData(),
+      fetchElonPoolData(),
+      fetchTurbosBotState(),
+      fetchWalBotState(),
+      fetchSuiTurbosBotState(),
+      fetchThalaBotState(),
+      fetchElonBotState(),
+      fetchAptosWalletRaw().catch(() => ({ apt: 0, usdc: 0 })),
+      fetchElonWalletRaw().catch(() => ({ elon: 0 })),
+    ])
 
-    // Phase 2: Sui wallet needs DEEP price from pool data
-    const deepPrice = sui.currentPrice > 0 ? sui.currentPrice : 0.02
+    // Phase 2: Sui wallet needs DEEP price
+    const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
     const suiWallet = await fetchSuiWalletBalance(deepPrice).catch(() => null)
 
-    // Enrich with bot state and APR
+    // Enrich DEEP/USDC with bot state and APR
     if (turbosState) {
-      sui.botState = turbosState
-      const lastAction = turbosState.lastCompoundAt || turbosState.lastRebalanceAt || SUI_BOT_START
-      sui.feesApr = calcApr(sui.pendingFeesUsd, sui.positionValueUsd, lastAction)
-      sui.rewardsApr = calcApr(sui.pendingRewardsUsd, sui.positionValueUsd, lastAction)
+      deep.botState = turbosState
+      const lastAction = latestAction(turbosState.lastCompoundAt, turbosState.lastRebalanceAt) || SUI_BOT_START
+      deep.feesApr = calcApr(deep.pendingFeesUsd, deep.positionValueUsd, lastAction)
+      deep.rewardsApr = calcApr(deep.pendingRewardsUsd, deep.positionValueUsd, lastAction)
     } else {
-      sui.feesApr = calcApr(sui.pendingFeesUsd, sui.positionValueUsd, SUI_BOT_START)
-      sui.rewardsApr = calcApr(sui.pendingRewardsUsd, sui.positionValueUsd, SUI_BOT_START)
+      deep.feesApr = calcApr(deep.pendingFeesUsd, deep.positionValueUsd, SUI_BOT_START)
+      deep.rewardsApr = calcApr(deep.pendingRewardsUsd, deep.positionValueUsd, SUI_BOT_START)
     }
 
+    // Enrich WAL/USDC
+    if (wal) {
+      if (walState) {
+        wal.botState = walState
+        const lastAction = latestAction(walState.lastCompoundAt, walState.lastRebalanceAt) || WAL_BOT_START
+        wal.feesApr = calcApr(wal.pendingFeesUsd, wal.positionValueUsd, lastAction)
+        wal.rewardsApr = calcApr(wal.pendingRewardsUsd, wal.positionValueUsd, lastAction)
+      } else {
+        wal.feesApr = calcApr(wal.pendingFeesUsd, wal.positionValueUsd, WAL_BOT_START)
+        wal.rewardsApr = calcApr(wal.pendingRewardsUsd, wal.positionValueUsd, WAL_BOT_START)
+      }
+    }
+
+    // Enrich SUI/TURBOS
+    if (suiTurbos) {
+      if (suiTurbosState) {
+        suiTurbos.botState = suiTurbosState
+        const lastAction = latestAction(suiTurbosState.lastCompoundAt, suiTurbosState.lastRebalanceAt) || SUI_TURBOS_BOT_START
+        suiTurbos.feesApr = calcApr(suiTurbos.pendingFeesUsd, suiTurbos.positionValueUsd, lastAction)
+        suiTurbos.rewardsApr = calcApr(suiTurbos.pendingRewardsUsd, suiTurbos.positionValueUsd, lastAction)
+      } else {
+        suiTurbos.feesApr = calcApr(suiTurbos.pendingFeesUsd, suiTurbos.positionValueUsd, SUI_TURBOS_BOT_START)
+        suiTurbos.rewardsApr = calcApr(suiTurbos.pendingRewardsUsd, suiTurbos.positionValueUsd, SUI_TURBOS_BOT_START)
+      }
+    }
+
+    // Enrich APT/USDC
     if (thalaState) {
       aptos.botState = thalaState
-      const lastAction = thalaState.lastCompoundAt || thalaState.lastRebalanceAt || APT_BOT_START
+      const lastAction = latestAction(thalaState.lastCompoundAt, thalaState.lastRebalanceAt) || APT_BOT_START
       aptos.feesApr = calcApr(aptos.pendingFeesUsd, aptos.positionValueUsd, lastAction)
       aptos.rewardsApr = calcApr(aptos.pendingRewardsUsd, aptos.positionValueUsd, lastAction)
     } else {
@@ -71,9 +118,10 @@ export function usePoolData() {
       aptos.rewardsApr = calcApr(aptos.pendingRewardsUsd, aptos.positionValueUsd, APT_BOT_START)
     }
 
+    // Enrich ELON/USDC
     if (elonState) {
       elon.botState = elonState
-      const lastAction = elonState.lastCompoundAt || elonState.lastRebalanceAt || ELON_BOT_START
+      const lastAction = latestAction(elonState.lastCompoundAt, elonState.lastRebalanceAt) || ELON_BOT_START
       elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, lastAction)
       elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, lastAction)
     } else {
@@ -81,8 +129,8 @@ export function usePoolData() {
       elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, ELON_BOT_START)
     }
 
-    // Build Thala shared wallet: APT (gas) + USDC + ELON
-    const aptPrice = aptos.currentPrice || 7.5 // APT/USDC price from pool data
+    // Build Thala shared wallet
+    const aptPrice = aptos.currentPrice || 7.5
     const elonPrice = elon.currentPrice || 0.09
     const thalaWallet: WalletBalance = {
       gasToken: 'APT',
@@ -95,13 +143,18 @@ export function usePoolData() {
       totalIdleUsd: aptosWallet.usdc + elonWallet.elon * elonPrice,
     }
 
+    // Build Turbos pools array (DEEP + WAL + SUI/TURBOS)
+    const turbosPools = [deep]
+    if (wal) turbosPools.push(wal)
+    if (suiTurbos) turbosPools.push(suiTurbos)
+
     // Build groups
     const turbosGroup: PoolGroup = {
       protocol: 'Turbos Finance',
       chain: 'sui',
       chainColor: '#4da2ff',
       walletBalance: suiWallet,
-      pools: [sui],
+      pools: turbosPools,
     }
 
     const thalaGroup: PoolGroup = {
@@ -143,7 +196,9 @@ export function usePoolData() {
   const pnlPct = INITIAL_CAPITAL > 0 ? (pnlUsd / INITIAL_CAPITAL) * 100 : 0
 
   // Uptime
-  const suiUptime = formatUptime(SUI_BOT_START)
+  const deepUptime = formatUptime(SUI_BOT_START)
+  const walUptime = formatUptime(WAL_BOT_START)
+  const suiTurbosUptime = formatUptime(SUI_TURBOS_BOT_START)
   const aptosUptime = formatUptime(APT_BOT_START)
   const elonUptime = formatUptime(ELON_BOT_START)
 
@@ -159,7 +214,9 @@ export function usePoolData() {
     totalRewardsUsd,
     pnlUsd,
     pnlPct,
-    suiUptime,
+    deepUptime,
+    walUptime,
+    suiTurbosUptime,
     aptosUptime,
     elonUptime,
     initialCapital: INITIAL_CAPITAL,

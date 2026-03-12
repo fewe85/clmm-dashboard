@@ -36,3 +36,21 @@ export async function fetchElonBotState(): Promise<BotState | null> {
     lastCompoundAt: data.lastCompoundAt || null,
   }
 }
+
+export async function fetchWalBotState(): Promise<BotState | null> {
+  const data = await fetchJson('/api/bot-state/wal') as any
+  if (!data || !data.openedAt) return null
+  return {
+    lastRebalanceAt: data.openedAt,
+    lastCompoundAt: data.lastCompoundAt || data.openedAt,
+  }
+}
+
+export async function fetchSuiTurbosBotState(): Promise<BotState | null> {
+  const data = await fetchJson('/api/bot-state/sui-turbos') as any
+  if (!data || !data.openedAt) return null
+  return {
+    lastRebalanceAt: data.openedAt,
+    lastCompoundAt: data.lastCompoundAt || data.openedAt,
+  }
+}
