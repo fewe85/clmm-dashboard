@@ -46,6 +46,7 @@ export interface PoolData {
   rewardsApr: number
   lastUpdated: number
   error?: string
+  stale?: boolean
 }
 
 export interface PoolPerformance {

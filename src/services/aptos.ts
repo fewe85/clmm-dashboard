@@ -1,8 +1,7 @@
 import type { PoolData } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts } from './math'
+import { aptosGet, aptosView, aptosIndexer } from './aptosRpc'
 
-const RPC = 'https://api.mainnet.aptoslabs.com/v1'
-const INDEXER = 'https://api.mainnet.aptoslabs.com/v1/graphql'
 const POOL_ID = '0xa8a355df7d9e75ef16082da2a0bad62c173a054ab1e8eae0f0e26c828adaa4ef'
 const BOT_WALLET = '0x89cd5907e16439a90c3661a72891667c3634ae6341820767490bbc7dc7b0752b'
 const CLMM_PACKAGE = '0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920'
@@ -15,36 +14,6 @@ const DECIMALS_USDC = 6
 
 const COIN_USDC = '0xf22bede237a07e121b56d91a491eb7bcdfd1f5907926a9e58338f964a01b17fa::asset::USDC'
 
-async function aptosGet(path: string): Promise<unknown> {
-  const res = await fetch(`${RPC}${path}`)
-  if (!res.ok) throw new Error(`Aptos API error: ${res.status}`)
-  return res.json()
-}
-
-async function aptosView(func: string, typeArgs: string[], args: string[]): Promise<unknown[]> {
-  const res = await fetch(`${RPC}/view`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      function: func,
-      type_arguments: typeArgs,
-      arguments: args,
-    }),
-  })
-  if (!res.ok) throw new Error(`Aptos view error: ${res.status}`)
-  return res.json()
-}
-
-async function aptosIndexer(query: string, variables: Record<string, unknown>): Promise<unknown> {
-  const res = await fetch(INDEXER, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  })
-  if (!res.ok) throw new Error(`Aptos indexer error: ${res.status}`)
-  return res.json()
-}
-
 async function getPoolResource(): Promise<Record<string, unknown>> {
   const data = await aptosGet(
     `/accounts/${POOL_ID}/resource/${CLMM_PACKAGE}::pool::Pool`
@@ -52,7 +21,16 @@ async function getPoolResource(): Promise<Record<string, unknown>> {
   return (data as any).data
 }
 
+// Position token cache (changes only on rebalance — cache 5 min)
+let _cachedPositionToken: string | null = null
+let _positionTokenTs = 0
+const POSITION_CACHE_TTL = 300_000 // 5 min
+
 async function findPositionToken(): Promise<string | null> {
+  if (_cachedPositionToken && Date.now() - _positionTokenTs < POSITION_CACHE_TTL) {
+    return _cachedPositionToken
+  }
+
   try {
     const result = await aptosIndexer(
       `query GetMintedPositions($wallet: String!, $collection: String!) {
@@ -79,7 +57,7 @@ async function findPositionToken(): Promise<string | null> {
     const minted = result?.data?.token_activities_v2 ?? []
     if (minted.length === 0) {
       console.warn('No minted CLMM positions found via indexer')
-      return null
+      return _cachedPositionToken // return stale if available
     }
 
     const sorted = minted.sort((a: any, b: any) => {
@@ -88,11 +66,12 @@ async function findPositionToken(): Promise<string | null> {
       return bId - aId
     })
 
-    console.log(`Found ${minted.length} minted position(s). Latest: ${sorted[0].current_token_data?.token_name}`)
-    return sorted[0].token_data_id
+    _cachedPositionToken = sorted[0].token_data_id
+    _positionTokenTs = Date.now()
+    return _cachedPositionToken
   } catch (err) {
     console.error('Indexer query failed:', err)
-    return null
+    return _cachedPositionToken // return stale if available
   }
 }
 

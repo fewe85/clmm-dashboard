@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { PoolGroup, PoolPerformance, WalletBalance } from '../types'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import type { PoolData, PoolGroup, PoolPerformance, WalletBalance } from '../types'
 import { fetchSuiPoolData, fetchSuiWalletBalance, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
 import { fetchSuiTurbosPoolData } from '../services/suiTurbos'
@@ -7,7 +7,7 @@ import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
 import { fetchElonPoolData, fetchElonWalletRaw } from '../services/elon'
 import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState, fetchWalBotState, fetchSuiTurbosBotState } from '../services/botState'
 
-const REFRESH_INTERVAL = 60_000
+const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
 
 const INITIAL_CAPITAL = 210 // $50 DEEP + $50 WAL + $10 SUI/TURBOS + $50 APT + $50 ELON
 const SUI_BOT_START = '2026-03-07T00:00:00.000Z'
@@ -104,25 +104,40 @@ function calcPoolPerformance(
   }
 }
 
+// If a fetch returns an error result, use last good data instead (marked stale)
+function useLastGood(fresh: PoolData, key: string, cache: React.RefObject<Map<string, PoolData>>): PoolData {
+  if (!fresh.error) {
+    cache.current.set(key, fresh)
+    return fresh
+  }
+  const prev = cache.current.get(key)
+  if (prev) {
+    return { ...prev, stale: true, lastUpdated: Date.now(), error: fresh.error }
+  }
+  return fresh // first load failed — no cached data yet
+}
+
 export function usePoolData() {
   const [groups, setGroups] = useState<PoolGroup[]>([])
   const [poolPerformances, setPoolPerformances] = useState<PoolPerformance[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
+  const poolCache = useRef(new Map<string, PoolData>())
 
   const refresh = useCallback(async () => {
     setLoading(true)
     // Phase 1: fetch all pool data + bot states + wallets in parallel
+    // All fetches wrapped in .catch() so one failure doesn't kill everything
     const [
-      deep, wal, suiTurbos, aptos, elon,
+      deepRaw, wal, suiTurbos, aptosRaw, elonRaw,
       turbosState, walState, suiTurbosState, thalaState, elonState,
       aptosWallet, elonWallet,
     ] = await Promise.all([
-      fetchSuiPoolData(),
+      fetchSuiPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchWalPoolData().catch(() => null),
       fetchSuiTurbosPoolData().catch(() => null),
-      fetchAptosPoolData(),
-      fetchElonPoolData(),
+      fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
+      fetchElonPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchTurbosBotState(),
       fetchWalBotState(),
       fetchSuiTurbosBotState(),
@@ -131,6 +146,11 @@ export function usePoolData() {
       fetchAptosWalletRaw().catch(() => ({ apt: 0, usdc: 0 })),
       fetchElonWalletRaw().catch(() => ({ elon: 0 })),
     ])
+
+    // Use last good data when fetches fail
+    const deep = useLastGood(deepRaw, 'deep', poolCache)
+    const aptos = useLastGood(aptosRaw, 'aptos', poolCache)
+    const elon = useLastGood(elonRaw, 'elon', poolCache)
 
     // Phase 2: Sui wallet needs DEEP price + SUI/USD price
     const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02

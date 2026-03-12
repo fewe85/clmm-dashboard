@@ -88,13 +88,21 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
         </div>
       </div>
 
-      {/* Error */}
-      {pool.error && (
+      {/* Error / Stale indicator */}
+      {pool.error && !pool.stale && (
         <div
           className="text-xs px-3 py-2 rounded-lg mb-3"
           style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--accent-red)' }}
         >
           {pool.error}
+        </div>
+      )}
+      {pool.stale && (
+        <div
+          className="text-xs px-3 py-2 rounded-lg mb-3"
+          style={{ background: 'rgba(234,179,8,0.1)', color: 'var(--accent-yellow)' }}
+        >
+          RPC rate-limited — showing cached data
         </div>
       )}
 

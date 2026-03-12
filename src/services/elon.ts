@@ -1,8 +1,7 @@
 import type { PoolData } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts } from './math'
+import { aptosGet, aptosView, aptosIndexer } from './aptosRpc'
 
-const RPC = 'https://api.mainnet.aptoslabs.com/v1'
-const INDEXER = 'https://api.mainnet.aptoslabs.com/v1/graphql'
 const POOL_ID = '0xf6ada118eaa45ddca28f74f1965b6f1f994bef5ebaf651c268238c2ea9ca5695'
 const BOT_WALLET = '0x89cd5907e16439a90c3661a72891667c3634ae6341820767490bbc7dc7b0752b'
 const CLMM_PACKAGE = '0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920'
@@ -17,36 +16,6 @@ const DECIMALS_ELON = 8  // token1
 
 const ELON_METADATA = '0xfc087a394c203d62c43eecfeba79db01441d39dd9d234131b78415626a26750e'
 
-async function aptosView(func: string, typeArgs: string[], args: string[]): Promise<unknown[]> {
-  const res = await fetch(`${RPC}/view`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      function: func,
-      type_arguments: typeArgs,
-      arguments: args,
-    }),
-  })
-  if (!res.ok) throw new Error(`Aptos view error: ${res.status}`)
-  return res.json()
-}
-
-async function aptosIndexer(query: string, variables: Record<string, unknown>): Promise<unknown> {
-  const res = await fetch(INDEXER, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  })
-  if (!res.ok) throw new Error(`Aptos indexer error: ${res.status}`)
-  return res.json()
-}
-
-async function aptosGet(path: string): Promise<unknown> {
-  const res = await fetch(`${RPC}${path}`)
-  if (!res.ok) throw new Error(`Aptos API error: ${res.status}`)
-  return res.json()
-}
-
 async function getPoolResource(): Promise<Record<string, unknown>> {
   const data = await aptosGet(
     `/accounts/${POOL_ID}/resource/${CLMM_PACKAGE}::pool::Pool`
@@ -54,7 +23,16 @@ async function getPoolResource(): Promise<Record<string, unknown>> {
   return (data as any).data
 }
 
+// Position token cache (changes only on rebalance — cache 5 min)
+let _cachedPositionToken: string | null = null
+let _positionTokenTs = 0
+const POSITION_CACHE_TTL = 300_000 // 5 min
+
 async function findPositionToken(): Promise<string | null> {
+  if (_cachedPositionToken && Date.now() - _positionTokenTs < POSITION_CACHE_TTL) {
+    return _cachedPositionToken
+  }
+
   try {
     const result = await aptosIndexer(
       `query GetMintedPositions($wallet: String!, $collection: String!) {
@@ -79,7 +57,7 @@ async function findPositionToken(): Promise<string | null> {
     ) as any
 
     const minted = result?.data?.token_activities_v2 ?? []
-    if (minted.length === 0) return null
+    if (minted.length === 0) return _cachedPositionToken // return stale if available
 
     const sorted = minted.sort((a: any, b: any) => {
       const aId = parseInt(a.current_token_data?.token_name?.split(':')[1] ?? '0')
@@ -87,10 +65,12 @@ async function findPositionToken(): Promise<string | null> {
       return bId - aId
     })
 
-    return sorted[0].token_data_id
+    _cachedPositionToken = sorted[0].token_data_id
+    _positionTokenTs = Date.now()
+    return _cachedPositionToken
   } catch (err) {
     console.error('ELON indexer query failed:', err)
-    return null
+    return _cachedPositionToken // return stale if available
   }
 }
 
@@ -237,7 +217,7 @@ export async function fetchElonPoolData(): Promise<PoolData> {
       }
     } catch { /* rewards stay 0 */ }
     // thAPT ≈ APT price — fetch from APT/USDC pool
-    let aptPrice = 0.96 // fallback
+    let aptPrice = 7.5 // fallback (approximate APT/USD, not thAPT/APT ratio)
     try {
       const aptPool = await aptosGet(
         `/accounts/0xa8a355df7d9e75ef16082da2a0bad62c173a054ab1e8eae0f0e26c828adaa4ef/resource/${CLMM_PACKAGE}::pool::Pool`
