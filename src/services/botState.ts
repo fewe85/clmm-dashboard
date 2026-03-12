@@ -16,6 +16,9 @@ export async function fetchTurbosBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.openedAt, // openedAt = last rebalance (new position)
     lastCompoundAt: data.lastCompoundAt || data.openedAt,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedDeep || 0) / 1e6,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }
 
@@ -25,6 +28,9 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0) / 1e8,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }
 
@@ -34,6 +40,9 @@ export async function fetchElonBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }
 
@@ -43,6 +52,9 @@ export async function fetchWalBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.openedAt,
     lastCompoundAt: data.lastCompoundAt || data.openedAt,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedWal || 0) / 1e9,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }
 
@@ -52,5 +64,8 @@ export async function fetchSuiTurbosBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.openedAt,
     lastCompoundAt: data.lastCompoundAt || data.openedAt,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedTurbos || 0) / 1e9,
+    totalFeesCollectedB: Number(data.totalFeesCollectedSui || 0) / 1e9,
   }
 }

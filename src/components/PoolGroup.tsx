@@ -20,6 +20,14 @@ function formatAmount(n: number, decimals: number = 4): string {
 
 export function PoolGroup({ group, loading }: PoolGroupProps) {
   const wb = group.walletBalance
+  const poolCount = group.pools.length
+
+  // Responsive grid: 1 col mobile, then match pool count on desktop
+  const gridClass = poolCount >= 3
+    ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+    : poolCount === 2
+      ? 'grid-cols-1 md:grid-cols-2'
+      : 'grid-cols-1'
 
   return (
     <div>
@@ -91,7 +99,7 @@ export function PoolGroup({ group, loading }: PoolGroupProps) {
           borderRight: '1px solid var(--border)',
         }}
       >
-        <div className={`grid gap-3 ${group.pools.length > 1 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+        <div className={`grid gap-3 ${gridClass}`}>
           {group.pools.map(pool => (
             <PoolPanel key={pool.name} pool={pool} loading={loading} />
           ))}

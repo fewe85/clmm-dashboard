@@ -5,6 +5,7 @@ import { PerformanceSection } from './components/PerformanceSection'
 function App() {
   const {
     groups,
+    poolPerformances,
     loading,
     countdown,
     refresh,
@@ -21,10 +22,15 @@ function App() {
     aptosUptime,
     elonUptime,
     initialCapital,
+    totalNetProfit,
+    totalFeesEarned,
+    totalHodlValue,
+    totalLpValue,
+    totalRebalances,
   } = usePoolData()
 
   return (
-    <div className="min-h-screen p-4 md:p-6 max-w-7xl mx-auto">
+    <div className="min-h-screen p-4 md:p-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -52,7 +58,7 @@ function App() {
         </div>
       </div>
 
-      {/* Performance Overview */}
+      {/* Performance Overview + Analysis */}
       <div className="mb-6">
         <PerformanceSection
           totalPositionUsd={totalPositionUsd}
@@ -68,11 +74,17 @@ function App() {
           suiTurbosUptime={suiTurbosUptime}
           aptosUptime={aptosUptime}
           elonUptime={elonUptime}
+          poolPerformances={poolPerformances}
+          totalNetProfit={totalNetProfit}
+          totalFeesEarned={totalFeesEarned}
+          totalHodlValue={totalHodlValue}
+          totalLpValue={totalLpValue}
+          totalRebalances={totalRebalances}
         />
       </div>
 
-      {/* Pool Groups */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      {/* Pool Groups — full width, each group uses its own grid */}
+      <div className="space-y-4">
         {groups.map(group => (
           <PoolGroupComponent key={group.protocol} group={group} loading={loading} />
         ))}

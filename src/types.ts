@@ -9,6 +9,9 @@ export interface WalletBalance {
 export interface BotState {
   lastRebalanceAt: string | null
   lastCompoundAt: string | null
+  totalRebalances: number
+  totalFeesCollectedA: number // raw base units converted to human
+  totalFeesCollectedB: number
 }
 
 export interface PoolData {
@@ -43,6 +46,23 @@ export interface PoolData {
   rewardsApr: number
   lastUpdated: number
   error?: string
+}
+
+export interface PoolPerformance {
+  poolName: string
+  initialInvestment: number
+  startPrice: number       // price of tokenA at start (in tokenB/USD)
+  currentPrice: number
+  hodlValueUsd: number     // what 50/50 hold would be worth now
+  lpValueUsd: number       // position + pending fees + pending rewards
+  outperformanceUsd: number
+  outperformancePct: number
+  totalFeesEarnedUsd: number  // cumulative (collected + pending)
+  totalRebalances: number
+  netProfitUsd: number     // lpValue - initialInvestment
+  netProfitPct: number
+  daysRunning: number
+  realizedApr: number      // annualized net profit %
 }
 
 export interface PoolGroup {
