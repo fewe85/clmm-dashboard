@@ -1,8 +1,8 @@
 import type { PoolData } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts } from './math'
 
-const RPC = 'https://fullnode.mainnet.aptoslabs.com/v1'
-const INDEXER = 'https://indexer.mainnet.aptoslabs.com/v1/graphql'
+const RPC = 'https://api.mainnet.aptoslabs.com/v1'
+const INDEXER = 'https://api.mainnet.aptoslabs.com/v1/graphql'
 const POOL_ID = '0xf6ada118eaa45ddca28f74f1965b6f1f994bef5ebaf651c268238c2ea9ca5695'
 const BOT_WALLET = '0x89cd5907e16439a90c3661a72891667c3634ae6341820767490bbc7dc7b0752b'
 const CLMM_PACKAGE = '0x075b4890de3e312d9425408c43d9a9752b64ab3562a30e89a55bdc568c645920'
