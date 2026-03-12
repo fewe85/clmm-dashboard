@@ -13,8 +13,8 @@ const DECIMALS_SUI = 9
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
 
-// Rough SUI/USD estimate for converting position value to USD
-const SUI_USD_ESTIMATE = 3.5
+// Pool<SUI(9), USDC(6)> for live SUI/USD price
+const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -90,10 +90,15 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
 
 export async function fetchSuiTurbosPoolData(): Promise<PoolData> {
   try {
-    const [poolObj, ownedObjects] = await Promise.all([
+    const [poolObj, ownedObjects, suiUsdcObj] = await Promise.all([
       getObject(POOL_ID),
       getOwnedObjects(BOT_WALLET),
+      getObject(USDC_SUI_POOL),
     ])
+
+    // Live SUI/USD price from USDC/SUI pool
+    const suiUsdcFields = (suiUsdcObj as any).data.content.fields
+    const SUI_USD = sqrtPriceX64ToPrice(BigInt(suiUsdcFields.sqrt_price), 9, 6)
 
     const poolContent = (poolObj as any).data.content.fields
     const sqrtPrice = BigInt(poolContent.sqrt_price)
@@ -144,7 +149,7 @@ export async function fetchSuiTurbosPoolData(): Promise<PoolData> {
     // Convert to USD: TURBOS value in SUI * SUI/USD + SUI * SUI/USD
     const turbosValueSui = amountA * currentPrice
     const positionValueSui = turbosValueSui + amountB
-    const positionValueUsd = positionValueSui * SUI_USD_ESTIMATE
+    const positionValueUsd = positionValueSui * SUI_USD
 
     // Pending fees
     const feeGrowthInsideA = computeGrowthInside(
@@ -167,7 +172,7 @@ export async function fetchSuiTurbosPoolData(): Promise<PoolData> {
     const feesA = Number(feesARaw) / Math.pow(10, DECIMALS_TURBOS) // TURBOS fees
     const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_SUI)    // SUI fees
     const pendingFeesSui = feesA * currentPrice + feesB
-    const pendingFeesUsd = pendingFeesSui * SUI_USD_ESTIMATE
+    const pendingFeesUsd = pendingFeesSui * SUI_USD
 
     // Rewards (TURBOS + SUI incentives)
     const poolRewardInfos = poolContent.reward_infos || []
@@ -196,7 +201,7 @@ export async function fetchSuiTurbosPoolData(): Promise<PoolData> {
         rewardSui += suiReward
       }
     }
-    const pendingRewardsUsd = rewardSui * SUI_USD_ESTIMATE
+    const pendingRewardsUsd = rewardSui * SUI_USD
 
     const compoundThreshold = positionValueUsd * 0.01
     const compoundPending = pendingFeesUsd + pendingRewardsUsd

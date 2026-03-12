@@ -10,6 +10,9 @@ const DECIMALS_DEEP = 6
 const DECIMALS_USDC = 6
 const DECIMALS_SUI = 9
 
+// Pool<SUI(9), USDC(6)> for live SUI/USD price
+const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
+
 const COIN_DEEP = '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP'
 const COIN_USDC = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC'
 
@@ -62,6 +65,19 @@ async function getCoinBalance(owner: string, coinType: string): Promise<number> 
   }
 }
 
+// Fetch live SUI/USD price from on-chain USDC/SUI pool
+export async function fetchSuiUsdPrice(): Promise<number> {
+  try {
+    const obj = await getObject(USDC_SUI_POOL)
+    const fields = (obj as any).data.content.fields
+    const sqrtPrice = BigInt(fields.sqrt_price)
+    // Pool<SUI(9), USDC(6)>: price = USDC per SUI
+    return sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_SUI, DECIMALS_USDC)
+  } catch {
+    return 1.0 // fallback
+  }
+}
+
 // Modular subtraction for u128 fee_growth values (unsigned wraparound)
 function subMod128(a: bigint, b: bigint): bigint {
   return ((a - b) % Q128 + Q128) % Q128
@@ -105,7 +121,7 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
   return Math.min((distFromCenter / halfRange) * 100, 100)
 }
 
-export async function fetchSuiWalletBalance(deepPrice: number): Promise<WalletBalance> {
+export async function fetchSuiWalletBalance(deepPrice: number, suiUsdPrice: number): Promise<WalletBalance> {
   const [suiRaw, deepRaw, usdcRaw] = await Promise.all([
     getCoinBalance(BOT_WALLET, '0x2::sui::SUI'),
     getCoinBalance(BOT_WALLET, COIN_DEEP),
@@ -116,10 +132,7 @@ export async function fetchSuiWalletBalance(deepPrice: number): Promise<WalletBa
   const deepBalance = deepRaw / Math.pow(10, DECIMALS_DEEP)
   const usdcBalance = usdcRaw / Math.pow(10, DECIMALS_USDC)
 
-  // SUI price: rough estimate ~1.2 USD (we don't have a SUI/USDC pool to check)
-  // For gas reserve, exact price is less critical
-  const suiPriceEstimate = 1.2
-  const gasValueUsd = suiBalance * suiPriceEstimate
+  const gasValueUsd = suiBalance * suiUsdPrice
 
   const idleBalances = [
     { token: 'DEEP', amount: deepBalance, valueUsd: deepBalance * deepPrice },

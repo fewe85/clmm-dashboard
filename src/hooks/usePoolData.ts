@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { PoolGroup, PoolPerformance, WalletBalance } from '../types'
-import { fetchSuiPoolData, fetchSuiWalletBalance } from '../services/sui'
+import { fetchSuiPoolData, fetchSuiWalletBalance, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
 import { fetchSuiTurbosPoolData } from '../services/suiTurbos'
 import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
@@ -132,9 +132,10 @@ export function usePoolData() {
       fetchElonWalletRaw().catch(() => ({ elon: 0 })),
     ])
 
-    // Phase 2: Sui wallet needs DEEP price
+    // Phase 2: Sui wallet needs DEEP price + SUI/USD price
     const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
-    const suiWallet = await fetchSuiWalletBalance(deepPrice).catch(() => null)
+    const suiUsdPrice = await fetchSuiUsdPrice()
+    const suiWallet = await fetchSuiWalletBalance(deepPrice, suiUsdPrice).catch(() => null)
 
     // Enrich DEEP/USDC with bot state and APR
     if (turbosState) {
