@@ -20,7 +20,7 @@ const ELON_BOT_START = '2026-03-11T00:00:00.000Z'
 const START_PRICES: Record<string, { price: number; investment: number; start: string }> = {
   'DEEP / USDC':    { price: 0.0277, investment: 50, start: SUI_BOT_START },
   'WAL / USDC':     { price: 0.079,  investment: 50, start: WAL_BOT_START },
-  'TURBOS / SUI':   { price: 0,      investment: 10, start: SUI_TURBOS_BOT_START }, // from state.json
+  'SUI / TURBOS':   { price: 0,      investment: 10, start: SUI_TURBOS_BOT_START }, // from state.json
   'APT / USDC':     { price: 0.992,  investment: 50, start: APT_BOT_START },
   'ELON / USDC':    { price: 0.091,  investment: 50, start: ELON_BOT_START },
 }
@@ -258,7 +258,7 @@ export function usePoolData() {
     // For HODL calc, use priceCenter from state.json as start price
     if (suiTurbos) {
       // SUI/TURBOS start price comes from state.json priceCenter
-      const suiTurbosStartPrice = START_PRICES['TURBOS / SUI']
+      const suiTurbosStartPrice = START_PRICES['SUI / TURBOS']
       if (suiTurbosStartPrice.price === 0 && suiTurbos.currentPrice > 0) {
         suiTurbosStartPrice.price = suiTurbos.currentPrice // use current as fallback
       }

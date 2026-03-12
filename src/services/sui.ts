@@ -151,10 +151,13 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
 
     const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_DEEP, DECIMALS_USDC)
 
-    // Find position NFT
-    const positionNft = ownedObjects.find((obj: any) =>
-      obj.data?.content?.type?.includes('TurbosPositionNFT')
-    )
+    // Find position NFT for DEEP/USDC pool
+    const positionNft = ownedObjects.find((obj: any) => {
+      if (!obj.data?.content?.type?.includes('TurbosPositionNFT')) return false
+      const nftFields = obj.data?.content?.fields
+      if (!nftFields?.pool_id) return false
+      return nftFields.pool_id === POOL_ID
+    })
 
     if (!positionNft) {
       return makeErrorResult('No Turbos position found')
