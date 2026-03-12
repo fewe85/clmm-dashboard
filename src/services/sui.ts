@@ -1,7 +1,7 @@
 import type { PoolData, WalletBalance } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts } from './math'
 
-const RPC = 'https://sui-mainnet.nodeinfra.com'
+const RPC = 'https://fullnode.mainnet.sui.io:443'
 const POOL_ID = '0x198af6ff81028c6577e94465d534c4e2cfcbbab06a95724ece7011c55a9d1f5a'
 const BOT_WALLET = '0x379ca6ed6398c76e103fb0e4c302b40aa4ccb72f1aae6503dbfe84af9c0a4c10'
 const TURBOS_PACKAGE = '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1'
