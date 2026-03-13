@@ -113,23 +113,29 @@ export async function fetchWalPoolData(): Promise<PoolData> {
 
     const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_WAL, DECIMALS_USDC)
 
-    // Find position NFT for WAL/USDC pool
-    const positionNft = ownedObjects.find((obj: any) => {
+    // Find all position NFTs for WAL/USDC pool, pick the one with most liquidity
+    const positionNfts = ownedObjects.filter((obj: any) => {
       if (!obj.data?.content?.type?.includes('TurbosPositionNFT')) return false
       const nftFields = obj.data?.content?.fields
       if (!nftFields?.pool_id) return false
       return nftFields.pool_id === POOL_ID
     })
 
-    if (!positionNft) {
+    if (positionNfts.length === 0) {
       return makeErrorResult('No WAL/USDC position found')
     }
 
-    const nftFields = (positionNft as any).data.content.fields
-    const positionId = nftFields.position_id
-
-    const positionObj = await getObject(positionId)
-    const posFields = (positionObj as any).data.content.fields
+    // Fetch inner position for each NFT and pick the one with highest liquidity
+    const positionCandidates = await Promise.all(
+      positionNfts.map(async (nft: any) => {
+        const pid = nft.data.content.fields.position_id
+        const obj = await getObject(pid)
+        const fields = (obj as any).data.content.fields
+        return { fields, liquidity: BigInt(fields.liquidity) }
+      })
+    )
+    const best = positionCandidates.reduce((a, b) => a.liquidity > b.liquidity ? a : b)
+    const posFields = best.fields
 
     const tickLowerBits = Number(posFields.tick_lower_index.fields.bits)
     const tickUpperBits = Number(posFields.tick_upper_index.fields.bits)
