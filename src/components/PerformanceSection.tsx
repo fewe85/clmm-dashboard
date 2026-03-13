@@ -11,7 +11,8 @@ interface PerformanceSectionProps {
   initialCapital: number
   deepUptime: string
   walUptime: string
-  suiTurbosUptime: string
+  ikaUptime: string
+  suiUsdcUptime: string
   aptosUptime: string
   elonUptime: string
   poolPerformances: PoolPerformance[]
@@ -45,7 +46,8 @@ export function PerformanceSection({
   initialCapital,
   deepUptime,
   walUptime,
-  suiTurbosUptime,
+  ikaUptime,
+  suiUsdcUptime,
   aptosUptime,
   elonUptime,
   poolPerformances,
@@ -113,7 +115,8 @@ export function PerformanceSection({
         >
           <span>DEEP/USDC: <span style={{ color: 'var(--text-secondary)' }}>{deepUptime}</span></span>
           <span>WAL/USDC: <span style={{ color: 'var(--text-secondary)' }}>{walUptime}</span></span>
-          <span>SUI/TURBOS: <span style={{ color: 'var(--text-secondary)' }}>{suiTurbosUptime}</span></span>
+          <span>IKA/USDC: <span style={{ color: 'var(--text-secondary)' }}>{ikaUptime}</span></span>
+          <span>SUI/USDC: <span style={{ color: 'var(--text-secondary)' }}>{suiUsdcUptime}</span></span>
           <span>APT/USDC: <span style={{ color: 'var(--text-secondary)' }}>{aptosUptime}</span></span>
           <span>ELON/USDC: <span style={{ color: 'var(--text-secondary)' }}>{elonUptime}</span></span>
         </div>

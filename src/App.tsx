@@ -18,7 +18,8 @@ function App() {
     pnlPct,
     deepUptime,
     walUptime,
-    suiTurbosUptime,
+    ikaUptime,
+    suiUsdcUptime,
     aptosUptime,
     elonUptime,
     initialCapital,
@@ -71,7 +72,8 @@ function App() {
           initialCapital={initialCapital}
           deepUptime={deepUptime}
           walUptime={walUptime}
-          suiTurbosUptime={suiTurbosUptime}
+          ikaUptime={ikaUptime}
+          suiUsdcUptime={suiUsdcUptime}
           aptosUptime={aptosUptime}
           elonUptime={elonUptime}
           poolPerformances={poolPerformances}

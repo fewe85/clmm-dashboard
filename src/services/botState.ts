@@ -28,10 +28,9 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
-    totalRebalances: data.rebalanceCount || 0,
-    // Thala state.json stores fees in human-readable units already
-    totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0),
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0),
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0) / 1e8,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }
 
@@ -41,10 +40,9 @@ export async function fetchElonBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
-    totalRebalances: data.rebalanceCount || 0,
-    // Thala state.json stores fees in human-readable units already
-    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0),
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0),
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }
 
@@ -60,14 +58,26 @@ export async function fetchWalBotState(): Promise<BotState | null> {
   }
 }
 
-export async function fetchSuiTurbosBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/sui-turbos') as any
+export async function fetchIkaBotState(): Promise<BotState | null> {
+  const data = await fetchJson('/api/bot-state/ika') as any
   if (!data || !data.openedAt) return null
   return {
     lastRebalanceAt: data.openedAt,
     lastCompoundAt: data.lastCompoundAt || data.openedAt,
     totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedTurbos || 0) / 1e9,
-    totalFeesCollectedB: Number(data.totalFeesCollectedSui || 0) / 1e9,
+    totalFeesCollectedA: Number(data.totalFeesCollectedIka || 0) / 1e9,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
+  }
+}
+
+export async function fetchSuiUsdcBotState(): Promise<BotState | null> {
+  const data = await fetchJson('/api/bot-state/sui-usdc') as any
+  if (!data || !data.openedAt) return null
+  return {
+    lastRebalanceAt: data.openedAt,
+    lastCompoundAt: data.lastCompoundAt || data.openedAt,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedSui || 0) / 1e9,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
   }
 }

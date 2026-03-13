@@ -2,17 +2,19 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import type { PoolData, PoolGroup, PoolPerformance, WalletBalance, BotState } from '../types'
 import { fetchSuiPoolData, fetchSuiWalletBalance, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
-import { fetchSuiTurbosPoolData } from '../services/suiTurbos'
+import { fetchIkaPoolData } from '../services/ika'
+import { fetchSuiUsdcPoolData } from '../services/suiUsdc'
 import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
 import { fetchElonPoolData, fetchElonWalletRaw } from '../services/elon'
-import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState, fetchWalBotState, fetchSuiTurbosBotState } from '../services/botState'
+import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState, fetchWalBotState, fetchIkaBotState, fetchSuiUsdcBotState } from '../services/botState'
 
 const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
 
-const INITIAL_CAPITAL = 210 // $50 DEEP + $50 WAL + $10 SUI/TURBOS + $50 APT + $50 ELON
+const INITIAL_CAPITAL = 210 // $50 DEEP + $50 WAL + $50 IKA + $10 SUI/USDC + $50 APT + $50 ELON  (replaces old SUI/TURBOS $10)
 const SUI_BOT_START = '2026-03-07T00:00:00.000Z'
 const WAL_BOT_START = '2026-03-12T00:00:00.000Z'
-const SUI_TURBOS_BOT_START = '2026-03-12T00:00:00.000Z'
+const IKA_BOT_START = '2026-03-13T00:00:00.000Z'
+const SUI_USDC_BOT_START = '2026-03-13T00:00:00.000Z'
 const APT_BOT_START = '2026-03-10T00:00:00.000Z'
 const ELON_BOT_START = '2026-03-11T00:00:00.000Z'
 
@@ -20,21 +22,28 @@ const ELON_BOT_START = '2026-03-11T00:00:00.000Z'
 const START_PRICES: Record<string, { price: number; investment: number; start: string }> = {
   'DEEP / USDC':    { price: 0.0277, investment: 50, start: SUI_BOT_START },
   'WAL / USDC':     { price: 0.079,  investment: 50, start: WAL_BOT_START },
-  'SUI / TURBOS':   { price: 0,      investment: 10, start: SUI_TURBOS_BOT_START }, // from state.json
+  'IKA / USDC':     { price: 0,      investment: 50, start: IKA_BOT_START },   // will use current price as fallback
+  'SUI / USDC':     { price: 0,      investment: 10, start: SUI_USDC_BOT_START }, // will use current price as fallback
   'APT / USDC':     { price: 0.992,  investment: 50, start: APT_BOT_START },
   'ELON / USDC':    { price: 0.091,  investment: 50, start: ELON_BOT_START },
 }
 
 // Projected APR from pending fees accrued since last on-chain collect.
 // This matches DEX UI APR: current fee rate annualized, not diluted lifetime average.
+// Uses botStart as fallback baseline when the collect window is too short.
 function calcProjectedApr(
   pendingUsd: number,
   positionValueUsd: number,
   lastCollectAt: string | null,
+  botStart?: string,
 ): number {
   if (positionValueUsd <= 0 || !lastCollectAt) return 0
-  const hoursSinceCollect = (Date.now() - new Date(lastCollectAt).getTime()) / (1000 * 60 * 60)
-  if (hoursSinceCollect < 0.5) return 0 // avoid extreme APR from very short periods
+  let hoursSinceCollect = (Date.now() - new Date(lastCollectAt).getTime()) / (1000 * 60 * 60)
+  if (hoursSinceCollect < 0.5 && botStart) {
+    // Too soon after compound — fall back to lifetime baseline for stable APR
+    hoursSinceCollect = (Date.now() - new Date(botStart).getTime()) / (1000 * 60 * 60)
+  }
+  if (hoursSinceCollect < 0.5) return 0
   return (pendingUsd / positionValueUsd) * (365 * 24 / hoursSinceCollect) * 100
 }
 
@@ -60,7 +69,7 @@ function calcHodlValue(startPrice: number, currentPrice: number, investment: num
   const halfUsd = investment / 2
   const tokensA = halfUsd / startPrice
   const hodlA = tokensA * currentPrice // tokenA appreciated/depreciated
-  const hodlB = halfUsd // USDC stays at $1 (or SUI for SUI/TURBOS)
+  const hodlB = halfUsd // USDC stays at $1
   return hodlA + hodlB
 }
 
@@ -79,8 +88,6 @@ function calcPoolPerformance(
   const startPrice = meta.price > 0 ? meta.price : currentPrice
   const investment = meta.investment
 
-  // For SUI/TURBOS: price is TURBOS/SUI, not USD-denominated directly
-  // But positionValueUsd is already in USD, so we use that
   const hodlValue = calcHodlValue(startPrice, currentPrice, investment)
   const lpValue = positionValueUsd + pendingFeesUsd + pendingRewardsUsd
 
@@ -157,15 +164,17 @@ export function usePoolData() {
     setLoading(true)
     // Phase 1: Sui fetches + bot states in parallel (no rate limit issues)
     const [
-      deepRaw, wal, suiTurbos,
-      turbosState, walState, suiTurbosState, thalaState, elonState,
+      deepRaw, wal, ika, suiUsdc,
+      turbosState, walState, ikaState, suiUsdcState, thalaState, elonState,
     ] = await Promise.all([
       fetchSuiPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchWalPoolData().catch(() => null),
-      fetchSuiTurbosPoolData().catch(() => null),
+      fetchIkaPoolData().catch(() => null),
+      fetchSuiUsdcPoolData().catch(() => null),
       fetchTurbosBotState(),
       fetchWalBotState(),
-      fetchSuiTurbosBotState(),
+      fetchIkaBotState(),
+      fetchSuiUsdcBotState(),
       fetchThalaBotState(),
       fetchElonBotState(),
     ])
@@ -184,10 +193,17 @@ export function usePoolData() {
     const aptos = useLastGood(aptosRaw, 'aptos', poolCache)
     const elon = useLastGood(elonRaw, 'elon', poolCache)
 
-    // Phase 2: Sui wallet needs DEEP price + SUI/USD price
+    // Phase 2: Sui wallet needs DEEP price + SUI/USD price + extra token prices
     const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
     const suiUsdPrice = await fetchSuiUsdPrice()
-    const suiWallet = await fetchSuiWalletBalance(deepPrice, suiUsdPrice).catch(() => null)
+    const walPrice = wal?.currentPrice || 0
+    const ikaPrice = ika?.currentPrice || 0
+    // TURBOS price: derive from SUI/TURBOS pool if available, else 0
+    // (suiTurbos pool was removed — TURBOS price comes from TURBOS/SUI pool fetched inside wal.ts)
+    const turbosPrice = 0 // will be near-zero dust anyway
+    const suiWallet = await fetchSuiWalletBalance(deepPrice, suiUsdPrice, {
+      walPrice, ikaPrice, turbosPrice,
+    }).catch(() => null)
 
     // Helper: enrich pool with bot state and projected APR
     function enrichPool(
@@ -198,19 +214,20 @@ export function usePoolData() {
     ) {
       if (state) pool.botState = state
       const lastCollectAt = getLastCollectAt(state, botStart)
-      pool.feesApr = calcProjectedApr(pool.pendingFeesUsd, pool.positionValueUsd, lastCollectAt)
-      pool.rewardsApr = calcProjectedApr(pool.pendingRewardsUsd, pool.positionValueUsd, lastCollectAt)
+      pool.feesApr = calcProjectedApr(pool.pendingFeesUsd, pool.positionValueUsd, lastCollectAt, botStart)
+      pool.rewardsApr = calcProjectedApr(pool.pendingRewardsUsd, pool.positionValueUsd, lastCollectAt, botStart)
     }
 
     // Enrich all pools with cumulative APR over entire bot runtime
     enrichPool(deep, turbosState, SUI_BOT_START, deep.currentPrice)
     if (wal) enrichPool(wal, walState, WAL_BOT_START, wal.currentPrice)
-    if (suiTurbos) enrichPool(suiTurbos, suiTurbosState, SUI_TURBOS_BOT_START, suiTurbos.currentPrice)
+    if (ika) enrichPool(ika, ikaState, IKA_BOT_START, ika.currentPrice)
+    if (suiUsdc) enrichPool(suiUsdc, suiUsdcState, SUI_USDC_BOT_START, suiUsdc.currentPrice)
     enrichPool(aptos, thalaState, APT_BOT_START, aptos.currentPrice)
     enrichPool(elon, elonState, ELON_BOT_START, elon.currentPrice)
 
     // Build Thala shared wallet
-    const aptPrice = aptos.currentPrice || 7.5
+    const aptPrice = aptos.currentPrice || 0.96
     const elonPrice = elon.currentPrice || 0.09
     const thalaWallet: WalletBalance = {
       gasToken: 'APT',
@@ -223,10 +240,11 @@ export function usePoolData() {
       totalIdleUsd: aptosWallet.usdc + elonWallet.elon * elonPrice,
     }
 
-    // Build Turbos pools array (DEEP + WAL + SUI/TURBOS)
+    // Build Turbos pools array (DEEP + WAL + IKA + SUI/USDC)
     const turbosPools = [deep]
     if (wal) turbosPools.push(wal)
-    if (suiTurbos) turbosPools.push(suiTurbos)
+    if (ika) turbosPools.push(ika)
+    if (suiUsdc) turbosPools.push(suiUsdc)
 
     // Build groups
     const turbosGroup: PoolGroup = {
@@ -268,20 +286,31 @@ export function usePoolData() {
       ))
     }
 
-    // SUI/TURBOS: price is SUI per TURBOS, but we need USD prices
-    // For HODL calc, use priceCenter from state.json as start price
-    if (suiTurbos) {
-      // SUI/TURBOS start price comes from state.json priceCenter
-      const suiTurbosStartPrice = START_PRICES['SUI / TURBOS']
-      if (suiTurbosStartPrice.price === 0 && suiTurbos.currentPrice > 0) {
-        suiTurbosStartPrice.price = suiTurbos.currentPrice // use current as fallback
+    // IKA/USDC
+    if (ika) {
+      const ikaStartPrice = START_PRICES['IKA / USDC']
+      if (ikaStartPrice.price === 0 && ika.currentPrice > 0) {
+        ikaStartPrice.price = ika.currentPrice // use current as fallback until deploy sets it
       }
       performances.push(calcPoolPerformance(
-        suiTurbos.name, suiTurbos.currentPrice, suiTurbos.positionValueUsd,
-        suiTurbos.pendingFeesUsd, suiTurbos.pendingRewardsUsd,
-        suiTurbosState?.totalFeesCollectedA || 0, suiTurbosState?.totalFeesCollectedB || 0,
-        suiTurbos.currentPrice, // TURBOS price in USD? Actually it's SUI per TURBOS
-        suiTurbosState?.totalRebalances || 0,
+        ika.name, ika.currentPrice, ika.positionValueUsd,
+        ika.pendingFeesUsd, ika.pendingRewardsUsd,
+        ikaState?.totalFeesCollectedA || 0, ikaState?.totalFeesCollectedB || 0,
+        ika.currentPrice, ikaState?.totalRebalances || 0,
+      ))
+    }
+
+    // SUI/USDC
+    if (suiUsdc) {
+      const suiUsdcStartPrice = START_PRICES['SUI / USDC']
+      if (suiUsdcStartPrice.price === 0 && suiUsdc.currentPrice > 0) {
+        suiUsdcStartPrice.price = suiUsdc.currentPrice // use current as fallback
+      }
+      performances.push(calcPoolPerformance(
+        suiUsdc.name, suiUsdc.currentPrice, suiUsdc.positionValueUsd,
+        suiUsdc.pendingFeesUsd, suiUsdc.pendingRewardsUsd,
+        suiUsdcState?.totalFeesCollectedA || 0, suiUsdcState?.totalFeesCollectedB || 0,
+        suiUsdc.currentPrice, suiUsdcState?.totalRebalances || 0,
       ))
     }
 
@@ -334,7 +363,8 @@ export function usePoolData() {
   // Uptime
   const deepUptime = formatUptime(SUI_BOT_START)
   const walUptime = formatUptime(WAL_BOT_START)
-  const suiTurbosUptime = formatUptime(SUI_TURBOS_BOT_START)
+  const ikaUptime = formatUptime(IKA_BOT_START)
+  const suiUsdcUptime = formatUptime(SUI_USDC_BOT_START)
   const aptosUptime = formatUptime(APT_BOT_START)
   const elonUptime = formatUptime(ELON_BOT_START)
 
@@ -360,7 +390,8 @@ export function usePoolData() {
     pnlPct,
     deepUptime,
     walUptime,
-    suiTurbosUptime,
+    ikaUptime,
+    suiUsdcUptime,
     aptosUptime,
     elonUptime,
     initialCapital: INITIAL_CAPITAL,

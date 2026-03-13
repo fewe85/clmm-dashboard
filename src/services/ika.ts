@@ -1,23 +1,22 @@
-import type { PoolData, WalletBalance } from '../types'
+import type { PoolData } from '../types'
 import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts } from './math'
 
 const RPC = 'https://fullnode.mainnet.sui.io:443'
-const POOL_ID = '0x198af6ff81028c6577e94465d534c4e2cfcbbab06a95724ece7011c55a9d1f5a'
+const POOL_ID = '0xdaa881332a4f57fe3776e2d3003701b53f83a34dc0dd9192c42ba1557c9a95a8'
 const BOT_WALLET = '0x379ca6ed6398c76e103fb0e4c302b40aa4ccb72f1aae6503dbfe84af9c0a4c10'
 const TURBOS_PACKAGE = '0x91bfbc386a41afcfd9b2533058d7e915a1d3829089cc268ff4333d54d6339ca1'
 
-const DECIMALS_DEEP = 6
+// coinA = IKA, coinB = USDC
+const DECIMALS_IKA = 9
 const DECIMALS_USDC = 6
-const DECIMALS_SUI = 9
-
-// Pool<SUI(9), USDC(6)> for live SUI/USD price
-const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
-
-const COIN_DEEP = '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP'
-const COIN_USDC = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC'
 
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
+
+// Pool<SUI(9), USDC(6)> for live SUI/USD price (reward valuation)
+const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
+// Pool<TURBOS(9), SUI(9)> for TURBOS price (reward valuation)
+const TURBOS_SUI_POOL = '0x2c6fc12bf0d093b5391e7c0fed7e044d52bc14eb29f6352a3fb358e33e80729e'
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -56,34 +55,10 @@ async function getOwnedObjects(owner: string): Promise<Record<string, unknown>[]
   return result.data
 }
 
-async function getCoinBalance(owner: string, coinType: string): Promise<number> {
-  try {
-    const result = await rpcCall('suix_getBalance', [owner, coinType]) as any
-    return Number(result.totalBalance || 0)
-  } catch {
-    return 0
-  }
-}
-
-// Fetch live SUI/USD price from on-chain USDC/SUI pool
-export async function fetchSuiUsdPrice(): Promise<number> {
-  try {
-    const obj = await getObject(USDC_SUI_POOL)
-    const fields = (obj as any).data.content.fields
-    const sqrtPrice = BigInt(fields.sqrt_price)
-    // Pool<SUI(9), USDC(6)>: price = USDC per SUI
-    return sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_SUI, DECIMALS_USDC)
-  } catch {
-    return 1.0 // fallback
-  }
-}
-
-// Modular subtraction for u128 fee_growth values (unsigned wraparound)
 function subMod128(a: bigint, b: bigint): bigint {
   return ((a - b) % Q128 + Q128) % Q128
 }
 
-// Compute fee_growth_inside for a tick range using Uniswap v3 formula
 function computeGrowthInside(
   tickCurrent: number,
   tickLower: number,
@@ -101,16 +76,10 @@ function computeGrowthInside(
   return subMod128(subMod128(growthGlobal, growthBelow), growthAbove)
 }
 
-// Fetch tick data from pool's dynamic field table
 async function getTickData(poolId: string, tickBits: number): Promise<any> {
   const i32Type = `${TURBOS_PACKAGE}::i32::I32`
   const fields = await getDynamicFieldObject(poolId, i32Type, { bits: tickBits })
   return fields.value.fields
-}
-
-// Find DEEP price in USD using pool price (DEEP/USDC)
-function getDeepPriceUsd(poolPrice: number): number {
-  return poolPrice // DEEP/USDC price is already in USD terms
 }
 
 function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUpper: number): number {
@@ -121,71 +90,31 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
   return Math.min((distFromCenter / halfRange) * 100, 100)
 }
 
-const COIN_WAL = '0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL'
-const COIN_IKA = '0x7262fb2f7a3a14c888c438a3cd9b912469a58cf60f367352c46584262e8299aa::ika::IKA'
-const COIN_TURBOS = '0x5d1f47ea69bb0de31c313d7acf89b890dbb8991ea8e03c6c355171f84bb1ba4a::turbos::TURBOS'
-
-export async function fetchSuiWalletBalance(
-  deepPrice: number,
-  suiUsdPrice: number,
-  extraPrices?: { walPrice?: number; ikaPrice?: number; turbosPrice?: number },
-): Promise<WalletBalance> {
-  const [suiRaw, deepRaw, usdcRaw, walRaw, ikaRaw, turbosRaw] = await Promise.all([
-    getCoinBalance(BOT_WALLET, '0x2::sui::SUI'),
-    getCoinBalance(BOT_WALLET, COIN_DEEP),
-    getCoinBalance(BOT_WALLET, COIN_USDC),
-    getCoinBalance(BOT_WALLET, COIN_WAL),
-    getCoinBalance(BOT_WALLET, COIN_IKA),
-    getCoinBalance(BOT_WALLET, COIN_TURBOS),
-  ])
-
-  const suiBalance = suiRaw / Math.pow(10, DECIMALS_SUI)
-  const deepBalance = deepRaw / Math.pow(10, DECIMALS_DEEP)
-  const usdcBalance = usdcRaw / Math.pow(10, DECIMALS_USDC)
-  const walBalance = walRaw / Math.pow(10, 9)
-  const ikaBalance = ikaRaw / Math.pow(10, 9)
-  const turbosBalance = turbosRaw / Math.pow(10, 9)
-
-  const gasValueUsd = suiBalance * suiUsdPrice
-
-  const walPrice = extraPrices?.walPrice || 0
-  const ikaPrice = extraPrices?.ikaPrice || 0
-  const turbosPrice = extraPrices?.turbosPrice || 0
-
-  const idleBalances = [
-    { token: 'DEEP', amount: deepBalance, valueUsd: deepBalance * deepPrice },
-    { token: 'USDC', amount: usdcBalance, valueUsd: usdcBalance },
-    { token: 'WAL', amount: walBalance, valueUsd: walBalance * walPrice },
-    { token: 'IKA', amount: ikaBalance, valueUsd: ikaBalance * ikaPrice },
-    { token: 'TURBOS', amount: turbosBalance, valueUsd: turbosBalance * turbosPrice },
-  ].filter(b => b.amount > 0.0001) // hide dust
-
-  return {
-    gasToken: 'SUI',
-    gasBalance: suiBalance,
-    gasValueUsd,
-    idleBalances,
-    totalIdleUsd: idleBalances.reduce((sum, b) => sum + b.valueUsd, 0),
-  }
-}
-
-export async function fetchSuiPoolData(): Promise<PoolData> {
+export async function fetchIkaPoolData(): Promise<PoolData> {
   try {
-    // Fetch pool and wallet objects in parallel
-    const [poolObj, ownedObjects] = await Promise.all([
+    const [poolObj, ownedObjects, suiUsdcObj, turbosSuiObj] = await Promise.all([
       getObject(POOL_ID),
       getOwnedObjects(BOT_WALLET),
+      getObject(USDC_SUI_POOL),
+      getObject(TURBOS_SUI_POOL),
     ])
 
-    // Parse pool data
+    // Live prices for reward valuation
+    const suiUsdcFields = (suiUsdcObj as any).data.content.fields
+    const SUI_USD = sqrtPriceX64ToPrice(BigInt(suiUsdcFields.sqrt_price), 9, 6)
+    const turbosSuiFields = (turbosSuiObj as any).data.content.fields
+    const TURBOS_SUI = sqrtPriceX64ToPrice(BigInt(turbosSuiFields.sqrt_price), 9, 9)
+    const TURBOS_USD = TURBOS_SUI * SUI_USD
+
     const poolContent = (poolObj as any).data.content.fields
     const sqrtPrice = BigInt(poolContent.sqrt_price)
     const tickCurrentBits = Number(poolContent.tick_current_index.fields.bits)
     const tickCurrent = decodeI32(tickCurrentBits)
 
-    const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_DEEP, DECIMALS_USDC)
+    // Price = USDC per IKA (IKA is coinA, USDC is coinB)
+    const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_IKA, DECIMALS_USDC)
 
-    // Find all position NFTs for DEEP/USDC pool, pick the one with most liquidity
+    // Find all position NFTs for IKA/USDC pool, pick the one with most liquidity
     const positionNfts = ownedObjects.filter((obj: any) => {
       if (!obj.data?.content?.type?.includes('TurbosPositionNFT')) return false
       const nftFields = obj.data?.content?.fields
@@ -194,7 +123,7 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
     })
 
     if (positionNfts.length === 0) {
-      return makeErrorResult('No Turbos position found')
+      return makeErrorResult('No IKA/USDC position found')
     }
 
     // Fetch inner position for each NFT and pick the one with highest liquidity
@@ -215,25 +144,23 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
     const tickUpper = decodeI32(tickUpperBits)
     const liquidity = BigInt(posFields.liquidity)
 
-    // Fetch tick data for fee_growth_outside computation
     const [tickLowerData, tickUpperData] = await Promise.all([
       getTickData(POOL_ID, tickLowerBits),
       getTickData(POOL_ID, tickUpperBits),
     ])
 
-    const priceLower = tickToPrice(tickLower, DECIMALS_DEEP, DECIMALS_USDC)
-    const priceUpper = tickToPrice(tickUpper, DECIMALS_DEEP, DECIMALS_USDC)
+    const priceLower = tickToPrice(tickLower, DECIMALS_IKA, DECIMALS_USDC)
+    const priceUpper = tickToPrice(tickUpper, DECIMALS_IKA, DECIMALS_USDC)
     const inRange = tickCurrent >= tickLower && tickCurrent < tickUpper
 
-    // Calculate position amounts
     const { amountA, amountB } = calculatePositionAmounts(
-      Number(liquidity), tickCurrent, tickLower, tickUpper, DECIMALS_DEEP, DECIMALS_USDC
+      Number(liquidity), tickCurrent, tickLower, tickUpper, DECIMALS_IKA, DECIMALS_USDC
     )
 
-    const deepPrice = getDeepPriceUsd(currentPrice)
-    const positionValueUsd = amountA * deepPrice + amountB
+    const ikaPrice = currentPrice // USDC per IKA = USD price
+    const positionValueUsd = amountA * ikaPrice + amountB
 
-    // Compute actual pending fees using fee_growth_inside delta (Uniswap v3 formula)
+    // Pending fees
     const feeGrowthInsideA = computeGrowthInside(
       tickCurrent, tickLower, tickUpper,
       BigInt(poolContent.fee_growth_global_a),
@@ -251,19 +178,16 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
 
     const feesARaw = BigInt(posFields.tokens_owed_a) + subMod128(feeGrowthInsideA, posFeeGrowthInsideA) * liquidity / Q64
     const feesBRaw = BigInt(posFields.tokens_owed_b) + subMod128(feeGrowthInsideB, posFeeGrowthInsideB) * liquidity / Q64
-    const feesA = Number(feesARaw) / Math.pow(10, DECIMALS_DEEP)
+    const feesA = Number(feesARaw) / Math.pow(10, DECIMALS_IKA)
     const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_USDC)
-    const pendingFeesUsd = feesA * deepPrice + feesB
+    const pendingFeesUsd = feesA * ikaPrice + feesB
 
-    // DEEP reward incentives — compute using reward_growth_inside delta
+    // Rewards (SUI + TURBOS incentives)
     const poolRewardInfos = poolContent.reward_infos || []
     const posRewardInfos = posFields.reward_infos || []
-    const deepTypeSuffix = '::deep::DEEP'
-    let rewardAmount = 0
+    let rewardUsd = 0
     for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
       const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
-      if (!vaultType.endsWith(deepTypeSuffix)) continue
-
       const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
       const growthOutsideLower = BigInt(tickLowerData.reward_growths_outside[i])
       const growthOutsideUpper = BigInt(tickUpperData.reward_growths_outside[i])
@@ -274,24 +198,27 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
       const posGrowthInside = BigInt(posRewardInfos[i].fields.reward_growth_inside)
       const amountOwed = BigInt(posRewardInfos[i].fields.amount_owed)
       const rewardRaw = amountOwed + subMod128(growthInside, posGrowthInside) * liquidity / Q64
-      rewardAmount += Number(rewardRaw) / Math.pow(10, DECIMALS_DEEP)
-    }
-    const pendingRewardsUsd = rewardAmount * deepPrice
 
-    // Compound threshold: 1% of position value
+      if (vaultType.endsWith('::sui::SUI')) {
+        rewardUsd += Number(rewardRaw) / Math.pow(10, 9) * SUI_USD
+      } else if (vaultType.endsWith('::turbos::TURBOS')) {
+        rewardUsd += Number(rewardRaw) / Math.pow(10, 9) * TURBOS_USD
+      }
+    }
+    const pendingRewardsUsd = rewardUsd
+
     const compoundThreshold = positionValueUsd * 0.01
     const compoundPending = pendingFeesUsd + pendingRewardsUsd
 
-    // Trigger distance
     const triggerDistancePct = calcTriggerDistancePct(tickCurrent, tickLower, tickUpper)
 
     return {
-      name: 'DEEP / USDC',
+      name: 'IKA / USDC',
       chain: 'sui',
       protocol: 'Turbos Finance',
-      tokenA: 'DEEP',
+      tokenA: 'IKA',
       tokenB: 'USDC',
-      decimalsA: DECIMALS_DEEP,
+      decimalsA: DECIMALS_IKA,
       decimalsB: DECIMALS_USDC,
       currentPrice,
       tickCurrent,
@@ -307,30 +234,30 @@ export async function fetchSuiPoolData(): Promise<PoolData> {
       feesA,
       feesB,
       pendingRewardsUsd,
-      rewardToken: 'DEEP',
-      rewardAmount,
+      rewardToken: 'SUI+TURBOS',
+      rewardAmount: rewardUsd,
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
-      botState: null, // filled by hook
-      feesApr: 0, // calculated by hook
-      rewardsApr: 0, // calculated by hook
+      botState: null,
+      feesApr: 0,
+      rewardsApr: 0,
       lastUpdated: Date.now(),
     }
   } catch (err) {
-    console.error('Sui fetch error:', err)
+    console.error('IKA/USDC fetch error:', err)
     return makeErrorResult(String(err))
   }
 }
 
 function makeErrorResult(error: string): PoolData {
   return {
-    name: 'DEEP / USDC',
+    name: 'IKA / USDC',
     chain: 'sui',
     protocol: 'Turbos Finance',
-    tokenA: 'DEEP',
+    tokenA: 'IKA',
     tokenB: 'USDC',
-    decimalsA: DECIMALS_DEEP,
+    decimalsA: DECIMALS_IKA,
     decimalsB: DECIMALS_USDC,
     currentPrice: 0,
     tickCurrent: 0,
@@ -346,7 +273,7 @@ function makeErrorResult(error: string): PoolData {
     feesA: 0,
     feesB: 0,
     pendingRewardsUsd: 0,
-    rewardToken: 'DEEP',
+    rewardToken: 'SUI+TURBOS',
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,
