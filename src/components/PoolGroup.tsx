@@ -22,12 +22,16 @@ export function PoolGroup({ group, loading }: PoolGroupProps) {
   const wb = group.walletBalance
   const poolCount = group.pools.length
 
-  // Responsive grid: 1 col mobile, then match pool count on desktop
-  const gridClass = poolCount >= 3
-    ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-    : poolCount === 2
-      ? 'grid-cols-1 md:grid-cols-2'
-      : 'grid-cols-1'
+  // Responsive grid: mobile 1 col, desktop matches pool count
+  // Sui: 4 pools = 4 cols on xl, 2 on md
+  // Aptos: 2 pools = 2 cols on md
+  const gridClass = poolCount >= 4
+    ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4'
+    : poolCount === 3
+      ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+      : poolCount === 2
+        ? 'grid-cols-1 md:grid-cols-2'
+        : 'grid-cols-1'
 
   return (
     <div>

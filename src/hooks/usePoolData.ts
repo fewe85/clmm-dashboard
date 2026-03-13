@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { PoolData, PoolGroup, PoolPerformance, WalletBalance, BotState } from '../types'
+import type { PoolData, PoolGroup, PoolPerformance, WalletBalance, BotState, AllWallets } from '../types'
 import { fetchSuiPoolData, fetchSuiWalletBalance, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
 import { fetchIkaPoolData } from '../services/ika'
@@ -156,6 +156,7 @@ function useLastGood(fresh: PoolData, key: string, cache: React.RefObject<Map<st
 export function usePoolData() {
   const [groups, setGroups] = useState<PoolGroup[]>([])
   const [poolPerformances, setPoolPerformances] = useState<PoolPerformance[]>([])
+  const [wallets, setWallets] = useState<AllWallets>({ sui: null, aptos: null })
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
   const poolCache = useRef(loadPersistedPools())
@@ -164,13 +165,13 @@ export function usePoolData() {
     setLoading(true)
     // Phase 1: Sui fetches + bot states in parallel (no rate limit issues)
     const [
-      deepRaw, wal, ika, suiUsdc,
+      deepRaw, walRaw, ikaRaw, suiUsdcRaw,
       turbosState, walState, ikaState, suiUsdcState, thalaState, elonState,
     ] = await Promise.all([
       fetchSuiPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchWalPoolData().catch(() => null),
-      fetchIkaPoolData().catch(() => null),
-      fetchSuiUsdcPoolData().catch(() => null),
+      fetchWalPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
+      fetchIkaPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
+      fetchSuiUsdcPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchTurbosBotState(),
       fetchWalBotState(),
       fetchIkaBotState(),
@@ -188,16 +189,19 @@ export function usePoolData() {
       fetchElonWalletRaw().catch(() => ({ elon: 0 })),
     ])
 
-    // Use last good data when fetches fail
+    // Use last good data when fetches fail (never show $0 after first success)
     const deep = useLastGood(deepRaw, 'deep', poolCache)
+    const wal = useLastGood(walRaw, 'wal', poolCache)
+    const ika = useLastGood(ikaRaw, 'ika', poolCache)
+    const suiUsdc = useLastGood(suiUsdcRaw, 'suiUsdc', poolCache)
     const aptos = useLastGood(aptosRaw, 'aptos', poolCache)
     const elon = useLastGood(elonRaw, 'elon', poolCache)
 
     // Phase 2: Sui wallet needs DEEP price + SUI/USD price + extra token prices
     const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
     const suiUsdPrice = await fetchSuiUsdPrice()
-    const walPrice = wal?.currentPrice || 0
-    const ikaPrice = ika?.currentPrice || 0
+    const walPrice = wal.currentPrice || 0
+    const ikaPrice = ika.currentPrice || 0
     // TURBOS price: derive from SUI/TURBOS pool if available, else 0
     // (suiTurbos pool was removed — TURBOS price comes from TURBOS/SUI pool fetched inside wal.ts)
     const turbosPrice = 0 // will be near-zero dust anyway
@@ -220,9 +224,9 @@ export function usePoolData() {
 
     // Enrich all pools with cumulative APR over entire bot runtime
     enrichPool(deep, turbosState, SUI_BOT_START, deep.currentPrice)
-    if (wal) enrichPool(wal, walState, WAL_BOT_START, wal.currentPrice)
-    if (ika) enrichPool(ika, ikaState, IKA_BOT_START, ika.currentPrice)
-    if (suiUsdc) enrichPool(suiUsdc, suiUsdcState, SUI_USDC_BOT_START, suiUsdc.currentPrice)
+    enrichPool(wal, walState, WAL_BOT_START, wal.currentPrice)
+    enrichPool(ika, ikaState, IKA_BOT_START, ika.currentPrice)
+    enrichPool(suiUsdc, suiUsdcState, SUI_USDC_BOT_START, suiUsdc.currentPrice)
     enrichPool(aptos, thalaState, APT_BOT_START, aptos.currentPrice)
     enrichPool(elon, elonState, ELON_BOT_START, elon.currentPrice)
 
@@ -241,10 +245,7 @@ export function usePoolData() {
     }
 
     // Build Turbos pools array (DEEP + WAL + IKA + SUI/USDC)
-    const turbosPools = [deep]
-    if (wal) turbosPools.push(wal)
-    if (ika) turbosPools.push(ika)
-    if (suiUsdc) turbosPools.push(suiUsdc)
+    const turbosPools = [deep, wal, ika, suiUsdc]
 
     // Build groups
     const turbosGroup: PoolGroup = {
@@ -263,6 +264,7 @@ export function usePoolData() {
       pools: [aptos, elon],
     }
 
+    setWallets({ sui: suiWallet, aptos: thalaWallet })
     setGroups([turbosGroup, thalaGroup])
 
     // Calculate performance per pool
@@ -277,42 +279,36 @@ export function usePoolData() {
     ))
 
     // WAL/USDC
-    if (wal) {
-      performances.push(calcPoolPerformance(
-        wal.name, wal.currentPrice, wal.positionValueUsd,
-        wal.pendingFeesUsd, wal.pendingRewardsUsd,
-        walState?.totalFeesCollectedA || 0, walState?.totalFeesCollectedB || 0,
-        wal.currentPrice, walState?.totalRebalances || 0,
-      ))
-    }
+    performances.push(calcPoolPerformance(
+      wal.name, wal.currentPrice, wal.positionValueUsd,
+      wal.pendingFeesUsd, wal.pendingRewardsUsd,
+      walState?.totalFeesCollectedA || 0, walState?.totalFeesCollectedB || 0,
+      wal.currentPrice, walState?.totalRebalances || 0,
+    ))
 
     // IKA/USDC
-    if (ika) {
-      const ikaStartPrice = START_PRICES['IKA / USDC']
-      if (ikaStartPrice.price === 0 && ika.currentPrice > 0) {
-        ikaStartPrice.price = ika.currentPrice // use current as fallback until deploy sets it
-      }
-      performances.push(calcPoolPerformance(
-        ika.name, ika.currentPrice, ika.positionValueUsd,
-        ika.pendingFeesUsd, ika.pendingRewardsUsd,
-        ikaState?.totalFeesCollectedA || 0, ikaState?.totalFeesCollectedB || 0,
-        ika.currentPrice, ikaState?.totalRebalances || 0,
-      ))
+    const ikaStartPrice = START_PRICES['IKA / USDC']
+    if (ikaStartPrice.price === 0 && ika.currentPrice > 0) {
+      ikaStartPrice.price = ika.currentPrice
     }
+    performances.push(calcPoolPerformance(
+      ika.name, ika.currentPrice, ika.positionValueUsd,
+      ika.pendingFeesUsd, ika.pendingRewardsUsd,
+      ikaState?.totalFeesCollectedA || 0, ikaState?.totalFeesCollectedB || 0,
+      ika.currentPrice, ikaState?.totalRebalances || 0,
+    ))
 
     // SUI/USDC
-    if (suiUsdc) {
-      const suiUsdcStartPrice = START_PRICES['SUI / USDC']
-      if (suiUsdcStartPrice.price === 0 && suiUsdc.currentPrice > 0) {
-        suiUsdcStartPrice.price = suiUsdc.currentPrice // use current as fallback
-      }
-      performances.push(calcPoolPerformance(
-        suiUsdc.name, suiUsdc.currentPrice, suiUsdc.positionValueUsd,
-        suiUsdc.pendingFeesUsd, suiUsdc.pendingRewardsUsd,
-        suiUsdcState?.totalFeesCollectedA || 0, suiUsdcState?.totalFeesCollectedB || 0,
-        suiUsdc.currentPrice, suiUsdcState?.totalRebalances || 0,
-      ))
+    const suiUsdcStartPrice = START_PRICES['SUI / USDC']
+    if (suiUsdcStartPrice.price === 0 && suiUsdc.currentPrice > 0) {
+      suiUsdcStartPrice.price = suiUsdc.currentPrice
     }
+    performances.push(calcPoolPerformance(
+      suiUsdc.name, suiUsdc.currentPrice, suiUsdc.positionValueUsd,
+      suiUsdc.pendingFeesUsd, suiUsdc.pendingRewardsUsd,
+      suiUsdcState?.totalFeesCollectedA || 0, suiUsdcState?.totalFeesCollectedB || 0,
+      suiUsdc.currentPrice, suiUsdcState?.totalRebalances || 0,
+    ))
 
     // APT/USDC
     performances.push(calcPoolPerformance(
@@ -378,6 +374,7 @@ export function usePoolData() {
   return {
     groups,
     poolPerformances,
+    wallets,
     loading,
     countdown,
     refresh,

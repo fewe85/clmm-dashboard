@@ -1,11 +1,13 @@
 import { usePoolData } from './hooks/usePoolData'
 import { PoolGroup as PoolGroupComponent } from './components/PoolGroup'
 import { PerformanceSection } from './components/PerformanceSection'
+import { WalletBox } from './components/WalletBox'
 
 function App() {
   const {
     groups,
     poolPerformances,
+    wallets,
     loading,
     countdown,
     refresh,
@@ -83,6 +85,11 @@ function App() {
           totalLpValue={totalLpValue}
           totalRebalances={totalRebalances}
         />
+      </div>
+
+      {/* Wallet Balances */}
+      <div className="mb-6">
+        <WalletBox suiWallet={wallets.sui} aptosWallet={wallets.aptos} />
       </div>
 
       {/* Pool Groups — full width, each group uses its own grid */}

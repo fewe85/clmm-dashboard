@@ -73,3 +73,8 @@ export interface PoolGroup {
   walletBalance: WalletBalance | null
   pools: PoolData[]
 }
+
+export interface AllWallets {
+  sui: WalletBalance | null
+  aptos: WalletBalance | null
+}
