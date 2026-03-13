@@ -86,7 +86,9 @@ export function PoolGroup({ group, loading }: PoolGroupProps) {
             {wb.idleBalances.map(b => (
               <span key={b.token}>
                 {formatAmount(b.amount, b.token === 'USDC' ? 2 : 4)} {b.token}
-                <span className="ml-1" style={{ color: 'var(--text-muted)' }}>{formatUsd(b.valueUsd)}</span>
+                <span className="ml-1" style={{ color: b.priceUnknown ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>
+                  {b.priceUnknown ? '?' : formatUsd(b.valueUsd)}
+                </span>
               </span>
             ))}
           </div>

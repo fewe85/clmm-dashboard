@@ -25,6 +25,7 @@ interface CoinEntry {
   valueUsd: number
   chain: string
   isGas?: boolean
+  priceUnknown?: boolean
 }
 
 export function WalletBox({ suiWallet, aptosWallet }: WalletBoxProps) {
@@ -39,7 +40,7 @@ export function WalletBox({ suiWallet, aptosWallet }: WalletBoxProps) {
       isGas: true,
     })
     for (const b of suiWallet.idleBalances) {
-      coins.push({ token: b.token, amount: b.amount, valueUsd: b.valueUsd, chain: 'Sui' })
+      coins.push({ token: b.token, amount: b.amount, valueUsd: b.valueUsd, chain: 'Sui', priceUnknown: b.priceUnknown })
     }
   }
 
@@ -52,7 +53,7 @@ export function WalletBox({ suiWallet, aptosWallet }: WalletBoxProps) {
       isGas: true,
     })
     for (const b of aptosWallet.idleBalances) {
-      coins.push({ token: b.token, amount: b.amount, valueUsd: b.valueUsd, chain: 'Aptos' })
+      coins.push({ token: b.token, amount: b.amount, valueUsd: b.valueUsd, chain: 'Aptos', priceUnknown: b.priceUnknown })
     }
   }
 
@@ -104,8 +105,8 @@ export function WalletBox({ suiWallet, aptosWallet }: WalletBoxProps) {
               <span className="text-sm tabular-nums" style={{ color: 'var(--text-secondary)' }}>
                 {formatAmount(c.amount, c.token)}
               </span>
-              <span className="text-xs tabular-nums ml-2" style={{ color: 'var(--text-muted)' }}>
-                {formatUsd(c.valueUsd)}
+              <span className="text-xs tabular-nums ml-2" style={{ color: c.priceUnknown ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>
+                {c.priceUnknown ? '?' : formatUsd(c.valueUsd)}
               </span>
             </div>
           </div>

@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { PoolData, PoolGroup, PoolPerformance, WalletBalance, BotState, AllWallets } from '../types'
-import { fetchSuiPoolData, fetchSuiWalletBalance, fetchSuiUsdPrice } from '../services/sui'
+import type { PoolData, PoolGroup, PoolPerformance, BotState, AllWallets } from '../types'
+import { fetchSuiPoolData, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
 import { fetchIkaPoolData } from '../services/ika'
 import { fetchSuiUsdcPoolData } from '../services/suiUsdc'
-import { fetchAptosPoolData, fetchAptosWalletRaw } from '../services/aptos'
-import { fetchElonPoolData, fetchElonWalletRaw } from '../services/elon'
+import { fetchAptosPoolData } from '../services/aptos'
+import { fetchElonPoolData } from '../services/elon'
 import { fetchTurbosBotState, fetchThalaBotState, fetchElonBotState, fetchWalBotState, fetchIkaBotState, fetchSuiUsdcBotState } from '../services/botState'
+import { fetchSuiWalletDynamic, fetchAptosWalletDynamic, fetchTurbosUsdPrice } from '../services/wallet'
 
 const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
 
@@ -184,10 +185,6 @@ export function usePoolData() {
     // APT pool first, then ELON (which reuses APT pool cache for thAPT price)
     const aptosRaw = await fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData)
     const elonRaw = await fetchElonPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData)
-    const [aptosWallet, elonWallet] = await Promise.all([
-      fetchAptosWalletRaw().catch(() => ({ apt: 0, usdc: 0 })),
-      fetchElonWalletRaw().catch(() => ({ elon: 0 })),
-    ])
 
     // Use last good data when fetches fail (never show $0 after first success)
     const deep = useLastGood(deepRaw, 'deep', poolCache)
@@ -197,17 +194,33 @@ export function usePoolData() {
     const aptos = useLastGood(aptosRaw, 'aptos', poolCache)
     const elon = useLastGood(elonRaw, 'elon', poolCache)
 
-    // Phase 2: Sui wallet needs DEEP price + SUI/USD price + extra token prices
-    const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
+    // Phase 2: Build price map from pool data for wallet valuation
     const suiUsdPrice = await fetchSuiUsdPrice()
+    const turbosPrice = await fetchTurbosUsdPrice(suiUsdPrice)
+    const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
     const walPrice = wal.currentPrice || 0
     const ikaPrice = ika.currentPrice || 0
-    // TURBOS price: derive from SUI/TURBOS pool if available, else 0
-    // (suiTurbos pool was removed — TURBOS price comes from TURBOS/SUI pool fetched inside wal.ts)
-    const turbosPrice = 0 // will be near-zero dust anyway
-    const suiWallet = await fetchSuiWalletBalance(deepPrice, suiUsdPrice, {
-      walPrice, ikaPrice, turbosPrice,
-    }).catch(() => null)
+    const aptPrice = aptos.currentPrice || 0.96
+    const elonPrice = elon.currentPrice || 0.09
+
+    const priceMap: Record<string, number> = {
+      'SUI': suiUsdPrice,
+      'USDC': 1,
+      'DEEP': deepPrice,
+      'WAL': walPrice,
+      'IKA': ikaPrice,
+      'TURBOS': turbosPrice,
+      'APT': aptPrice,
+      'ELON': elonPrice,
+      'thAPT': aptPrice, // thAPT ≈ APT price
+      'AptosCoin': aptPrice, // legacy symbol
+    }
+
+    // Fetch both wallets dynamically (all tokens, no hardcoded list)
+    const [suiWallet, aptosWallet] = await Promise.all([
+      fetchSuiWalletDynamic(priceMap).catch(() => null),
+      fetchAptosWalletDynamic(priceMap).catch(() => null),
+    ])
 
     // Helper: enrich pool with bot state and projected APR
     function enrichPool(
@@ -230,41 +243,24 @@ export function usePoolData() {
     enrichPool(aptos, thalaState, APT_BOT_START, aptos.currentPrice)
     enrichPool(elon, elonState, ELON_BOT_START, elon.currentPrice)
 
-    // Build Thala shared wallet
-    const aptPrice = aptos.currentPrice || 0.96
-    const elonPrice = elon.currentPrice || 0.09
-    const thalaWallet: WalletBalance = {
-      gasToken: 'APT',
-      gasBalance: aptosWallet.apt,
-      gasValueUsd: aptosWallet.apt * aptPrice,
-      idleBalances: [
-        { token: 'USDC', amount: aptosWallet.usdc, valueUsd: aptosWallet.usdc },
-        { token: 'ELON', amount: elonWallet.elon, valueUsd: elonWallet.elon * elonPrice },
-      ],
-      totalIdleUsd: aptosWallet.usdc + elonWallet.elon * elonPrice,
-    }
-
-    // Build Turbos pools array (DEEP + WAL + IKA + SUI/USDC)
-    const turbosPools = [deep, wal, ika, suiUsdc]
-
     // Build groups
     const turbosGroup: PoolGroup = {
       protocol: 'Turbos Finance',
       chain: 'sui',
       chainColor: '#4da2ff',
       walletBalance: suiWallet,
-      pools: turbosPools,
+      pools: [deep, wal, ika, suiUsdc],
     }
 
     const thalaGroup: PoolGroup = {
       protocol: 'Thala Finance',
       chain: 'aptos',
       chainColor: '#2ed8a3',
-      walletBalance: thalaWallet,
+      walletBalance: aptosWallet,
       pools: [aptos, elon],
     }
 
-    setWallets({ sui: suiWallet, aptos: thalaWallet })
+    setWallets({ sui: suiWallet, aptos: aptosWallet })
     setGroups([turbosGroup, thalaGroup])
 
     // Calculate performance per pool

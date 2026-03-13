@@ -2,7 +2,7 @@ export interface WalletBalance {
   gasToken: string
   gasBalance: number
   gasValueUsd: number
-  idleBalances: { token: string; amount: number; valueUsd: number }[]
+  idleBalances: { token: string; amount: number; valueUsd: number; priceUnknown?: boolean }[]
   totalIdleUsd: number // excludes gas reserve
 }
 
