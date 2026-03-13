@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { PoolData, PoolGroup, PoolPerformance, WalletBalance } from '../types'
+import type { PoolData, PoolGroup, PoolPerformance, WalletBalance, BotState } from '../types'
 import { fetchSuiPoolData, fetchSuiWalletBalance, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
 import { fetchSuiTurbosPoolData } from '../services/suiTurbos'
@@ -25,21 +25,27 @@ const START_PRICES: Record<string, { price: number; investment: number; start: s
   'ELON / USDC':    { price: 0.091,  investment: 50, start: ELON_BOT_START },
 }
 
-function calcApr(pendingUsd: number, positionValueUsd: number, lastActionAt: string | null): number {
-  if (!lastActionAt || positionValueUsd <= 0) return 0
-  const hoursElapsed = (Date.now() - new Date(lastActionAt).getTime()) / (1000 * 60 * 60)
-  if (hoursElapsed <= 0) return 0
-  return (pendingUsd / positionValueUsd) * (365 * 24 / hoursElapsed) * 100
+// Projected APR from pending fees accrued since last on-chain collect.
+// This matches DEX UI APR: current fee rate annualized, not diluted lifetime average.
+function calcProjectedApr(
+  pendingUsd: number,
+  positionValueUsd: number,
+  lastCollectAt: string | null,
+): number {
+  if (positionValueUsd <= 0 || !lastCollectAt) return 0
+  const hoursSinceCollect = (Date.now() - new Date(lastCollectAt).getTime()) / (1000 * 60 * 60)
+  if (hoursSinceCollect < 0.5) return 0 // avoid extreme APR from very short periods
+  return (pendingUsd / positionValueUsd) * (365 * 24 / hoursSinceCollect) * 100
 }
 
-function latestAction(...dates: (string | null | undefined)[]): string | null {
-  let best: string | null = null
-  for (const d of dates) {
-    if (!d) continue
-    if (!best || new Date(d).getTime() > new Date(best).getTime()) best = d
-  }
-  return best
+// Get the most recent fee-collection timestamp (rebalance or compound)
+function getLastCollectAt(state: BotState | null, fallback: string): string {
+  if (!state) return fallback
+  const candidates = [state.lastRebalanceAt, state.lastCompoundAt].filter(Boolean) as string[]
+  if (candidates.length === 0) return fallback
+  return candidates.reduce((latest, d) => new Date(d) > new Date(latest) ? d : latest)
 }
+
 
 function formatUptime(startIso: string): string {
   const ms = Date.now() - new Date(startIso).getTime()
@@ -104,17 +110,40 @@ function calcPoolPerformance(
   }
 }
 
+// Persist last-good pool data to sessionStorage so it survives page reloads
+const POOL_STORAGE_KEY = 'clmm_last_good_pools'
+
+function loadPersistedPools(): Map<string, PoolData> {
+  const map = new Map<string, PoolData>()
+  try {
+    const stored = sessionStorage.getItem(POOL_STORAGE_KEY)
+    if (stored) {
+      const entries = JSON.parse(stored) as [string, PoolData][]
+      for (const [k, v] of entries) map.set(k, v)
+    }
+  } catch { /* ignore */ }
+  return map
+}
+
+function persistPool(key: string, data: PoolData, cache: Map<string, PoolData>): void {
+  cache.set(key, data)
+  try {
+    sessionStorage.setItem(POOL_STORAGE_KEY, JSON.stringify([...cache.entries()]))
+  } catch { /* storage full */ }
+}
+
 // If a fetch returns an error result, use last good data instead (marked stale)
+// NEVER returns $0 if we ever had a successful fetch (in-memory or sessionStorage)
 function useLastGood(fresh: PoolData, key: string, cache: React.RefObject<Map<string, PoolData>>): PoolData {
   if (!fresh.error) {
-    cache.current.set(key, fresh)
+    persistPool(key, fresh, cache.current)
     return fresh
   }
   const prev = cache.current.get(key)
   if (prev) {
     return { ...prev, stale: true, lastUpdated: Date.now(), error: fresh.error }
   }
-  return fresh // first load failed — no cached data yet
+  return fresh // first load failed — no cached data anywhere
 }
 
 export function usePoolData() {
@@ -122,27 +151,30 @@ export function usePoolData() {
   const [poolPerformances, setPoolPerformances] = useState<PoolPerformance[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
-  const poolCache = useRef(new Map<string, PoolData>())
+  const poolCache = useRef(loadPersistedPools())
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    // Phase 1: fetch all pool data + bot states + wallets in parallel
-    // All fetches wrapped in .catch() so one failure doesn't kill everything
+    // Phase 1: Sui fetches + bot states in parallel (no rate limit issues)
     const [
-      deepRaw, wal, suiTurbos, aptosRaw, elonRaw,
+      deepRaw, wal, suiTurbos,
       turbosState, walState, suiTurbosState, thalaState, elonState,
-      aptosWallet, elonWallet,
     ] = await Promise.all([
       fetchSuiPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchWalPoolData().catch(() => null),
       fetchSuiTurbosPoolData().catch(() => null),
-      fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchElonPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchTurbosBotState(),
       fetchWalBotState(),
       fetchSuiTurbosBotState(),
       fetchThalaBotState(),
       fetchElonBotState(),
+    ])
+
+    // Phase 1b: Aptos fetches SEQUENCED to avoid rate-limit burst
+    // APT pool first, then ELON (which reuses APT pool cache for thAPT price)
+    const aptosRaw = await fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData)
+    const elonRaw = await fetchElonPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData)
+    const [aptosWallet, elonWallet] = await Promise.all([
       fetchAptosWalletRaw().catch(() => ({ apt: 0, usdc: 0 })),
       fetchElonWalletRaw().catch(() => ({ elon: 0 })),
     ])
@@ -157,64 +189,25 @@ export function usePoolData() {
     const suiUsdPrice = await fetchSuiUsdPrice()
     const suiWallet = await fetchSuiWalletBalance(deepPrice, suiUsdPrice).catch(() => null)
 
-    // Enrich DEEP/USDC with bot state and APR
-    if (turbosState) {
-      deep.botState = turbosState
-      const lastAction = latestAction(turbosState.lastCompoundAt, turbosState.lastRebalanceAt) || SUI_BOT_START
-      deep.feesApr = calcApr(deep.pendingFeesUsd, deep.positionValueUsd, lastAction)
-      deep.rewardsApr = calcApr(deep.pendingRewardsUsd, deep.positionValueUsd, lastAction)
-    } else {
-      deep.feesApr = calcApr(deep.pendingFeesUsd, deep.positionValueUsd, SUI_BOT_START)
-      deep.rewardsApr = calcApr(deep.pendingRewardsUsd, deep.positionValueUsd, SUI_BOT_START)
+    // Helper: enrich pool with bot state and projected APR
+    function enrichPool(
+      pool: PoolData,
+      state: BotState | null,
+      botStart: string,
+      _priceA: number,
+    ) {
+      if (state) pool.botState = state
+      const lastCollectAt = getLastCollectAt(state, botStart)
+      pool.feesApr = calcProjectedApr(pool.pendingFeesUsd, pool.positionValueUsd, lastCollectAt)
+      pool.rewardsApr = calcProjectedApr(pool.pendingRewardsUsd, pool.positionValueUsd, lastCollectAt)
     }
 
-    // Enrich WAL/USDC
-    if (wal) {
-      if (walState) {
-        wal.botState = walState
-        const lastAction = latestAction(walState.lastCompoundAt, walState.lastRebalanceAt) || WAL_BOT_START
-        wal.feesApr = calcApr(wal.pendingFeesUsd, wal.positionValueUsd, lastAction)
-        wal.rewardsApr = calcApr(wal.pendingRewardsUsd, wal.positionValueUsd, lastAction)
-      } else {
-        wal.feesApr = calcApr(wal.pendingFeesUsd, wal.positionValueUsd, WAL_BOT_START)
-        wal.rewardsApr = calcApr(wal.pendingRewardsUsd, wal.positionValueUsd, WAL_BOT_START)
-      }
-    }
-
-    // Enrich SUI/TURBOS
-    if (suiTurbos) {
-      if (suiTurbosState) {
-        suiTurbos.botState = suiTurbosState
-        const lastAction = latestAction(suiTurbosState.lastCompoundAt, suiTurbosState.lastRebalanceAt) || SUI_TURBOS_BOT_START
-        suiTurbos.feesApr = calcApr(suiTurbos.pendingFeesUsd, suiTurbos.positionValueUsd, lastAction)
-        suiTurbos.rewardsApr = calcApr(suiTurbos.pendingRewardsUsd, suiTurbos.positionValueUsd, lastAction)
-      } else {
-        suiTurbos.feesApr = calcApr(suiTurbos.pendingFeesUsd, suiTurbos.positionValueUsd, SUI_TURBOS_BOT_START)
-        suiTurbos.rewardsApr = calcApr(suiTurbos.pendingRewardsUsd, suiTurbos.positionValueUsd, SUI_TURBOS_BOT_START)
-      }
-    }
-
-    // Enrich APT/USDC
-    if (thalaState) {
-      aptos.botState = thalaState
-      const lastAction = latestAction(thalaState.lastCompoundAt, thalaState.lastRebalanceAt) || APT_BOT_START
-      aptos.feesApr = calcApr(aptos.pendingFeesUsd, aptos.positionValueUsd, lastAction)
-      aptos.rewardsApr = calcApr(aptos.pendingRewardsUsd, aptos.positionValueUsd, lastAction)
-    } else {
-      aptos.feesApr = calcApr(aptos.pendingFeesUsd, aptos.positionValueUsd, APT_BOT_START)
-      aptos.rewardsApr = calcApr(aptos.pendingRewardsUsd, aptos.positionValueUsd, APT_BOT_START)
-    }
-
-    // Enrich ELON/USDC
-    if (elonState) {
-      elon.botState = elonState
-      const lastAction = latestAction(elonState.lastCompoundAt, elonState.lastRebalanceAt) || ELON_BOT_START
-      elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, lastAction)
-      elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, lastAction)
-    } else {
-      elon.feesApr = calcApr(elon.pendingFeesUsd, elon.positionValueUsd, ELON_BOT_START)
-      elon.rewardsApr = calcApr(elon.pendingRewardsUsd, elon.positionValueUsd, ELON_BOT_START)
-    }
+    // Enrich all pools with cumulative APR over entire bot runtime
+    enrichPool(deep, turbosState, SUI_BOT_START, deep.currentPrice)
+    if (wal) enrichPool(wal, walState, WAL_BOT_START, wal.currentPrice)
+    if (suiTurbos) enrichPool(suiTurbos, suiTurbosState, SUI_TURBOS_BOT_START, suiTurbos.currentPrice)
+    enrichPool(aptos, thalaState, APT_BOT_START, aptos.currentPrice)
+    enrichPool(elon, elonState, ELON_BOT_START, elon.currentPrice)
 
     // Build Thala shared wallet
     const aptPrice = aptos.currentPrice || 7.5

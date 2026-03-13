@@ -28,9 +28,10 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0) / 1e8,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
+    totalRebalances: data.rebalanceCount || 0,
+    // Thala state.json stores fees in human-readable units already
+    totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0),
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0),
   }
 }
 
@@ -40,9 +41,10 @@ export async function fetchElonBotState(): Promise<BotState | null> {
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
+    totalRebalances: data.rebalanceCount || 0,
+    // Thala state.json stores fees in human-readable units already
+    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0),
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0),
   }
 }
 

@@ -217,7 +217,7 @@ export async function fetchElonPoolData(): Promise<PoolData> {
       }
     } catch { /* rewards stay 0 */ }
     // thAPT ≈ APT price — fetch from APT/USDC pool
-    let aptPrice = 7.5 // fallback (approximate APT/USD, not thAPT/APT ratio)
+    let aptPrice = 0.96 // fallback
     try {
       const aptPool = await aptosGet(
         `/accounts/0xa8a355df7d9e75ef16082da2a0bad62c173a054ab1e8eae0f0e26c828adaa4ef/resource/${CLMM_PACKAGE}::pool::Pool`
