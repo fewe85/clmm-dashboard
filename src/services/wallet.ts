@@ -25,11 +25,26 @@ async function suiRpc(method: string, params: unknown[]): Promise<unknown> {
   return json.result
 }
 
+// --- Known Sui coin types → symbol + decimals (avoids metadata mismatches) ---
+
+const KNOWN_SUI_COINS: Record<string, { symbol: string; decimals: number }> = {
+  '0x2::sui::SUI': { symbol: 'SUI', decimals: 9 },
+  '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC': { symbol: 'USDC', decimals: 6 },
+  '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP': { symbol: 'DEEP', decimals: 6 },
+  '0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL': { symbol: 'WAL', decimals: 9 },
+  '0x7262fb2f7a3a14c888c438a3cd9b912469a58cf60f367352c46584262e8299aa::ika::IKA': { symbol: 'IKA', decimals: 9 },
+  '0x5d1f47ea69bb0de31c313d7acf89b890dbb8991ea8e03c6c355171f84bb1ba4a::turbos::TURBOS': { symbol: 'TURBOS', decimals: 9 },
+}
+
 // --- Coin metadata cache (symbol + decimals) ---
 
 const metaCache = new Map<string, { symbol: string; decimals: number }>()
 
 async function suiCoinMeta(coinType: string): Promise<{ symbol: string; decimals: number }> {
+  // Check known coins first (guaranteed correct symbol for price map matching)
+  const known = KNOWN_SUI_COINS[coinType]
+  if (known) return known
+
   if (metaCache.has(coinType)) return metaCache.get(coinType)!
   try {
     const r = await suiRpc('suix_getCoinMetadata', [coinType]) as any
