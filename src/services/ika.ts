@@ -13,10 +13,7 @@ const DECIMALS_USDC = 6
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
 
-// Pool<SUI(9), USDC(6)> for live SUI/USD price (reward valuation)
-const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
-// Pool<TURBOS(9), SUI(9)> for TURBOS price (reward valuation)
-const TURBOS_SUI_POOL = '0x2c6fc12bf0d093b5391e7c0fed7e044d52bc14eb29f6352a3fb358e33e80729e'
+// No extra price pools needed — IKA price from this pool, USDC = $1
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -92,19 +89,10 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
 
 export async function fetchIkaPoolData(): Promise<PoolData> {
   try {
-    const [poolObj, ownedObjects, suiUsdcObj, turbosSuiObj] = await Promise.all([
+    const [poolObj, ownedObjects] = await Promise.all([
       getObject(POOL_ID),
       getOwnedObjects(BOT_WALLET),
-      getObject(USDC_SUI_POOL),
-      getObject(TURBOS_SUI_POOL),
     ])
-
-    // Live prices for reward valuation
-    const suiUsdcFields = (suiUsdcObj as any).data.content.fields
-    const SUI_USD = sqrtPriceX64ToPrice(BigInt(suiUsdcFields.sqrt_price), 9, 6)
-    const turbosSuiFields = (turbosSuiObj as any).data.content.fields
-    const TURBOS_SUI = sqrtPriceX64ToPrice(BigInt(turbosSuiFields.sqrt_price), 9, 9)
-    const TURBOS_USD = TURBOS_SUI * SUI_USD
 
     const poolContent = (poolObj as any).data.content.fields
     const sqrtPrice = BigInt(poolContent.sqrt_price)
@@ -182,10 +170,12 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
     const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_USDC)
     const pendingFeesUsd = feesA * ikaPrice + feesB
 
-    // Rewards (SUI + TURBOS incentives)
+    // Rewards: slot 0 = USDC, slot 1 = IKA
     const poolRewardInfos = poolContent.reward_infos || []
     const posRewardInfos = posFields.reward_infos || []
     let rewardUsd = 0
+    let rewardIkaAmount = 0
+    let rewardUsdcAmount = 0
     for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
       const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
       const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
@@ -199,10 +189,12 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
       const amountOwed = BigInt(posRewardInfos[i].fields.amount_owed)
       const rewardRaw = amountOwed + subMod128(growthInside, posGrowthInside) * liquidity / Q64
 
-      if (vaultType.endsWith('::sui::SUI')) {
-        rewardUsd += Number(rewardRaw) / Math.pow(10, 9) * SUI_USD
-      } else if (vaultType.endsWith('::turbos::TURBOS')) {
-        rewardUsd += Number(rewardRaw) / Math.pow(10, 9) * TURBOS_USD
+      if (vaultType.endsWith('::usdc::USDC')) {
+        rewardUsdcAmount = Number(rewardRaw) / Math.pow(10, 6)
+        rewardUsd += rewardUsdcAmount // USDC = $1
+      } else if (vaultType.endsWith('::ika::IKA')) {
+        rewardIkaAmount = Number(rewardRaw) / Math.pow(10, 9)
+        rewardUsd += rewardIkaAmount * ikaPrice
       }
     }
     const pendingRewardsUsd = rewardUsd
@@ -234,8 +226,9 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
       feesA,
       feesB,
       pendingRewardsUsd,
-      rewardToken: 'SUI+TURBOS',
+      rewardToken: 'IKA+USDC',
       rewardAmount: rewardUsd,
+      rewardLabel: `${rewardIkaAmount.toFixed(4)} IKA + ${rewardUsdcAmount.toFixed(4)} USDC`,
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
@@ -273,7 +266,7 @@ function makeErrorResult(error: string): PoolData {
     feesA: 0,
     feesB: 0,
     pendingRewardsUsd: 0,
-    rewardToken: 'SUI+TURBOS',
+    rewardToken: 'IKA+USDC',
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,

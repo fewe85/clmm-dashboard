@@ -188,7 +188,7 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
           </span>
         </div>
         <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-          {formatAmount(pool.rewardAmount, 6)} {pool.rewardToken}
+          {pool.rewardLabel || `${formatAmount(pool.rewardAmount, 6)} ${pool.rewardToken}`}
         </div>
       </div>
 

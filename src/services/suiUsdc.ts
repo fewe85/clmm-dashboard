@@ -13,8 +13,7 @@ const DECIMALS_USDC = 6
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
 
-// Pool<TURBOS(9), SUI(9)> for TURBOS price (reward valuation)
-const TURBOS_SUI_POOL = '0x2c6fc12bf0d093b5391e7c0fed7e044d52bc14eb29f6352a3fb358e33e80729e'
+// No extra price pools needed — SUI price from this pool itself
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -90,15 +89,10 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
 
 export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
   try {
-    const [poolObj, ownedObjects, turbosSuiObj] = await Promise.all([
+    const [poolObj, ownedObjects] = await Promise.all([
       getObject(POOL_ID),
       getOwnedObjects(BOT_WALLET),
-      getObject(TURBOS_SUI_POOL),
     ])
-
-    // TURBOS price for reward valuation
-    const turbosSuiFields = (turbosSuiObj as any).data.content.fields
-    const TURBOS_SUI = sqrtPriceX64ToPrice(BigInt(turbosSuiFields.sqrt_price), 9, 9)
 
     const poolContent = (poolObj as any).data.content.fields
     const sqrtPrice = BigInt(poolContent.sqrt_price)
@@ -107,9 +101,7 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
 
     // Price = USDC per SUI (SUI is coinA, USDC is coinB)
     const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_SUI, DECIMALS_USDC)
-    const SUI_USD = currentPrice // live from this pool itself
-
-    const TURBOS_USD = TURBOS_SUI * SUI_USD
+    const SUI_USD = currentPrice
 
     // Find all position NFTs for SUI/USDC pool, pick the one with most liquidity
     const positionNfts = ownedObjects.filter((obj: any) => {
@@ -178,12 +170,13 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
     const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_USDC)
     const pendingFeesUsd = feesA * SUI_USD + feesB
 
-    // Rewards (SUI + TURBOS incentives)
+    // Rewards: slot 0 = TURBOS (inactive), slot 1 = SUI
     const poolRewardInfos = poolContent.reward_infos || []
     const posRewardInfos = posFields.reward_infos || []
-    let rewardUsd = 0
+    let rewardSuiAmount = 0
     for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
       const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
+      if (!vaultType.endsWith('::sui::SUI')) continue // skip inactive TURBOS slot
       const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
       const growthOutsideLower = BigInt(tickLowerData.reward_growths_outside[i])
       const growthOutsideUpper = BigInt(tickUpperData.reward_growths_outside[i])
@@ -194,14 +187,9 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
       const posGrowthInside = BigInt(posRewardInfos[i].fields.reward_growth_inside)
       const amountOwed = BigInt(posRewardInfos[i].fields.amount_owed)
       const rewardRaw = amountOwed + subMod128(growthInside, posGrowthInside) * liquidity / Q64
-
-      if (vaultType.endsWith('::sui::SUI')) {
-        rewardUsd += Number(rewardRaw) / Math.pow(10, 9) * SUI_USD
-      } else if (vaultType.endsWith('::turbos::TURBOS')) {
-        rewardUsd += Number(rewardRaw) / Math.pow(10, 9) * TURBOS_USD
-      }
+      rewardSuiAmount = Number(rewardRaw) / Math.pow(10, 9)
     }
-    const pendingRewardsUsd = rewardUsd
+    const pendingRewardsUsd = rewardSuiAmount * SUI_USD
 
     const compoundThreshold = positionValueUsd * 0.01
     const compoundPending = pendingFeesUsd + pendingRewardsUsd
@@ -230,8 +218,8 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
       feesA,
       feesB,
       pendingRewardsUsd,
-      rewardToken: 'SUI+TURBOS',
-      rewardAmount: rewardUsd,
+      rewardToken: 'SUI',
+      rewardAmount: rewardSuiAmount,
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
@@ -269,7 +257,7 @@ function makeErrorResult(error: string): PoolData {
     feesA: 0,
     feesB: 0,
     pendingRewardsUsd: 0,
-    rewardToken: 'SUI+TURBOS',
+    rewardToken: 'SUI',
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,

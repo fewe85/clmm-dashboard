@@ -38,6 +38,7 @@ export interface PoolData {
   pendingRewardsUsd: number
   rewardToken: string
   rewardAmount: number
+  rewardLabel?: string // override display (e.g. "1.23 IKA + 0.45 USDC")
   compoundPending: number
   compoundThreshold: number
   triggerDistancePct: number
