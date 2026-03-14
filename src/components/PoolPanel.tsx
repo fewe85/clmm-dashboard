@@ -200,15 +200,13 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
       />
 
       {/* Last Rebalance / Compound */}
-      {bs && (
-        <div
-          className="flex justify-between text-xs mt-3 pt-3"
-          style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
-        >
-          <span>Rebalance: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs.lastRebalanceAt)}</span></span>
-          <span>Compound: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs.lastCompoundAt)}</span></span>
-        </div>
-      )}
+      <div
+        className="flex justify-between text-xs mt-3 pt-3"
+        style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
+      >
+        <span>Rebalance: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs?.lastRebalanceAt ?? null)}</span></span>
+        <span>Compound: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs?.lastCompoundAt ?? null)}</span></span>
+      </div>
     </div>
   )
 }
