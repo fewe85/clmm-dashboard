@@ -187,9 +187,18 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
             {formatUsd(pool.pendingRewardsUsd)}
           </span>
         </div>
-        <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-          {pool.rewardLabel || `${formatAmount(pool.rewardAmount, 6)} ${pool.rewardToken}`}
-        </div>
+        {pool.rewardDetails && pool.rewardDetails.length > 1 ? (
+          pool.rewardDetails.map((r) => (
+            <div key={r.token} className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              <span>{formatAmount(r.amount, 6)} {r.token}</span>
+              <span>{formatUsd(r.valueUsd)}</span>
+            </div>
+          ))
+        ) : (
+          <div className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+            {pool.rewardLabel || `${formatAmount(pool.rewardAmount, 6)} ${pool.rewardToken}`}
+          </div>
+        )}
       </div>
 
       {/* Compound Progress (1% of position value) */}

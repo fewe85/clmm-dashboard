@@ -185,6 +185,10 @@ export async function fetchWalPoolData(): Promise<PoolData> {
     const poolRewardInfos = poolContent.reward_infos || []
     const posRewardInfos = posFields.reward_infos || []
     let rewardAmount = 0
+    let rewardSuiAmount = 0
+    let rewardSuiUsd = 0
+    let rewardTurbosAmount = 0
+    let rewardTurbosUsd = 0
     for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
       const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
       const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
@@ -199,9 +203,13 @@ export async function fetchWalPoolData(): Promise<PoolData> {
       const rewardRaw = amountOwed + subMod128(growthInside, posGrowthInside) * liquidity / Q64
 
       if (vaultType.endsWith('::sui::SUI')) {
-        rewardAmount += Number(rewardRaw) / Math.pow(10, 9) * SUI_USD
+        rewardSuiAmount = Number(rewardRaw) / Math.pow(10, 9)
+        rewardSuiUsd = rewardSuiAmount * SUI_USD
+        rewardAmount += rewardSuiUsd
       } else if (vaultType.endsWith('::turbos::TURBOS')) {
-        rewardAmount += Number(rewardRaw) / Math.pow(10, 9) * TURBOS_USD
+        rewardTurbosAmount = Number(rewardRaw) / Math.pow(10, 9)
+        rewardTurbosUsd = rewardTurbosAmount * TURBOS_USD
+        rewardAmount += rewardTurbosUsd
       }
     }
     const pendingRewardsUsd = rewardAmount
@@ -235,6 +243,10 @@ export async function fetchWalPoolData(): Promise<PoolData> {
       pendingRewardsUsd,
       rewardToken: 'SUI+TURBOS',
       rewardAmount,
+      rewardDetails: [
+        { token: 'SUI', amount: rewardSuiAmount, valueUsd: rewardSuiUsd },
+        { token: 'TURBOS', amount: rewardTurbosAmount, valueUsd: rewardTurbosUsd },
+      ],
       compoundPending,
       compoundThreshold,
       triggerDistancePct,

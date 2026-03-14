@@ -228,7 +228,10 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
       pendingRewardsUsd,
       rewardToken: 'IKA+USDC',
       rewardAmount: rewardUsd,
-      rewardLabel: `${rewardIkaAmount.toFixed(4)} IKA + ${rewardUsdcAmount.toFixed(4)} USDC`,
+      rewardDetails: [
+        { token: 'IKA', amount: rewardIkaAmount, valueUsd: rewardIkaAmount * ikaPrice },
+        { token: 'USDC', amount: rewardUsdcAmount, valueUsd: rewardUsdcAmount },
+      ],
       compoundPending,
       compoundThreshold,
       triggerDistancePct,
