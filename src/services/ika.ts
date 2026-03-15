@@ -13,9 +13,6 @@ const DECIMALS_USDC = 6
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
 
-// Extra price pools for TURBOS reward pricing
-const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
-const TURBOS_SUI_POOL = '0x2c6fc12bf0d093b5391e7c0fed7e044d52bc14eb29f6352a3fb358e33e80729e'
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -91,11 +88,9 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
 
 export async function fetchIkaPoolData(): Promise<PoolData> {
   try {
-    const [poolObj, ownedObjects, suiUsdcObj, turbosSuiObj] = await Promise.all([
+    const [poolObj, ownedObjects] = await Promise.all([
       getObject(POOL_ID),
       getOwnedObjects(BOT_WALLET),
-      getObject(USDC_SUI_POOL),
-      getObject(TURBOS_SUI_POOL),
     ])
 
     const poolContent = (poolObj as any).data.content.fields
@@ -105,13 +100,6 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
 
     // Price = USDC per IKA (IKA is coinA, USDC is coinB)
     const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_IKA, DECIMALS_USDC)
-
-    // TURBOS price for reward valuation
-    const suiUsdcFields = (suiUsdcObj as any).data.content.fields
-    const SUI_USD = sqrtPriceX64ToPrice(BigInt(suiUsdcFields.sqrt_price), 9, 6)
-    const turbosSuiFields = (turbosSuiObj as any).data.content.fields
-    const TURBOS_SUI = sqrtPriceX64ToPrice(BigInt(turbosSuiFields.sqrt_price), 9, 9)
-    const TURBOS_USD = TURBOS_SUI * SUI_USD
 
     // Find all position NFTs for IKA/USDC pool, pick the one with most liquidity
     const positionNfts = ownedObjects.filter((obj: any) => {
@@ -129,13 +117,26 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
     const positionCandidates = await Promise.all(
       positionNfts.map(async (nft: any) => {
         const pid = nft.data.content.fields.position_id
-        const obj = await getObject(pid)
-        const fields = (obj as any).data.content.fields
-        return { fields, liquidity: BigInt(fields.liquidity) }
+        const result = await rpcCall('sui_getObject', [
+          pid, { showContent: true, showType: true, showPreviousTransaction: true },
+        ]) as any
+        const fields = result.data.content.fields
+        return { fields, liquidity: BigInt(fields.liquidity), previousTx: result.data.previousTransaction }
       })
     )
     const best = positionCandidates.reduce((a, b) => a.liquidity > b.liquidity ? a : b)
     const posFields = best.fields
+
+    // Get position creation timestamp from on-chain transaction
+    let positionOpenedAt: string | undefined
+    if (best.previousTx) {
+      try {
+        const txBlock = await rpcCall('sui_getTransactionBlock', [best.previousTx, { showInput: false }]) as any
+        if (txBlock.timestampMs) {
+          positionOpenedAt = new Date(Number(txBlock.timestampMs)).toISOString()
+        }
+      } catch { /* fallback to bot start */ }
+    }
 
     const tickLowerBits = Number(posFields.tick_lower_index.fields.bits)
     const tickUpperBits = Number(posFields.tick_upper_index.fields.bits)
@@ -181,16 +182,15 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
     const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_USDC)
     const pendingFeesUsd = feesA * ikaPrice + feesB
 
-    // Rewards: slot 0 = USDC, slot 1 = IKA, slot 2 = TURBOS (if active)
+    // Rewards: slot 0 = USDC, slot 1 = IKA
     const poolRewardInfos = poolContent.reward_infos || []
     const posRewardInfos = posFields.reward_infos || []
     let rewardUsd = 0
     let rewardIkaAmount = 0
     let rewardUsdcAmount = 0
-    let rewardTurbosAmount = 0
-    let rewardTurbosUsd = 0
     for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
       const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
+      if (!vaultType.endsWith('::usdc::USDC') && !vaultType.endsWith('::ika::IKA')) continue
       const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
       const growthOutsideLower = BigInt(tickLowerData.reward_growths_outside[i])
       const growthOutsideUpper = BigInt(tickUpperData.reward_growths_outside[i])
@@ -204,14 +204,10 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
 
       if (vaultType.endsWith('::usdc::USDC')) {
         rewardUsdcAmount = Number(rewardRaw) / Math.pow(10, 6)
-        rewardUsd += rewardUsdcAmount // USDC = $1
+        rewardUsd += rewardUsdcAmount
       } else if (vaultType.endsWith('::ika::IKA')) {
         rewardIkaAmount = Number(rewardRaw) / Math.pow(10, 9)
         rewardUsd += rewardIkaAmount * ikaPrice
-      } else if (vaultType.endsWith('::turbos::TURBOS')) {
-        rewardTurbosAmount = Number(rewardRaw) / Math.pow(10, 9)
-        rewardTurbosUsd = rewardTurbosAmount * TURBOS_USD
-        rewardUsd += rewardTurbosUsd
       }
     }
     const pendingRewardsUsd = rewardUsd
@@ -243,15 +239,17 @@ export async function fetchIkaPoolData(): Promise<PoolData> {
       feesA,
       feesB,
       pendingRewardsUsd,
-      rewardToken: 'IKA+USDC+TURBOS',
+      rewardToken: 'IKA+USDC',
       rewardAmount: rewardUsd,
       rewardDetails: [
         { token: 'IKA', amount: rewardIkaAmount, valueUsd: rewardIkaAmount * ikaPrice },
         { token: 'USDC', amount: rewardUsdcAmount, valueUsd: rewardUsdcAmount },
-        { token: 'TURBOS', amount: rewardTurbosAmount, valueUsd: rewardTurbosUsd },
       ],
+      positionOpenedAt,
       compoundPending,
       compoundThreshold,
+      harvestedUsd: 0,
+      harvestDetails: [],
       triggerDistancePct,
       botState: null,
       feesApr: 0,
@@ -287,10 +285,12 @@ function makeErrorResult(error: string): PoolData {
     feesA: 0,
     feesB: 0,
     pendingRewardsUsd: 0,
-    rewardToken: 'IKA+USDC+TURBOS',
+    rewardToken: 'IKA+USDC',
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,
+    harvestedUsd: 0,
+    harvestDetails: [],
     triggerDistancePct: 0,
     botState: null,
     feesApr: 0,

@@ -214,7 +214,7 @@ export async function fetchWalPoolData(): Promise<PoolData> {
     }
     const pendingRewardsUsd = rewardAmount
 
-    const compoundThreshold = positionValueUsd * 0.02 // WAL bot uses 2% threshold
+    const compoundThreshold = positionValueUsd * 0.01
     const compoundPending = pendingFeesUsd + pendingRewardsUsd
 
     const triggerDistancePct = calcTriggerDistancePct(tickCurrent, tickLower, tickUpper)
@@ -249,6 +249,8 @@ export async function fetchWalPoolData(): Promise<PoolData> {
       ],
       compoundPending,
       compoundThreshold,
+      harvestedUsd: 0,
+      harvestDetails: [],
       triggerDistancePct,
       botState: null,
       feesApr: 0,
@@ -288,6 +290,8 @@ function makeErrorResult(error: string): PoolData {
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,
+    harvestedUsd: 0,
+    harvestDetails: [],
     triggerDistancePct: 0,
     botState: null,
     feesApr: 0,

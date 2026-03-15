@@ -9,9 +9,17 @@ export interface WalletBalance {
 export interface BotState {
   lastRebalanceAt: string | null
   lastCompoundAt: string | null
+  lastHarvestAt: string | null
   totalRebalances: number
   totalFeesCollectedA: number // raw base units converted to human
   totalFeesCollectedB: number
+  harvestEntries: { token: string; amount: number }[] // all harvested tokens (raw amounts, no USD)
+}
+
+export interface HarvestEntry {
+  token: string
+  amount: number
+  valueUsd: number
 }
 
 export interface PoolData {
@@ -42,10 +50,13 @@ export interface PoolData {
   rewardDetails?: { token: string; amount: number; valueUsd: number }[]
   compoundPending: number
   compoundThreshold: number
+  harvestedUsd: number // cumulative USD value sent to personal wallet
+  harvestDetails: HarvestEntry[] // per-token breakdown
   triggerDistancePct: number
   botState: BotState | null
   feesApr: number
   rewardsApr: number
+  positionOpenedAt?: string // on-chain position creation timestamp (ISO)
   lastUpdated: number
   error?: string
   stale?: boolean
@@ -61,11 +72,13 @@ export interface PoolPerformance {
   outperformanceUsd: number
   outperformancePct: number
   totalFeesEarnedUsd: number  // cumulative (collected + pending)
+  totalHarvestedUsd: number   // cumulative value sent to personal wallets
   totalRebalances: number
   netProfitUsd: number     // lpValue - initialInvestment
   netProfitPct: number
   daysRunning: number
   realizedApr: number      // annualized net profit %
+  status?: string           // e.g. "Closed — migrated"
 }
 
 export interface PoolGroup {

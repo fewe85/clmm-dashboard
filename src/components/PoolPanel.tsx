@@ -201,20 +201,41 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
         )}
       </div>
 
-      {/* Compound Progress (1% of position value) */}
+      {/* Harvest Progress (1% of position value) */}
       <ProgressBar
         value={pool.compoundPending}
         max={pool.compoundThreshold}
-        label="Compound Progress"
+        label="Harvest Progress"
       />
 
-      {/* Last Rebalance / Compound */}
+      {/* Total Harvested */}
+      <div
+        className="rounded-lg p-3 mt-3"
+        style={{ background: 'var(--bg-primary)' }}
+      >
+        <div className="flex justify-between items-baseline">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Harvested</span>
+          <span className="font-medium" style={{ color: 'var(--accent-green)' }}>
+            {formatUsd(pool.harvestedUsd)}
+          </span>
+        </div>
+        {pool.harvestDetails && pool.harvestDetails.length > 0 && (
+          pool.harvestDetails.map((h) => (
+            <div key={h.token} className="flex justify-between text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+              <span>{formatAmount(h.amount, 4)} {h.token}</span>
+              <span>{formatUsd(h.valueUsd)}</span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Last Rebalance / Harvest */}
       <div
         className="flex justify-between text-xs mt-3 pt-3"
         style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
       >
         <span>Rebalance: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs?.lastRebalanceAt ?? null)}</span></span>
-        <span>Compound: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs?.lastCompoundAt ?? null)}</span></span>
+        <span>Harvest: <span style={{ color: 'var(--text-secondary)' }}>{formatTimestamp(bs?.lastHarvestAt ?? bs?.lastCompoundAt ?? null)}</span></span>
       </div>
     </div>
   )

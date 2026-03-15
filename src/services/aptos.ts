@@ -274,6 +274,8 @@ export async function fetchAptosPoolData(): Promise<PoolData> {
       rewardAmount,
       compoundPending,
       compoundThreshold,
+      harvestedUsd: 0,
+      harvestDetails: [],
       triggerDistancePct,
       botState: null, // filled by hook
       feesApr: 0, // calculated by hook
@@ -313,6 +315,8 @@ function makeErrorResult(error: string): PoolData {
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,
+    harvestedUsd: 0,
+    harvestDetails: [],
     triggerDistancePct: 0,
     botState: null,
     feesApr: 0,

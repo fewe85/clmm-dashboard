@@ -17,7 +17,7 @@ interface PerformanceSectionProps {
   elonUptime: string
   poolPerformances: PoolPerformance[]
   totalNetProfit: number
-  totalFeesEarned: number
+  totalHarvested: number
   totalHodlValue: number
   totalLpValue: number
   totalRebalances: number
@@ -52,7 +52,7 @@ export function PerformanceSection({
   elonUptime,
   poolPerformances,
   totalNetProfit,
-  totalFeesEarned,
+  totalHarvested,
   totalHodlValue,
   totalLpValue,
   totalRebalances,
@@ -141,15 +141,15 @@ export function PerformanceSection({
               </div>
             </div>
             <div className="rounded-lg p-3" style={{ background: 'var(--bg-primary)' }}>
-              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Fees Earned</div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Total Harvested</div>
               <div className="text-lg font-bold mt-0.5" style={{ color: 'var(--accent-green)' }}>
-                {formatUsd(totalFeesEarned)}
+                {formatUsd(totalHarvested)}
               </div>
             </div>
             <div className="rounded-lg p-3" style={{ background: 'var(--bg-primary)' }}>
               <div className="text-xs" style={{ color: 'var(--text-muted)' }}>LP vs HODL</div>
-              <div className="text-lg font-bold mt-0.5" style={{ color: pnlColor(totalLpValue - totalHodlValue) }}>
-                {pnlSign(totalLpValue - totalHodlValue)}{formatUsd(totalLpValue - totalHodlValue)}
+              <div className="text-lg font-bold mt-0.5" style={{ color: pnlColor(totalLpValue + totalHarvested - totalHodlValue) }}>
+                {pnlSign(totalLpValue + totalHarvested - totalHodlValue)}{formatUsd(totalLpValue + totalHarvested - totalHodlValue)}
               </div>
             </div>
             <div className="rounded-lg p-3" style={{ background: 'var(--bg-primary)' }}>
@@ -176,17 +176,24 @@ export function PerformanceSection({
                   <th className="text-right py-2 px-2 font-medium">LP Value</th>
                   <th className="text-right py-2 px-2 font-medium">HODL Value</th>
                   <th className="text-right py-2 px-2 font-medium">LP vs HODL</th>
-                  <th className="text-right py-2 px-2 font-medium">Fees Earned</th>
+                  <th className="text-right py-2 px-2 font-medium">Harvested</th>
                   <th className="text-right py-2 px-2 font-medium">Net Profit</th>
                   <th className="text-right py-2 px-2 font-medium">APR</th>
                   <th className="text-right py-2 pl-2 font-medium">Rebals</th>
                 </tr>
               </thead>
               <tbody>
-                {poolPerformances.map(p => (
-                  <tr key={p.poolName} style={{ borderBottom: '1px solid var(--border)' }}>
+                {poolPerformances.map(p => {
+                  const isClosed = !!p.status
+                  return (
+                  <tr key={p.poolName} style={{ borderBottom: '1px solid var(--border)', opacity: isClosed ? 0.5 : 1 }}>
                     <td className="py-2 pr-3 font-medium" style={{ color: 'var(--text-primary)' }}>
                       {p.poolName}
+                      {p.status && (
+                        <span className="ml-2 text-[10px] font-normal px-1.5 py-0.5 rounded" style={{ background: 'var(--bg-primary)', color: 'var(--text-muted)' }}>
+                          {p.status}
+                        </span>
+                      )}
                     </td>
                     <td className="py-2 px-2 text-right tabular-nums" style={{ color: 'var(--text-secondary)' }}>
                       {formatUsd(p.initialInvestment)}
@@ -201,7 +208,7 @@ export function PerformanceSection({
                       {pnlSign(p.outperformanceUsd)}{formatUsd(p.outperformanceUsd)}
                     </td>
                     <td className="py-2 px-2 text-right tabular-nums" style={{ color: 'var(--accent-green)' }}>
-                      {formatUsd(p.totalFeesEarnedUsd)}
+                      {formatUsd(p.totalHarvestedUsd)}
                     </td>
                     <td className="py-2 px-2 text-right tabular-nums font-medium" style={{ color: pnlColor(p.netProfitUsd) }}>
                       {pnlSign(p.netProfitUsd)}{formatUsd(p.netProfitUsd)}
@@ -209,14 +216,15 @@ export function PerformanceSection({
                         ({pnlSign(p.netProfitPct)}{p.netProfitPct.toFixed(1)}%)
                       </span>
                     </td>
-                    <td className="py-2 px-2 text-right tabular-nums" style={{ color: pnlColor(p.realizedApr) }}>
-                      {p.realizedApr.toFixed(0)}%
+                    <td className="py-2 px-2 text-right tabular-nums" style={{ color: isClosed ? 'var(--text-muted)' : pnlColor(p.realizedApr) }}>
+                      {isClosed ? '—' : `${p.realizedApr.toFixed(0)}%`}
                     </td>
                     <td className="py-2 pl-2 text-right tabular-nums" style={{ color: 'var(--accent-blue)' }}>
-                      {p.totalRebalances}
+                      {isClosed ? '—' : p.totalRebalances}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
                 {/* Totals row */}
                 <tr style={{ borderTop: '2px solid var(--border)' }}>
                   <td className="py-2 pr-3 font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -231,11 +239,11 @@ export function PerformanceSection({
                   <td className="py-2 px-2 text-right tabular-nums font-bold" style={{ color: 'var(--text-secondary)' }}>
                     {formatUsd(totalHodlValue)}
                   </td>
-                  <td className="py-2 px-2 text-right tabular-nums font-bold" style={{ color: pnlColor(totalLpValue - totalHodlValue) }}>
-                    {pnlSign(totalLpValue - totalHodlValue)}{formatUsd(totalLpValue - totalHodlValue)}
+                  <td className="py-2 px-2 text-right tabular-nums font-bold" style={{ color: pnlColor(totalLpValue + totalHarvested - totalHodlValue) }}>
+                    {pnlSign(totalLpValue + totalHarvested - totalHodlValue)}{formatUsd(totalLpValue + totalHarvested - totalHodlValue)}
                   </td>
                   <td className="py-2 px-2 text-right tabular-nums font-bold" style={{ color: 'var(--accent-green)' }}>
-                    {formatUsd(totalFeesEarned)}
+                    {formatUsd(totalHarvested)}
                   </td>
                   <td className="py-2 px-2 text-right tabular-nums font-bold" style={{ color: pnlColor(totalNetProfit) }}>
                     {pnlSign(totalNetProfit)}{formatUsd(totalNetProfit)}

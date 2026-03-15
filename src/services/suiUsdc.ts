@@ -13,8 +13,6 @@ const DECIMALS_USDC = 6
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
 
-// TURBOS/SUI pool for TURBOS reward pricing
-const TURBOS_SUI_POOL = '0x2c6fc12bf0d093b5391e7c0fed7e044d52bc14eb29f6352a3fb358e33e80729e'
 
 async function rpcCall(method: string, params: unknown[]): Promise<unknown> {
   const res = await fetch(RPC, {
@@ -90,10 +88,9 @@ function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUppe
 
 export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
   try {
-    const [poolObj, ownedObjects, turbosSuiObj] = await Promise.all([
+    const [poolObj, ownedObjects] = await Promise.all([
       getObject(POOL_ID),
       getOwnedObjects(BOT_WALLET),
-      getObject(TURBOS_SUI_POOL),
     ])
 
     const poolContent = (poolObj as any).data.content.fields
@@ -104,11 +101,6 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
     // Price = USDC per SUI (SUI is coinA, USDC is coinB)
     const currentPrice = sqrtPriceX64ToPrice(sqrtPrice, DECIMALS_SUI, DECIMALS_USDC)
     const SUI_USD = currentPrice
-
-    // TURBOS price from TURBOS/SUI pool
-    const turbosSuiFields = (turbosSuiObj as any).data.content.fields
-    const TURBOS_SUI = sqrtPriceX64ToPrice(BigInt(turbosSuiFields.sqrt_price), 9, 9)
-    const TURBOS_USD = TURBOS_SUI * SUI_USD
 
     // Find all position NFTs for SUI/USDC pool, pick the one with most liquidity
     const positionNfts = ownedObjects.filter((obj: any) => {
@@ -126,13 +118,26 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
     const positionCandidates = await Promise.all(
       positionNfts.map(async (nft: any) => {
         const pid = nft.data.content.fields.position_id
-        const obj = await getObject(pid)
-        const fields = (obj as any).data.content.fields
-        return { fields, liquidity: BigInt(fields.liquidity) }
+        const result = await rpcCall('sui_getObject', [
+          pid, { showContent: true, showType: true, showPreviousTransaction: true },
+        ]) as any
+        const fields = result.data.content.fields
+        return { fields, liquidity: BigInt(fields.liquidity), previousTx: result.data.previousTransaction }
       })
     )
     const best = positionCandidates.reduce((a, b) => a.liquidity > b.liquidity ? a : b)
     const posFields = best.fields
+
+    // Get position creation timestamp from on-chain transaction
+    let positionOpenedAt: string | undefined
+    if (best.previousTx) {
+      try {
+        const txBlock = await rpcCall('sui_getTransactionBlock', [best.previousTx, { showInput: false }]) as any
+        if (txBlock.timestampMs) {
+          positionOpenedAt = new Date(Number(txBlock.timestampMs)).toISOString()
+        }
+      } catch { /* fallback to bot start */ }
+    }
 
     const tickLowerBits = Number(posFields.tick_lower_index.fields.bits)
     const tickUpperBits = Number(posFields.tick_upper_index.fields.bits)
@@ -177,15 +182,14 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
     const feesB = Number(feesBRaw) / Math.pow(10, DECIMALS_USDC)
     const pendingFeesUsd = feesA * SUI_USD + feesB
 
-    // Rewards: slot 0 = TURBOS, slot 1 = SUI
+    // Rewards: SUI emissions only
     const poolRewardInfos = poolContent.reward_infos || []
     const posRewardInfos = posFields.reward_infos || []
     let rewardSuiAmount = 0
     let rewardSuiUsd = 0
-    let rewardTurbosAmount = 0
-    let rewardTurbosUsd = 0
     for (let i = 0; i < poolRewardInfos.length && i < posRewardInfos.length; i++) {
       const vaultType = poolRewardInfos[i].fields?.vault_coin_type || ''
+      if (!vaultType.endsWith('::sui::SUI')) continue
       const growthGlobal = BigInt(poolRewardInfos[i].fields.growth_global)
       const growthOutsideLower = BigInt(tickLowerData.reward_growths_outside[i])
       const growthOutsideUpper = BigInt(tickUpperData.reward_growths_outside[i])
@@ -196,16 +200,10 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
       const posGrowthInside = BigInt(posRewardInfos[i].fields.reward_growth_inside)
       const amountOwed = BigInt(posRewardInfos[i].fields.amount_owed)
       const rewardRaw = amountOwed + subMod128(growthInside, posGrowthInside) * liquidity / Q64
-
-      if (vaultType.endsWith('::sui::SUI')) {
-        rewardSuiAmount = Number(rewardRaw) / Math.pow(10, 9)
-        rewardSuiUsd = rewardSuiAmount * SUI_USD
-      } else if (vaultType.endsWith('::turbos::TURBOS')) {
-        rewardTurbosAmount = Number(rewardRaw) / Math.pow(10, 9)
-        rewardTurbosUsd = rewardTurbosAmount * TURBOS_USD
-      }
+      rewardSuiAmount = Number(rewardRaw) / Math.pow(10, 9)
+      rewardSuiUsd = rewardSuiAmount * SUI_USD
     }
-    const pendingRewardsUsd = rewardSuiUsd + rewardTurbosUsd
+    const pendingRewardsUsd = rewardSuiUsd
 
     const compoundThreshold = positionValueUsd * 0.01
     const compoundPending = pendingFeesUsd + pendingRewardsUsd
@@ -234,14 +232,16 @@ export async function fetchSuiUsdcPoolData(): Promise<PoolData> {
       feesA,
       feesB,
       pendingRewardsUsd,
-      rewardToken: 'SUI+TURBOS',
-      rewardAmount: rewardSuiUsd + rewardTurbosUsd,
+      rewardToken: 'SUI',
+      rewardAmount: rewardSuiUsd,
       rewardDetails: [
         { token: 'SUI', amount: rewardSuiAmount, valueUsd: rewardSuiUsd },
-        { token: 'TURBOS', amount: rewardTurbosAmount, valueUsd: rewardTurbosUsd },
       ],
+      positionOpenedAt,
       compoundPending,
       compoundThreshold,
+      harvestedUsd: 0,
+      harvestDetails: [],
       triggerDistancePct,
       botState: null,
       feesApr: 0,
@@ -277,10 +277,12 @@ function makeErrorResult(error: string): PoolData {
     feesA: 0,
     feesB: 0,
     pendingRewardsUsd: 0,
-    rewardToken: 'SUI+TURBOS',
+    rewardToken: 'SUI',
     rewardAmount: 0,
     compoundPending: 0,
     compoundThreshold: 0,
+    harvestedUsd: 0,
+    harvestDetails: [],
     triggerDistancePct: 0,
     botState: null,
     feesApr: 0,

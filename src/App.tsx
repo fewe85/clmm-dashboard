@@ -26,7 +26,7 @@ function App() {
     elonUptime,
     initialCapital,
     totalNetProfit,
-    totalFeesEarned,
+    totalHarvested,
     totalHodlValue,
     totalLpValue,
     totalRebalances,
@@ -80,7 +80,7 @@ function App() {
           elonUptime={elonUptime}
           poolPerformances={poolPerformances}
           totalNetProfit={totalNetProfit}
-          totalFeesEarned={totalFeesEarned}
+          totalHarvested={totalHarvested}
           totalHodlValue={totalHodlValue}
           totalLpValue={totalLpValue}
           totalRebalances={totalRebalances}
