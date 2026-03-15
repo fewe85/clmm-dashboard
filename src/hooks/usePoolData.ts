@@ -44,7 +44,7 @@ function calcProjectedApr(
 // Get the most recent fee-collection timestamp (rebalance, compound, or harvest)
 function getLastCollectAt(state: BotState | null, fallback: string): string {
   if (!state) return fallback
-  const candidates = [state.lastRebalanceAt, state.lastCompoundAt, state.lastHarvestAt].filter(Boolean) as string[]
+  const candidates = [state.lastRebalanceAt, state.lastCompoundAt, state.lastHarvestAt, state.lastIdleDeployAt].filter(Boolean) as string[]
   if (candidates.length === 0) return fallback
   return candidates.reduce((latest, d) => new Date(d) > new Date(latest) ? d : latest)
 }

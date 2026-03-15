@@ -10,6 +10,7 @@ export interface BotState {
   lastRebalanceAt: string | null
   lastCompoundAt: string | null
   lastHarvestAt: string | null
+  lastIdleDeployAt: string | null
   totalRebalances: number
   totalFeesCollectedA: number // raw base units converted to human
   totalFeesCollectedB: number
