@@ -10,7 +10,7 @@ import { fetchSuiWalletDynamic, fetchAptosWalletDynamic, fetchTurbosUsdPrice } f
 
 const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
 
-const INITIAL_CAPITAL = 210 // $50 DEEP + $50 WAL + $50 IKA + $10 SUI/USDC + $50 APT (replaces old SUI/TURBOS $10)
+const INITIAL_CAPITAL = 300 // $50 DEEP + $50 WAL + $50 IKA + $50 SUI/USDC + $50 APT + $50 ELON (migrated)
 const SUI_BOT_START = '2026-03-07T00:00:00.000Z'
 const WAL_BOT_START = '2026-03-12T00:00:00.000Z'
 const IKA_BOT_START = '2026-03-13T00:00:00.000Z'
@@ -23,7 +23,7 @@ const START_PRICES: Record<string, { price: number; investment: number; start: s
   'DEEP / USDC':    { price: 0.0277, investment: 50, start: SUI_BOT_START },
   'WAL / USDC':     { price: 0.079,  investment: 50, start: WAL_BOT_START },
   'IKA / USDC':     { price: 0,      investment: 50, start: IKA_BOT_START },   // will use current price as fallback
-  'SUI / USDC':     { price: 0,      investment: 10, start: SUI_USDC_BOT_START }, // will use current price as fallback
+  'SUI / USDC':     { price: 0,      investment: 50, start: SUI_USDC_BOT_START }, // will use current price as fallback
   'APT / USDC':     { price: 0.992,  investment: 96.45, start: APT_BOT_START }, // $50 original + $46.45 migrated from ELON
 }
 
