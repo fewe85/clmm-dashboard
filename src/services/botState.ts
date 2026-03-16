@@ -23,7 +23,7 @@ function parseHarvestEntries(data: any, fields: { key: string; token: string; de
 }
 
 export async function fetchTurbosBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/turbos') as any
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/turbos.json`) as any
   if (!data || !data.openedAt) return null
   return {
     lastRebalanceAt: data.openedAt,
@@ -43,8 +43,8 @@ export async function fetchTurbosBotState(): Promise<BotState | null> {
 }
 
 export async function fetchThalaBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/thala') as any
-  if (!data) return null
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/thala.json`) as any
+  if (!data || (!data.lastRebalanceAt && !data.openedAt && !data.startedAt)) return null
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
@@ -62,7 +62,7 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
 }
 
 export async function fetchElonBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/elon') as any
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/elon.json`) as any
   if (!data) return null
   return {
     lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
@@ -81,7 +81,7 @@ export async function fetchElonBotState(): Promise<BotState | null> {
 }
 
 export async function fetchWalBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/wal') as any
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/wal.json`) as any
   if (!data || !data.openedAt) return null
   return {
     lastRebalanceAt: data.openedAt,
@@ -101,7 +101,7 @@ export async function fetchWalBotState(): Promise<BotState | null> {
 }
 
 export async function fetchIkaBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/ika') as any
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/ika.json`) as any
   if (!data || !data.openedAt) return null
   return {
     lastRebalanceAt: data.openedAt,
@@ -121,7 +121,7 @@ export async function fetchIkaBotState(): Promise<BotState | null> {
 }
 
 export async function fetchSuiUsdcBotState(): Promise<BotState | null> {
-  const data = await fetchJson('/api/bot-state/sui-usdc') as any
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/sui-usdc.json`) as any
   if (!data || !data.openedAt) return null
   return {
     lastRebalanceAt: data.openedAt,
