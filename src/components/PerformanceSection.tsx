@@ -1,4 +1,8 @@
+import { useState } from 'react'
 import type { PoolPerformance } from '../types'
+
+type SortKey = 'poolName' | 'initialInvestment' | 'lpValueUsd' | 'hodlValueUsd' | 'outperformanceUsd' | 'totalHarvestedUsd' | 'netProfitUsd' | 'realizedApr' | 'totalRebalances'
+type SortDir = 'asc' | 'desc'
 
 interface PerformanceSectionProps {
   totalPositionUsd: number
@@ -58,6 +62,29 @@ export function PerformanceSection({
   totalRebalances,
 }: PerformanceSectionProps) {
   const pnlPositive = pnlUsd >= 0
+  const [sortKey, setSortKey] = useState<SortKey>('netProfitUsd')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortKey(key)
+      setSortDir('desc')
+    }
+  }
+
+  const sortIndicator = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
+
+  const sortedPerformances = [...poolPerformances].sort((a, b) => {
+    const aVal = a[sortKey]
+    const bVal = b[sortKey]
+    if (typeof aVal === 'string' && typeof bVal === 'string') {
+      return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+    }
+    const diff = (aVal as number) - (bVal as number)
+    return sortDir === 'asc' ? diff : -diff
+  })
 
   return (
     <div className="space-y-4">
@@ -171,19 +198,30 @@ export function PerformanceSection({
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border)' }}>
-                  <th className="text-left py-2 pr-3 font-medium">Pool</th>
-                  <th className="text-right py-2 px-2 font-medium">Invested</th>
-                  <th className="text-right py-2 px-2 font-medium">LP Value</th>
-                  <th className="text-right py-2 px-2 font-medium">HODL Value</th>
-                  <th className="text-right py-2 px-2 font-medium">LP vs HODL</th>
-                  <th className="text-right py-2 px-2 font-medium">Harvested</th>
-                  <th className="text-right py-2 px-2 font-medium">Net Profit</th>
-                  <th className="text-right py-2 px-2 font-medium">APR</th>
-                  <th className="text-right py-2 pl-2 font-medium">Rebals</th>
+                  {([
+                    ['poolName', 'Pool', 'text-left pr-3'],
+                    ['initialInvestment', 'Invested', 'text-right px-2'],
+                    ['lpValueUsd', 'LP Value', 'text-right px-2'],
+                    ['hodlValueUsd', 'HODL Value', 'text-right px-2'],
+                    ['outperformanceUsd', 'LP vs HODL', 'text-right px-2'],
+                    ['totalHarvestedUsd', 'Harvested', 'text-right px-2'],
+                    ['netProfitUsd', 'Net Profit', 'text-right px-2'],
+                    ['realizedApr', 'APR', 'text-right px-2'],
+                    ['totalRebalances', 'Rebals', 'text-right pl-2'],
+                  ] as [SortKey, string, string][]).map(([key, label, cls]) => (
+                    <th
+                      key={key}
+                      className={`py-2 font-medium cursor-pointer select-none ${cls}`}
+                      onClick={() => toggleSort(key)}
+                      style={{ color: sortKey === key ? 'var(--accent-blue)' : undefined }}
+                    >
+                      {label}{sortIndicator(key)}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {poolPerformances.map(p => {
+                {sortedPerformances.map(p => {
                   const isClosed = !!p.status
                   return (
                   <tr key={p.poolName} style={{ borderBottom: '1px solid var(--border)', opacity: isClosed ? 0.5 : 1 }}>

@@ -61,25 +61,6 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
   }
 }
 
-export async function fetchElonBotState(): Promise<BotState | null> {
-  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/elon.json`) as any
-  if (!data) return null
-  return {
-    lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
-    lastCompoundAt: data.lastCompoundAt || null,
-    lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedThaptRaw', token: 'thAPT', decimals: 1e8 },
-      { key: 'totalHarvestedElonRaw', token: 'ELON', decimals: 1e8 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-    ]),
-  }
-}
-
 export async function fetchWalBotState(): Promise<BotState | null> {
   const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/wal.json`) as any
   if (!data || !data.openedAt) return null

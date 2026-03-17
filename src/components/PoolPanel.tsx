@@ -1,6 +1,7 @@
 import type { PoolData } from '../types'
 import { RangeBar } from './RangeBar'
 import { ProgressBar } from './ProgressBar'
+import { LineChart, Line, ResponsiveContainer } from 'recharts'
 
 interface PoolPanelProps {
   pool: PoolData | null
@@ -56,9 +57,11 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
 
   return (
     <div
-      className="rounded-lg p-4 transition-colors"
+      className="rounded-lg p-4 transition-all hover:bg-[var(--bg-card-hover)]"
       style={{
         background: 'var(--bg-primary)',
+        border: '1px solid var(--border)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
       }}
     >
       {/* Header */}
@@ -128,6 +131,22 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
           {pool.tokenB} per {pool.tokenA}
         </div>
+        {pool.priceHistory && pool.priceHistory.length > 1 && (
+          <div style={{ width: '100%', height: 50, marginTop: 4 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={pool.priceHistory.map(p => ({ v: p }))}>
+                <Line
+                  type="monotone"
+                  dataKey="v"
+                  stroke={pool.priceHistory[pool.priceHistory.length - 1] >= pool.priceHistory[0] ? 'var(--accent-green)' : 'var(--accent-red)'}
+                  strokeWidth={1.5}
+                  dot={false}
+                  isAnimationActive={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </div>
 
       {/* Range Bar + Trigger Distance */}
@@ -157,6 +176,23 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
           <span>{formatAmount(pool.amountA)} {pool.tokenA}</span>
           <span>{formatAmount(pool.amountB, 2)} {pool.tokenB}</span>
         </div>
+        {pool.invested != null && pool.netProfit != null && (
+          <div className="flex justify-between text-xs mt-2 pt-2" style={{ borderTop: '1px solid var(--border)' }}>
+            <span style={{ color: 'var(--text-muted)' }}>
+              Invested: <span className="mono" style={{ color: 'var(--text-secondary)' }}>{formatUsd(pool.invested)}</span>
+            </span>
+            <span style={{ color: pool.netProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+              <span className="mono">
+                {pool.netProfit >= 0 ? '+' : ''}{formatUsd(pool.netProfit)}
+              </span>
+              {pool.invested > 0 && (
+                <span className="ml-1 opacity-70">
+                  ({pool.netProfit >= 0 ? '+' : ''}{((pool.netProfit / pool.invested) * 100).toFixed(1)}%)
+                </span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Fees */}
@@ -200,6 +236,33 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
           </div>
         )}
       </div>
+
+      {/* Daily/Monthly Earnings Estimate */}
+      {pool.lastCollectAt && (pool.pendingFeesUsd + pool.pendingRewardsUsd) > 0 && (() => {
+        const hoursSince = (Date.now() - new Date(pool.lastCollectAt!).getTime()) / (1000 * 60 * 60)
+        if (hoursSince < 0.5) return null
+        const dailyEst = ((pool.pendingFeesUsd + pool.pendingRewardsUsd) / hoursSince) * 24
+        const monthlyEst = dailyEst * 30
+        return (
+          <div
+            className="rounded-lg p-3 mb-3"
+            style={{ background: 'var(--bg-primary)' }}
+          >
+            <div className="flex justify-between items-baseline">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Est. Daily</span>
+              <span className="mono font-medium" style={{ color: 'var(--accent-green)' }}>
+                {formatUsd(dailyEst)}
+              </span>
+            </div>
+            <div className="flex justify-between items-baseline mt-1">
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Est. Monthly</span>
+              <span className="mono text-xs" style={{ color: 'var(--accent-green)' }}>
+                {formatUsd(monthlyEst)}
+              </span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Harvest Progress (1% of position value) */}
       <ProgressBar

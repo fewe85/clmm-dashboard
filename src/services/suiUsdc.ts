@@ -1,5 +1,5 @@
 import type { PoolData } from '../types'
-import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts } from './math'
+import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts, calcTriggerDistancePct } from './math'
 
 const RPC = 'https://fullnode.mainnet.sui.io:443'
 const POOL_ID = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
@@ -76,14 +76,6 @@ async function getTickData(poolId: string, tickBits: number): Promise<any> {
   const i32Type = `${TURBOS_PACKAGE}::i32::I32`
   const fields = await getDynamicFieldObject(poolId, i32Type, { bits: tickBits })
   return fields.value.fields
-}
-
-function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUpper: number): number {
-  const center = (tickLower + tickUpper) / 2
-  const halfRange = (tickUpper - tickLower) / 2
-  if (halfRange <= 0) return 0
-  const distFromCenter = Math.abs(tickCurrent - center)
-  return Math.min((distFromCenter / halfRange) * 100, 100)
 }
 
 export async function fetchSuiUsdcPoolData(): Promise<PoolData> {

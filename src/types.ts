@@ -57,7 +57,11 @@ export interface PoolData {
   botState: BotState | null
   feesApr: number
   rewardsApr: number
+  invested?: number // initial investment USD
+  netProfit?: number // LP value + harvested - invested
+  lastCollectAt?: string // most recent fee-collection timestamp
   positionOpenedAt?: string // on-chain position creation timestamp (ISO)
+  priceHistory?: number[] // in-memory price history for sparkline
   lastUpdated: number
   error?: string
   stale?: boolean

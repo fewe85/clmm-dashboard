@@ -176,6 +176,7 @@ export function usePoolData() {
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
   const poolCache = useRef(loadPersistedPools())
+  const priceHistory = useRef(new Map<string, number[]>())
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -248,6 +249,27 @@ export function usePoolData() {
       const harvest = calcHarvestFromBotState(state, priceMap)
       pool.harvestedUsd = harvest.harvestedUsd
       pool.harvestDetails = harvest.harvestDetails
+
+      // Invested + Net Profit
+      const meta = START_PRICES[pool.name]
+      if (meta) {
+        pool.invested = meta.investment
+        const lpValue = pool.positionValueUsd + pool.pendingFeesUsd + pool.pendingRewardsUsd
+        pool.netProfit = lpValue + pool.harvestedUsd - meta.investment
+      }
+
+      // Last collect timestamp for daily earnings calculation
+      pool.lastCollectAt = lastCollectAt
+
+      // Track price history for sparkline (max 50 points)
+      if (pool.currentPrice > 0) {
+        const key = pool.name
+        const history = priceHistory.current.get(key) || []
+        history.push(pool.currentPrice)
+        if (history.length > 50) history.shift()
+        priceHistory.current.set(key, history)
+        pool.priceHistory = [...history]
+      }
     }
 
     // Enrich all pools with cumulative APR and harvest data (bot state only)

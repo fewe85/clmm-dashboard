@@ -1,5 +1,5 @@
-import type { PoolData, WalletBalance } from '../types'
-import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts } from './math'
+import type { PoolData } from '../types'
+import { sqrtPriceX64ToPrice, tickToPrice, decodeI32, calculatePositionAmounts, calcTriggerDistancePct } from './math'
 
 const RPC = 'https://fullnode.mainnet.sui.io:443'
 const POOL_ID = '0x198af6ff81028c6577e94465d534c4e2cfcbbab06a95724ece7011c55a9d1f5a'
@@ -12,9 +12,6 @@ const DECIMALS_SUI = 9
 
 // Pool<SUI(9), USDC(6)> for live SUI/USD price
 const USDC_SUI_POOL = '0x0df4f02d0e210169cb6d5aabd03c3058328c06f2c4dbb0804faa041159c78443'
-
-const COIN_DEEP = '0xdeeb7a4662eec9f2f3def03fb937a663dddaa2e215b8078a284d026b7946c270::deep::DEEP'
-const COIN_USDC = '0xdba34672e30cb065b1f93e3ab55318768fd6fef66c15942c9f7cb846e2f900e7::usdc::USDC'
 
 const Q64 = BigInt(1) << BigInt(64)
 const Q128 = BigInt(1) << BigInt(128)
@@ -54,15 +51,6 @@ async function getOwnedObjects(owner: string): Promise<Record<string, unknown>[]
     50,
   ]) as { data: Record<string, unknown>[] }
   return result.data
-}
-
-async function getCoinBalance(owner: string, coinType: string): Promise<number> {
-  try {
-    const result = await rpcCall('suix_getBalance', [owner, coinType]) as any
-    return Number(result.totalBalance || 0)
-  } catch {
-    return 0
-  }
 }
 
 // Fetch live SUI/USD price from on-chain USDC/SUI pool
@@ -111,62 +99,6 @@ async function getTickData(poolId: string, tickBits: number): Promise<any> {
 // Find DEEP price in USD using pool price (DEEP/USDC)
 function getDeepPriceUsd(poolPrice: number): number {
   return poolPrice // DEEP/USDC price is already in USD terms
-}
-
-function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUpper: number): number {
-  const center = (tickLower + tickUpper) / 2
-  const halfRange = (tickUpper - tickLower) / 2
-  if (halfRange <= 0) return 0
-  const distFromCenter = Math.abs(tickCurrent - center)
-  return Math.min((distFromCenter / halfRange) * 100, 100)
-}
-
-const COIN_WAL = '0x356a26eb9e012a68958082340d4c4116e7f55615cf27affcff209cf0ae544f59::wal::WAL'
-const COIN_IKA = '0x7262fb2f7a3a14c888c438a3cd9b912469a58cf60f367352c46584262e8299aa::ika::IKA'
-const COIN_TURBOS = '0x5d1f47ea69bb0de31c313d7acf89b890dbb8991ea8e03c6c355171f84bb1ba4a::turbos::TURBOS'
-
-export async function fetchSuiWalletBalance(
-  deepPrice: number,
-  suiUsdPrice: number,
-  extraPrices?: { walPrice?: number; ikaPrice?: number; turbosPrice?: number },
-): Promise<WalletBalance> {
-  const [suiRaw, deepRaw, usdcRaw, walRaw, ikaRaw, turbosRaw] = await Promise.all([
-    getCoinBalance(BOT_WALLET, '0x2::sui::SUI'),
-    getCoinBalance(BOT_WALLET, COIN_DEEP),
-    getCoinBalance(BOT_WALLET, COIN_USDC),
-    getCoinBalance(BOT_WALLET, COIN_WAL),
-    getCoinBalance(BOT_WALLET, COIN_IKA),
-    getCoinBalance(BOT_WALLET, COIN_TURBOS),
-  ])
-
-  const suiBalance = suiRaw / Math.pow(10, DECIMALS_SUI)
-  const deepBalance = deepRaw / Math.pow(10, DECIMALS_DEEP)
-  const usdcBalance = usdcRaw / Math.pow(10, DECIMALS_USDC)
-  const walBalance = walRaw / Math.pow(10, 9)
-  const ikaBalance = ikaRaw / Math.pow(10, 9)
-  const turbosBalance = turbosRaw / Math.pow(10, 9)
-
-  const gasValueUsd = suiBalance * suiUsdPrice
-
-  const walPrice = extraPrices?.walPrice || 0
-  const ikaPrice = extraPrices?.ikaPrice || 0
-  const turbosPrice = extraPrices?.turbosPrice || 0
-
-  const idleBalances = [
-    { token: 'DEEP', amount: deepBalance, valueUsd: deepBalance * deepPrice },
-    { token: 'USDC', amount: usdcBalance, valueUsd: usdcBalance },
-    { token: 'WAL', amount: walBalance, valueUsd: walBalance * walPrice },
-    { token: 'IKA', amount: ikaBalance, valueUsd: ikaBalance * ikaPrice },
-    { token: 'TURBOS', amount: turbosBalance, valueUsd: turbosBalance * turbosPrice },
-  ].filter(b => b.amount > 0.0001) // hide dust
-
-  return {
-    gasToken: 'SUI',
-    gasBalance: suiBalance,
-    gasValueUsd,
-    idleBalances,
-    totalIdleUsd: idleBalances.reduce((sum, b) => sum + b.valueUsd, 0),
-  }
 }
 
 export async function fetchSuiPoolData(): Promise<PoolData> {

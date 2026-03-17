@@ -73,3 +73,15 @@ export function calculatePositionAmounts(
     amountB: amountB / Math.pow(10, decimalsB),
   }
 }
+
+// Price-based trigger distance: how far current price is from range center (0-100%)
+export function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUpper: number): number {
+  const priceCurrent = 1.0001 ** tickCurrent
+  const priceLower = 1.0001 ** tickLower
+  const priceUpper = 1.0001 ** tickUpper
+  const priceCenter = (priceLower + priceUpper) / 2
+  const halfRange = (priceUpper - priceLower) / 2
+  if (halfRange <= 0) return 0
+  const distFromCenter = Math.abs(priceCurrent - priceCenter)
+  return Math.min((distFromCenter / halfRange) * 100, 100)
+}

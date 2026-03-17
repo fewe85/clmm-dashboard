@@ -1,5 +1,5 @@
 import type { PoolData } from '../types'
-import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts } from './math'
+import { sqrtPriceX64ToPrice, tickToPrice, decodeI64, calculatePositionAmounts, calcTriggerDistancePct } from './math'
 import { aptosGet, aptosView, aptosIndexer } from './aptosRpc'
 
 const POOL_ID = '0xa8a355df7d9e75ef16082da2a0bad62c173a054ab1e8eae0f0e26c828adaa4ef'
@@ -91,14 +91,6 @@ async function isPositionStaked(tokenAddress: string): Promise<boolean> {
 
 function getAptPriceUsd(poolPrice: number): number {
   return poolPrice
-}
-
-function calcTriggerDistancePct(tickCurrent: number, tickLower: number, tickUpper: number): number {
-  const center = (tickLower + tickUpper) / 2
-  const halfRange = (tickUpper - tickLower) / 2
-  if (halfRange <= 0) return 0
-  const distFromCenter = Math.abs(tickCurrent - center)
-  return Math.min((distFromCenter / halfRange) * 100, 100)
 }
 
 async function getCoinBalance(owner: string, coinType: string): Promise<number> {

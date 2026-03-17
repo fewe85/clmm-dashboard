@@ -2,8 +2,9 @@ import { usePoolData } from './hooks/usePoolData'
 import { PoolGroup as PoolGroupComponent } from './components/PoolGroup'
 import { PerformanceSection } from './components/PerformanceSection'
 import { WalletBox } from './components/WalletBox'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
-function App() {
+function AppContent() {
   const {
     groups,
     poolPerformances,
@@ -104,6 +105,14 @@ function App() {
         On-chain data only. No backend, no indexer.
       </div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   )
 }
 
