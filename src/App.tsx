@@ -19,12 +19,8 @@ function AppContent() {
     totalRewardsUsd,
     pnlUsd,
     pnlPct,
-    deepUptime,
-    walUptime,
-    ikaUptime,
-    suiUsdcUptime,
-    aptosUptime,
-    elonUptime,
+    activePoolCount,
+    totalDailyEst,
     initialCapital,
     totalNetProfit,
     totalHarvested,
@@ -73,12 +69,8 @@ function AppContent() {
           pnlUsd={pnlUsd}
           pnlPct={pnlPct}
           initialCapital={initialCapital}
-          deepUptime={deepUptime}
-          walUptime={walUptime}
-          ikaUptime={ikaUptime}
-          suiUsdcUptime={suiUsdcUptime}
-          aptosUptime={aptosUptime}
-          elonUptime={elonUptime}
+          activePoolCount={activePoolCount}
+          totalDailyEst={totalDailyEst}
           poolPerformances={poolPerformances}
           totalNetProfit={totalNetProfit}
           totalHarvested={totalHarvested}

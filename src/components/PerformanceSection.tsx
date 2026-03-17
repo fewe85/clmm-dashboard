@@ -13,12 +13,8 @@ interface PerformanceSectionProps {
   pnlUsd: number
   pnlPct: number
   initialCapital: number
-  deepUptime: string
-  walUptime: string
-  ikaUptime: string
-  suiUsdcUptime: string
-  aptosUptime: string
-  elonUptime: string
+  activePoolCount: number
+  totalDailyEst: number
   poolPerformances: PoolPerformance[]
   totalNetProfit: number
   totalHarvested: number
@@ -48,12 +44,8 @@ export function PerformanceSection({
   pnlUsd,
   pnlPct,
   initialCapital,
-  deepUptime,
-  walUptime,
-  ikaUptime,
-  suiUsdcUptime,
-  aptosUptime,
-  elonUptime,
+  activePoolCount,
+  totalDailyEst,
   poolPerformances,
   totalNetProfit,
   totalHarvested,
@@ -76,7 +68,11 @@ export function PerformanceSection({
 
   const sortIndicator = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' \u25B2' : ' \u25BC') : ''
 
-  const sortedPerformances = [...poolPerformances].sort((a, b) => {
+  // Separate active and closed pools; closed always at the end
+  const activePools = poolPerformances.filter(p => !p.status)
+  const closedPools = poolPerformances.filter(p => !!p.status)
+
+  const sortedActive = [...activePools].sort((a, b) => {
     const aVal = a[sortKey]
     const bVal = b[sortKey]
     if (typeof aVal === 'string' && typeof bVal === 'string') {
@@ -85,6 +81,7 @@ export function PerformanceSection({
     const diff = (aVal as number) - (bVal as number)
     return sortDir === 'asc' ? diff : -diff
   })
+  const sortedPerformances = [...sortedActive, ...closedPools]
 
   return (
     <div className="space-y-4">
@@ -135,17 +132,19 @@ export function PerformanceSection({
           </div>
         </div>
 
-        {/* Bot uptime */}
+        {/* Summary line */}
         <div
           className="flex flex-wrap gap-x-6 gap-y-1 pt-3 text-xs"
           style={{ borderTop: '1px solid var(--border)', color: 'var(--text-muted)' }}
         >
-          <span>DEEP/USDC: <span style={{ color: 'var(--text-secondary)' }}>{deepUptime}</span></span>
-          <span>WAL/USDC: <span style={{ color: 'var(--text-secondary)' }}>{walUptime}</span></span>
-          <span>IKA/USDC: <span style={{ color: 'var(--text-secondary)' }}>{ikaUptime}</span></span>
-          <span>SUI/USDC: <span style={{ color: 'var(--text-secondary)' }}>{suiUsdcUptime}</span></span>
-          <span>APT/USDC: <span style={{ color: 'var(--text-secondary)' }}>{aptosUptime}</span></span>
-          <span>ELON/USDC: <span style={{ color: 'var(--text-secondary)' }}>{elonUptime}</span></span>
+          <span>{activePoolCount} Active Pools</span>
+          <span>2 Chains (Sui + Aptos)</span>
+          {totalDailyEst > 0 && (
+            <>
+              <span>Est. Daily: <span className="mono" style={{ color: 'var(--accent-green)' }}>{formatUsd(totalDailyEst)}</span></span>
+              <span>Est. Monthly: <span className="mono" style={{ color: 'var(--accent-green)' }}>{formatUsd(totalDailyEst * 30)}</span></span>
+            </>
+          )}
         </div>
       </div>
 
@@ -224,7 +223,7 @@ export function PerformanceSection({
                 {sortedPerformances.map(p => {
                   const isClosed = !!p.status
                   return (
-                  <tr key={p.poolName} style={{ borderBottom: '1px solid var(--border)', opacity: isClosed ? 0.5 : 1 }}>
+                  <tr key={p.poolName} style={{ borderBottom: '1px solid var(--border)', opacity: isClosed ? 0.4 : 1, fontStyle: isClosed ? 'italic' : undefined }}>
                     <td className="py-2 pr-3 font-medium" style={{ color: 'var(--text-primary)' }}>
                       {p.poolName}
                       {p.status && (
@@ -254,8 +253,8 @@ export function PerformanceSection({
                         ({pnlSign(p.netProfitPct)}{p.netProfitPct.toFixed(1)}%)
                       </span>
                     </td>
-                    <td className="py-2 px-2 text-right tabular-nums" style={{ color: isClosed ? 'var(--text-muted)' : pnlColor(p.realizedApr) }}>
-                      {isClosed ? '—' : `${p.realizedApr.toFixed(0)}%`}
+                    <td className="py-2 px-2 text-right tabular-nums" style={{ color: isClosed || p.netProfitUsd < 0 ? 'var(--text-muted)' : pnlColor(p.realizedApr) }}>
+                      {isClosed || p.netProfitUsd < 0 ? '—' : `${p.realizedApr.toFixed(0)}%`}
                     </td>
                     <td className="py-2 pl-2 text-right tabular-nums" style={{ color: 'var(--accent-blue)' }}>
                       {isClosed ? '—' : p.totalRebalances}

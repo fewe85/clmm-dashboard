@@ -50,13 +50,6 @@ function getLastCollectAt(state: BotState | null, fallback: string): string {
 }
 
 
-function formatUptime(startIso: string): string {
-  const ms = Date.now() - new Date(startIso).getTime()
-  const days = Math.floor(ms / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((ms % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  return `${days}d ${hours}h`
-}
-
 function calcHodlValue(startPrice: number, currentPrice: number, investment: number): number {
   if (startPrice <= 0 || currentPrice <= 0) return investment
   // 50/50 split: half in tokenA, half in tokenB (USDC)
@@ -406,13 +399,15 @@ export function usePoolData() {
   const pnlUsd = totalValueUsd + totalFeesUsd + totalRewardsUsd + totalHarvestedUsd - INITIAL_CAPITAL
   const pnlPct = INITIAL_CAPITAL > 0 ? (pnlUsd / INITIAL_CAPITAL) * 100 : 0
 
-  // Uptime
-  const deepUptime = formatUptime(SUI_BOT_START)
-  const walUptime = formatUptime(WAL_BOT_START)
-  const ikaUptime = formatUptime(IKA_BOT_START)
-  const suiUsdcUptime = formatUptime(SUI_USDC_BOT_START)
-  const aptosUptime = formatUptime(APT_BOT_START)
-  const elonUptime = 'Closed'
+  const activePoolCount = allPools.length
+
+  // Aggregate daily estimate from all active pools
+  const totalDailyEst = allPools.reduce((sum, pool) => {
+    if (!pool.lastCollectAt || (pool.pendingFeesUsd + pool.pendingRewardsUsd) <= 0) return sum
+    const hoursSince = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
+    if (hoursSince < 0.5) return sum
+    return sum + ((pool.pendingFeesUsd + pool.pendingRewardsUsd) / hoursSince) * 24
+  }, 0)
 
   // Aggregate performance
   const totalNetProfit = poolPerformances.reduce((sum, p) => sum + p.netProfitUsd, 0)
@@ -437,12 +432,8 @@ export function usePoolData() {
     totalHarvestedUsd,
     pnlUsd,
     pnlPct,
-    deepUptime,
-    walUptime,
-    ikaUptime,
-    suiUsdcUptime,
-    aptosUptime,
-    elonUptime,
+    activePoolCount,
+    totalDailyEst,
     initialCapital: INITIAL_CAPITAL,
     totalNetProfit,
     totalFeesEarned,

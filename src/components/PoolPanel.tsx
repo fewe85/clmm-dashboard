@@ -131,7 +131,7 @@ export function PoolPanel({ pool, loading }: PoolPanelProps) {
         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
           {pool.tokenB} per {pool.tokenA}
         </div>
-        {pool.priceHistory && pool.priceHistory.length > 1 && (
+        {pool.priceHistory && pool.priceHistory.length >= 3 && (
           <div style={{ width: '100%', height: 50, marginTop: 4 }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={pool.priceHistory.map(p => ({ v: p }))}>
