@@ -10,21 +10,16 @@ import { fetchSuiWalletDynamic, fetchAptosWalletDynamic, fetchTurbosUsdPrice } f
 
 const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
 
-const INITIAL_CAPITAL = 300 // $50 DEEP + $50 WAL + $50 IKA + $50 SUI/USDC + $50 APT + $50 ELON (migrated)
-const SUI_BOT_START = '2026-03-07T00:00:00.000Z'
-const WAL_BOT_START = '2026-03-12T00:00:00.000Z'
-const IKA_BOT_START = '2026-03-13T00:00:00.000Z'
-const SUI_USDC_BOT_START = '2026-03-13T00:00:00.000Z'
-const APT_BOT_START = '2026-03-10T00:00:00.000Z'
-const ELON_BOT_START = '2026-03-11T00:00:00.000Z'
+const INITIAL_CAPITAL = 276 // Reset baseline 2026-03-18 after range optimization
+const REBALANCE_DATE = '2026-03-18T18:00:00.000Z'
 
-// Start prices (hardcoded from deployment dates)
+// Start prices — reset baseline from rebalance 2026-03-18 (current position values)
 const START_PRICES: Record<string, { price: number; investment: number; start: string }> = {
-  'DEEP / USDC':    { price: 0.0277, investment: 50, start: SUI_BOT_START },
-  'WAL / USDC':     { price: 0.079,  investment: 50, start: WAL_BOT_START },
-  'IKA / USDC':     { price: 0,      investment: 50, start: IKA_BOT_START },   // will use current price as fallback
-  'SUI / USDC':     { price: 0,      investment: 50, start: SUI_USDC_BOT_START }, // will use current price as fallback
-  'APT / USDC':     { price: 0.992,  investment: 96.45, start: APT_BOT_START }, // $50 original + $46.45 migrated from ELON
+  'DEEP / USDC':    { price: 0.03238, investment: 51.95, start: REBALANCE_DATE },
+  'WAL / USDC':     { price: 0.08151, investment: 37.97, start: REBALANCE_DATE },
+  'IKA / USDC':     { price: 0.00304, investment: 44.42, start: REBALANCE_DATE },
+  'SUI / USDC':     { price: 0.97936, investment: 44.80, start: REBALANCE_DATE },
+  'APT / USDC':     { price: 0.95770, investment: 98.77, start: REBALANCE_DATE },
 }
 
 // Projected APR from pending fees accrued since last on-chain collect.
@@ -91,7 +86,7 @@ function calcPoolPerformance(
   totalRebalances: number,
   harvestedUsd: number,
 ): PoolPerformance {
-  const meta = START_PRICES[poolName] || { price: currentPrice, investment: 50, start: SUI_BOT_START }
+  const meta = START_PRICES[poolName] || { price: currentPrice, investment: 50, start: REBALANCE_DATE }
   const startPrice = meta.price > 0 ? meta.price : currentPrice
   const investment = meta.investment
 
@@ -266,11 +261,11 @@ export function usePoolData() {
     }
 
     // Enrich all pools with cumulative APR and harvest data (bot state only)
-    enrichPool(deep, turbosState, SUI_BOT_START)
-    enrichPool(wal, walState, WAL_BOT_START)
-    enrichPool(ika, ikaState, IKA_BOT_START)
-    enrichPool(suiUsdc, suiUsdcState, SUI_USDC_BOT_START)
-    enrichPool(aptos, thalaState, APT_BOT_START)
+    enrichPool(deep, turbosState, REBALANCE_DATE)
+    enrichPool(wal, walState, REBALANCE_DATE)
+    enrichPool(ika, ikaState, REBALANCE_DATE)
+    enrichPool(suiUsdc, suiUsdcState, REBALANCE_DATE)
+    enrichPool(aptos, thalaState, REBALANCE_DATE)
 
     // Build groups
     const turbosGroup: PoolGroup = {
@@ -363,7 +358,7 @@ export function usePoolData() {
       totalRebalances: 0,
       netProfitUsd: 2.41, // harvested - invested (0)
       netProfitPct: 0,
-      daysRunning: Math.max(1, (Date.now() - new Date(ELON_BOT_START).getTime()) / (1000 * 60 * 60 * 24)),
+      daysRunning: Math.max(1, (Date.now() - new Date('2026-03-11T00:00:00.000Z').getTime()) / (1000 * 60 * 60 * 24)),
       realizedApr: 0,
       status: 'Closed — migrated',
     })
