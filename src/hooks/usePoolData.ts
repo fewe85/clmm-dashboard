@@ -3,9 +3,8 @@ import type { PoolData, PoolGroup, PoolPerformance, BotState, AllWallets, Harves
 import { fetchSuiPoolData, fetchSuiUsdPrice } from '../services/sui'
 import { fetchWalPoolData } from '../services/wal'
 import { fetchIkaPoolData } from '../services/ika'
-import { fetchSuiUsdcPoolData } from '../services/suiUsdc'
 import { fetchAptosPoolData } from '../services/aptos'
-import { fetchTurbosBotState, fetchThalaBotState, fetchWalBotState, fetchIkaBotState, fetchSuiUsdcBotState } from '../services/botState'
+import { fetchTurbosBotState, fetchThalaBotState, fetchWalBotState, fetchIkaBotState } from '../services/botState'
 import { fetchSuiWalletDynamic, fetchAptosWalletDynamic, fetchTurbosUsdPrice } from '../services/wallet'
 
 const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
@@ -14,11 +13,11 @@ const INITIAL_CAPITAL = 276 // Reset baseline 2026-03-18 after range optimizatio
 const REBALANCE_DATE = '2026-03-18T18:00:00.000Z'
 
 // Start prices — reset baseline from rebalance 2026-03-18 (current position values)
+// SUI/USDC closed 2026-03-19, capital ($43.80) migrated to WAL/USDC
 const START_PRICES: Record<string, { price: number; investment: number; start: string }> = {
   'DEEP / USDC':    { price: 0.03238, investment: 51.95, start: REBALANCE_DATE },
-  'WAL / USDC':     { price: 0.08151, investment: 37.97, start: REBALANCE_DATE },
+  'WAL / USDC':     { price: 0.08151, investment: 81.77, start: REBALANCE_DATE },
   'IKA / USDC':     { price: 0.00304, investment: 44.42, start: REBALANCE_DATE },
-  'SUI / USDC':     { price: 0.97936, investment: 44.80, start: REBALANCE_DATE },
   'APT / USDC':     { price: 0.95770, investment: 98.77, start: REBALANCE_DATE },
 }
 
@@ -170,17 +169,15 @@ export function usePoolData() {
     setLoading(true)
     // Phase 1: Sui fetches + bot states in parallel (no rate limit issues)
     const [
-      deepRaw, walRaw, ikaRaw, suiUsdcRaw,
-      turbosState, walState, ikaState, suiUsdcState, thalaState,
+      deepRaw, walRaw, ikaRaw,
+      turbosState, walState, ikaState, thalaState,
     ] = await Promise.all([
       fetchSuiPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchWalPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchIkaPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchSuiUsdcPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchTurbosBotState(),
       fetchWalBotState(),
       fetchIkaBotState(),
-      fetchSuiUsdcBotState(),
       fetchThalaBotState(),
     ])
 
@@ -191,7 +188,6 @@ export function usePoolData() {
     const deep = useLastGood(deepRaw, 'deep', poolCache)
     const wal = useLastGood(walRaw, 'wal', poolCache)
     const ika = useLastGood(ikaRaw, 'ika', poolCache)
-    const suiUsdc = useLastGood(suiUsdcRaw, 'suiUsdc', poolCache)
     const aptos = useLastGood(aptosRaw, 'aptos', poolCache)
 
     // Phase 2: Build price map from pool data for wallet valuation
@@ -264,7 +260,6 @@ export function usePoolData() {
     enrichPool(deep, turbosState, REBALANCE_DATE)
     enrichPool(wal, walState, REBALANCE_DATE)
     enrichPool(ika, ikaState, REBALANCE_DATE)
-    enrichPool(suiUsdc, suiUsdcState, REBALANCE_DATE)
     enrichPool(aptos, thalaState, REBALANCE_DATE)
 
     // Build groups
@@ -273,7 +268,7 @@ export function usePoolData() {
       chain: 'sui',
       chainColor: '#4da2ff',
       walletBalance: suiWallet,
-      pools: [deep, wal, ika, suiUsdc],
+      pools: [deep, wal, ika],
     }
 
     const thalaGroup: PoolGroup = {
@@ -321,18 +316,25 @@ export function usePoolData() {
       ika.harvestedUsd,
     ))
 
-    // SUI/USDC
-    const suiUsdcStartPrice = START_PRICES['SUI / USDC']
-    if (suiUsdcStartPrice.price === 0 && suiUsdc.currentPrice > 0) {
-      suiUsdcStartPrice.price = suiUsdc.currentPrice
-    }
-    performances.push(calcPoolPerformance(
-      suiUsdc.name, suiUsdc.currentPrice, suiUsdc.positionValueUsd,
-      suiUsdc.pendingFeesUsd, suiUsdc.pendingRewardsUsd,
-      suiUsdcState?.totalFeesCollectedA || 0, suiUsdcState?.totalFeesCollectedB || 0,
-      suiUsdc.currentPrice, suiUsdcState?.totalRebalances || 0,
-      suiUsdc.harvestedUsd,
-    ))
+    // SUI/USDC — closed 2026-03-19, capital migrated to WAL/USDC
+    performances.push({
+      poolName: 'SUI / USDC',
+      initialInvestment: 0,
+      startPrice: 0.97936,
+      currentPrice: 0,
+      hodlValueUsd: 0,
+      lpValueUsd: 0,
+      outperformanceUsd: 0,
+      outperformancePct: 0,
+      totalFeesEarnedUsd: 0,
+      totalHarvestedUsd: 0,
+      totalRebalances: 3,
+      netProfitUsd: 0,
+      netProfitPct: 0,
+      daysRunning: Math.max(1, (Date.now() - new Date('2026-03-13T00:00:00.000Z').getTime()) / (1000 * 60 * 60 * 24)),
+      realizedApr: 0,
+      status: 'Closed — migrated to WAL/USDC',
+    })
 
     // APT/USDC
     performances.push(calcPoolPerformance(
