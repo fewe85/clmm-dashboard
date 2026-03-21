@@ -1,9 +1,8 @@
 export interface WalletBalance {
-  gasToken: string
-  gasBalance: number
-  gasValueUsd: number
-  idleBalances: { token: string; amount: number; valueUsd: number; priceUnknown?: boolean }[]
-  totalIdleUsd: number // excludes gas reserve
+  label: string
+  address: string
+  balances: { token: string; amount: number; valueUsd: number; priceUnknown?: boolean }[]
+  totalUsd: number
 }
 
 export interface BotState {
@@ -12,9 +11,9 @@ export interface BotState {
   lastHarvestAt: string | null
   lastIdleDeployAt: string | null
   totalRebalances: number
-  totalFeesCollectedA: number // raw base units converted to human
+  totalFeesCollectedA: number
   totalFeesCollectedB: number
-  harvestEntries: { token: string; amount: number }[] // all harvested tokens (raw amounts, no USD)
+  harvestEntries: { token: string; amount: number }[]
 }
 
 export interface HarvestEntry {
@@ -25,7 +24,7 @@ export interface HarvestEntry {
 
 export interface PoolData {
   name: string
-  chain: 'sui' | 'aptos'
+  chain: 'aptos'
   protocol: string
   tokenA: string
   tokenB: string
@@ -47,54 +46,28 @@ export interface PoolData {
   pendingRewardsUsd: number
   rewardToken: string
   rewardAmount: number
-  rewardLabel?: string // override display (e.g. "1.23 IKA + 0.45 USDC")
-  rewardDetails?: { token: string; amount: number; valueUsd: number }[]
   compoundPending: number
   compoundThreshold: number
-  harvestedUsd: number // cumulative USD value sent to personal wallet
-  harvestDetails: HarvestEntry[] // per-token breakdown
+  harvestedUsd: number
+  harvestDetails: HarvestEntry[]
   triggerDistancePct: number
   botState: BotState | null
   feesApr: number
   rewardsApr: number
-  invested?: number // initial investment USD
-  netProfit?: number // LP value + harvested - invested
-  lastCollectAt?: string // most recent fee-collection timestamp
-  positionOpenedAt?: string // on-chain position creation timestamp (ISO)
-  priceHistory?: number[] // in-memory price history for sparkline
+  invested: number
+  netProfit: number
+  lastCollectAt?: string
+  positionOpenedAt?: string
+  priceHistory?: number[]
   lastUpdated: number
   error?: string
   stale?: boolean
 }
 
-export interface PoolPerformance {
-  poolName: string
-  initialInvestment: number
-  startPrice: number       // price of tokenA at start (in tokenB/USD)
-  currentPrice: number
-  hodlValueUsd: number     // what 50/50 hold would be worth now
-  lpValueUsd: number       // position + pending fees + pending rewards
-  outperformanceUsd: number
-  outperformancePct: number
-  totalFeesEarnedUsd: number  // cumulative (collected + pending)
-  totalHarvestedUsd: number   // cumulative value sent to personal wallets
-  totalRebalances: number
-  netProfitUsd: number     // lpValue - initialInvestment
-  netProfitPct: number
-  daysRunning: number
-  realizedApr: number      // annualized net profit %
-  status?: string           // e.g. "Closed — migrated"
-}
-
-export interface PoolGroup {
-  protocol: string
-  chain: 'sui' | 'aptos'
-  chainColor: string
-  walletBalance: WalletBalance | null
-  pools: PoolData[]
-}
-
-export interface AllWallets {
-  sui: WalletBalance | null
-  aptos: WalletBalance | null
+export interface RebalanceMetric {
+  timestamp: string
+  position_value_usd: number
+  total_cost_usd?: number
+  range_delta_pct?: number
+  minutes_since_last?: number
 }

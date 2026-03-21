@@ -10,7 +10,6 @@ async function fetchJson(url: string): Promise<unknown | null> {
   }
 }
 
-// Parse harvest entries from bot state raw fields
 function parseHarvestEntries(data: any, fields: { key: string; token: string; decimals: number }[]): { token: string; amount: number }[] {
   const entries: { token: string; amount: number }[] = []
   for (const { key, token, decimals } of fields) {
@@ -20,26 +19,6 @@ function parseHarvestEntries(data: any, fields: { key: string; token: string; de
     }
   }
   return entries
-}
-
-export async function fetchTurbosBotState(): Promise<BotState | null> {
-  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/turbos.json`) as any
-  if (!data || !data.openedAt) return null
-  return {
-    lastRebalanceAt: data.openedAt,
-    lastCompoundAt: data.lastCompoundAt || data.openedAt,
-    lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedDeep || 0) / 1e6,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedDeepRaw', token: 'DEEP', decimals: 1e6 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-      { key: 'totalHarvestedSuiRaw', token: 'SUI', decimals: 1e9 },
-      { key: 'totalHarvestedTurbosRaw', token: 'TURBOS', decimals: 1e9 },
-    ]),
-  }
 }
 
 export async function fetchThalaBotState(): Promise<BotState | null> {
@@ -61,61 +40,13 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
   }
 }
 
-export async function fetchWalBotState(): Promise<BotState | null> {
-  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/wal.json`) as any
-  if (!data || !data.openedAt) return null
-  return {
-    lastRebalanceAt: data.openedAt,
-    lastCompoundAt: data.lastCompoundAt || data.openedAt,
-    lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedWal || 0) / 1e9,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedWalRaw', token: 'WAL', decimals: 1e9 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-      { key: 'totalHarvestedSuiRaw', token: 'SUI', decimals: 1e9 },
-      { key: 'totalHarvestedTurbosRaw', token: 'TURBOS', decimals: 1e9 },
-    ]),
-  }
-}
-
-export async function fetchIkaBotState(): Promise<BotState | null> {
-  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/ika.json`) as any
-  if (!data || !data.openedAt) return null
-  return {
-    lastRebalanceAt: data.openedAt,
-    lastCompoundAt: data.lastCompoundAt || data.openedAt,
-    lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedIka || 0) / 1e9,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedIkaRaw', token: 'IKA', decimals: 1e9 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-      { key: 'totalHarvestedSuiRaw', token: 'SUI', decimals: 1e9 },
-      { key: 'totalHarvestedTurbosRaw', token: 'TURBOS', decimals: 1e9 },
-    ]),
-  }
-}
-
-export async function fetchSuiUsdcBotState(): Promise<BotState | null> {
-  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/sui-usdc.json`) as any
-  if (!data || !data.openedAt) return null
-  return {
-    lastRebalanceAt: data.openedAt,
-    lastCompoundAt: data.lastCompoundAt || data.openedAt,
-    lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: null,
-    totalRebalances: data.totalRebalances || 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedSui || 0) / 1e9,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedSuiRaw', token: 'SUI', decimals: 1e9 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-      { key: 'totalHarvestedTurbosRaw', token: 'TURBOS', decimals: 1e9 },
-    ]),
+export async function fetchRebalanceMetrics(): Promise<any[]> {
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/bot-state/rebalance-metrics.jsonl`)
+    if (!res.ok) return []
+    const text = await res.text()
+    return text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+  } catch {
+    return []
   }
 }

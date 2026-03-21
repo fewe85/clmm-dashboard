@@ -1,29 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import type { PoolData, PoolGroup, PoolPerformance, BotState, AllWallets, HarvestEntry } from '../types'
-import { fetchSuiPoolData, fetchSuiUsdPrice } from '../services/sui'
-import { fetchWalPoolData } from '../services/wal'
-import { fetchIkaPoolData } from '../services/ika'
+import type { PoolData, BotState, WalletBalance, HarvestEntry, RebalanceMetric } from '../types'
 import { fetchAptosPoolData } from '../services/aptos'
-import { fetchTurbosBotState, fetchThalaBotState, fetchWalBotState, fetchIkaBotState } from '../services/botState'
-import { fetchSuiWalletDynamic, fetchAptosWalletDynamic, fetchTurbosUsdPrice } from '../services/wallet'
+import { fetchThalaBotState, fetchRebalanceMetrics } from '../services/botState'
+import { fetchBotWallet, fetchPetraWallet } from '../services/wallet'
+import { INVESTED, BOT_START, REFRESH_INTERVAL } from '../config'
 
-const REFRESH_INTERVAL = 120_000 // 2 min — avoids Aptos RPC rate limits
-
-const INITIAL_CAPITAL = 276 // Reset baseline 2026-03-18 after range optimization
-const REBALANCE_DATE = '2026-03-18T18:00:00.000Z'
-
-// Start prices — reset baseline from rebalance 2026-03-18 (current position values)
-// SUI/USDC closed 2026-03-19, capital ($43.80) migrated to WAL/USDC
-const START_PRICES: Record<string, { price: number; investment: number; start: string }> = {
-  'DEEP / USDC':    { price: 0.03238, investment: 51.95, start: REBALANCE_DATE },
-  'WAL / USDC':     { price: 0.08151, investment: 81.77, start: REBALANCE_DATE },
-  'IKA / USDC':     { price: 0.00304, investment: 44.42, start: REBALANCE_DATE },
-  'APT / USDC':     { price: 0.95770, investment: 98.77, start: REBALANCE_DATE },
-}
-
-// Projected APR from pending fees accrued since last on-chain collect.
-// This matches DEX UI APR: current fee rate annualized, not diluted lifetime average.
-// Returns 0 if < 30 min since last collect (not enough data for meaningful APR).
 function calcProjectedApr(
   pendingUsd: number,
   positionValueUsd: number,
@@ -35,7 +16,6 @@ function calcProjectedApr(
   return (pendingUsd / positionValueUsd) * (365 * 24 / hoursSinceCollect) * 100
 }
 
-// Get the most recent fee-collection timestamp (rebalance, compound, or harvest)
 function getLastCollectAt(state: BotState | null, fallback: string): string {
   if (!state) return fallback
   const candidates = [state.lastRebalanceAt, state.lastCompoundAt, state.lastHarvestAt, state.lastIdleDeployAt].filter(Boolean) as string[]
@@ -43,18 +23,6 @@ function getLastCollectAt(state: BotState | null, fallback: string): string {
   return candidates.reduce((latest, d) => new Date(d) > new Date(latest) ? d : latest)
 }
 
-
-function calcHodlValue(startPrice: number, currentPrice: number, investment: number): number {
-  if (startPrice <= 0 || currentPrice <= 0) return investment
-  // 50/50 split: half in tokenA, half in tokenB (USDC)
-  const halfUsd = investment / 2
-  const tokensA = halfUsd / startPrice
-  const hodlA = tokensA * currentPrice // tokenA appreciated/depreciated
-  const hodlB = halfUsd // USDC stays at $1
-  return hodlA + hodlB
-}
-
-// Calculate harvest USD from bot state harvest entries + current prices
 function calcHarvestFromBotState(
   state: BotState | null,
   priceMap: Record<string, number>,
@@ -73,299 +41,99 @@ function calcHarvestFromBotState(
   }
 }
 
-function calcPoolPerformance(
-  poolName: string,
-  currentPrice: number,
-  positionValueUsd: number,
-  pendingFeesUsd: number,
-  pendingRewardsUsd: number,
-  collectedFeesA: number,
-  collectedFeesB: number,
-  priceA: number, // current price of tokenA in USD
-  totalRebalances: number,
-  harvestedUsd: number,
-): PoolPerformance {
-  const meta = START_PRICES[poolName] || { price: currentPrice, investment: 50, start: REBALANCE_DATE }
-  const startPrice = meta.price > 0 ? meta.price : currentPrice
-  const investment = meta.investment
+const POOL_STORAGE_KEY = 'clmm_last_good_pool'
 
-  const hodlValue = calcHodlValue(startPrice, currentPrice, investment)
-  const lpValue = positionValueUsd + pendingFeesUsd + pendingRewardsUsd
-
-  // Total fees earned = collected (compounded back) + pending
-  const collectedFeesUsd = collectedFeesA * priceA + collectedFeesB
-  const totalFeesEarned = collectedFeesUsd + pendingFeesUsd + pendingRewardsUsd
-
-  // Net profit includes harvested amounts (no longer in position)
-  const netProfit = lpValue + harvestedUsd - investment
-  const daysRunning = Math.max(1, (Date.now() - new Date(meta.start).getTime()) / (1000 * 60 * 60 * 24))
-  const realizedApr = investment > 0 ? (netProfit / investment) * (365 / daysRunning) * 100 : 0
-
-  return {
-    poolName,
-    initialInvestment: investment,
-    startPrice,
-    currentPrice,
-    hodlValueUsd: hodlValue,
-    lpValueUsd: lpValue,
-    outperformanceUsd: lpValue + harvestedUsd - hodlValue,
-    outperformancePct: hodlValue > 0 ? ((lpValue + harvestedUsd - hodlValue) / hodlValue) * 100 : 0,
-    totalFeesEarnedUsd: totalFeesEarned,
-    totalHarvestedUsd: harvestedUsd,
-    totalRebalances,
-    netProfitUsd: netProfit,
-    netProfitPct: investment > 0 ? (netProfit / investment) * 100 : 0,
-    daysRunning,
-    realizedApr,
-  }
-}
-
-// Persist last-good pool data to sessionStorage so it survives page reloads
-const POOL_STORAGE_KEY = 'clmm_last_good_pools'
-
-function loadPersistedPools(): Map<string, PoolData> {
-  const map = new Map<string, PoolData>()
+function loadPersistedPool(): PoolData | null {
   try {
     const stored = sessionStorage.getItem(POOL_STORAGE_KEY)
-    if (stored) {
-      const entries = JSON.parse(stored) as [string, PoolData][]
-      for (const [k, v] of entries) map.set(k, v)
-    }
+    if (stored) return JSON.parse(stored)
   } catch { /* ignore */ }
-  return map
+  return null
 }
 
-function persistPool(key: string, data: PoolData, cache: Map<string, PoolData>): void {
-  cache.set(key, data)
+function persistPool(data: PoolData): void {
   try {
-    sessionStorage.setItem(POOL_STORAGE_KEY, JSON.stringify([...cache.entries()]))
+    sessionStorage.setItem(POOL_STORAGE_KEY, JSON.stringify(data))
   } catch { /* storage full */ }
 }
 
-// If a fetch returns an error result, use last good data instead (marked stale)
-// NEVER returns $0 if we ever had a successful fetch (in-memory or sessionStorage)
-function useLastGood(fresh: PoolData, key: string, cache: React.RefObject<Map<string, PoolData>>): PoolData {
-  if (!fresh.error) {
-    persistPool(key, fresh, cache.current)
-    return fresh
-  }
-  const prev = cache.current.get(key)
-  if (prev) {
-    return { ...prev, stale: true, lastUpdated: Date.now(), error: fresh.error }
-  }
-  return fresh // first load failed — no cached data anywhere
-}
-
 export function usePoolData() {
-  const [groups, setGroups] = useState<PoolGroup[]>([])
-  const [poolPerformances, setPoolPerformances] = useState<PoolPerformance[]>([])
-  const [wallets, setWallets] = useState<AllWallets>({ sui: null, aptos: null })
+  const [pool, setPool] = useState<PoolData | null>(null)
+  const [botWallet, setBotWallet] = useState<WalletBalance | null>(null)
+  const [petraWallet, setPetraWallet] = useState<WalletBalance | null>(null)
+  const [metrics, setMetrics] = useState<RebalanceMetric[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
-  const poolCache = useRef(loadPersistedPools())
-  const priceHistory = useRef(new Map<string, number[]>())
+  const priceHistory = useRef<number[]>([])
+  const lastGood = useRef<PoolData | null>(loadPersistedPool())
 
   const refresh = useCallback(async () => {
     setLoading(true)
-    // Phase 1: Sui fetches + bot states in parallel (no rate limit issues)
-    const [
-      deepRaw, walRaw, ikaRaw,
-      turbosState, walState, ikaState, thalaState,
-    ] = await Promise.all([
-      fetchSuiPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchWalPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchIkaPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchTurbosBotState(),
-      fetchWalBotState(),
-      fetchIkaBotState(),
+
+    const [aptosRaw, thalaState, rebalanceMetrics] = await Promise.all([
+      fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchThalaBotState(),
+      fetchRebalanceMetrics(),
     ])
 
-    // Phase 1b: Aptos fetch
-    const aptosRaw = await fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData)
+    // Use last good data on error
+    let data: PoolData
+    if (aptosRaw.error) {
+      if (lastGood.current) {
+        data = { ...lastGood.current, stale: true, lastUpdated: Date.now(), error: aptosRaw.error }
+      } else {
+        data = aptosRaw
+      }
+    } else {
+      data = aptosRaw
+      lastGood.current = data
+      persistPool(data)
+    }
 
-    // Use last good data when fetches fail (never show $0 after first success)
-    const deep = useLastGood(deepRaw, 'deep', poolCache)
-    const wal = useLastGood(walRaw, 'wal', poolCache)
-    const ika = useLastGood(ikaRaw, 'ika', poolCache)
-    const aptos = useLastGood(aptosRaw, 'aptos', poolCache)
+    // Enrich with bot state
+    if (thalaState) data.botState = thalaState
+    const fallback = data.positionOpenedAt || BOT_START
+    const lastCollectAt = getLastCollectAt(thalaState, fallback)
+    data.feesApr = calcProjectedApr(data.pendingFeesUsd, data.positionValueUsd, lastCollectAt)
+    data.rewardsApr = calcProjectedApr(data.pendingRewardsUsd, data.positionValueUsd, lastCollectAt)
+    data.lastCollectAt = lastCollectAt
 
-    // Phase 2: Build price map from pool data for wallet valuation
-    const suiUsdPrice = await fetchSuiUsdPrice()
-    const turbosPrice = await fetchTurbosUsdPrice(suiUsdPrice)
-    const deepPrice = deep.currentPrice > 0 ? deep.currentPrice : 0.02
-    const walPrice = wal.currentPrice || 0
-    const ikaPrice = ika.currentPrice || 0
-    const aptPrice = aptos.currentPrice || 0.96
-
+    const aptPrice = data.currentPrice || 0.96
     const priceMap: Record<string, number> = {
-      'SUI': suiUsdPrice,
-      'USDC': 1,
-      'DEEP': deepPrice,
-      'WAL': walPrice,
-      'IKA': ikaPrice,
-      'TURBOS': turbosPrice,
       'APT': aptPrice,
-      'thAPT': aptPrice, // thAPT ≈ APT price
-      'AptosCoin': aptPrice, // legacy symbol
+      'USDC': 1,
+      'thAPT': aptPrice,
+      'sthAPT': aptPrice,
+      'AptosCoin': aptPrice,
     }
 
-    // Fetch wallets in parallel
-    const [suiWallet, aptosWallet] = await Promise.all([
-      fetchSuiWalletDynamic(priceMap).catch(() => null),
-      fetchAptosWalletDynamic(priceMap).catch(() => null),
+    // Harvest data
+    const harvest = calcHarvestFromBotState(thalaState, priceMap)
+    data.harvestedUsd = harvest.harvestedUsd
+    data.harvestDetails = harvest.harvestDetails
+
+    // Invested + Net Profit
+    data.invested = INVESTED
+    const lpValue = data.positionValueUsd + data.pendingFeesUsd + data.pendingRewardsUsd
+    data.netProfit = lpValue + data.harvestedUsd - INVESTED
+
+    // Price history (max 50 points)
+    if (data.currentPrice > 0) {
+      priceHistory.current.push(data.currentPrice)
+      if (priceHistory.current.length > 50) priceHistory.current.shift()
+      data.priceHistory = [...priceHistory.current]
+    }
+
+    // Fetch wallets
+    const [bw, pw] = await Promise.all([
+      fetchBotWallet(priceMap).catch(() => null),
+      fetchPetraWallet(priceMap).catch(() => null),
     ])
 
-    // Helper: enrich pool with bot state, APR, and harvest data
-    function enrichPool(
-      pool: PoolData,
-      state: BotState | null,
-      botStart: string,
-    ) {
-      if (state) pool.botState = state
-      // Use on-chain position creation time when bot state is unavailable
-      const fallback = pool.positionOpenedAt || botStart
-      const lastCollectAt = getLastCollectAt(state, fallback)
-      pool.feesApr = calcProjectedApr(pool.pendingFeesUsd, pool.positionValueUsd, lastCollectAt)
-      pool.rewardsApr = calcProjectedApr(pool.pendingRewardsUsd, pool.positionValueUsd, lastCollectAt)
-
-      // Harvest data: exclusively from bot state
-      const harvest = calcHarvestFromBotState(state, priceMap)
-      pool.harvestedUsd = harvest.harvestedUsd
-      pool.harvestDetails = harvest.harvestDetails
-
-      // Invested + Net Profit
-      const meta = START_PRICES[pool.name]
-      if (meta) {
-        pool.invested = meta.investment
-        const lpValue = pool.positionValueUsd + pool.pendingFeesUsd + pool.pendingRewardsUsd
-        pool.netProfit = lpValue + pool.harvestedUsd - meta.investment
-      }
-
-      // Last collect timestamp for daily earnings calculation
-      pool.lastCollectAt = lastCollectAt
-
-      // Track price history for sparkline (max 50 points)
-      if (pool.currentPrice > 0) {
-        const key = pool.name
-        const history = priceHistory.current.get(key) || []
-        history.push(pool.currentPrice)
-        if (history.length > 50) history.shift()
-        priceHistory.current.set(key, history)
-        pool.priceHistory = [...history]
-      }
-    }
-
-    // Enrich all pools with cumulative APR and harvest data (bot state only)
-    enrichPool(deep, turbosState, REBALANCE_DATE)
-    enrichPool(wal, walState, REBALANCE_DATE)
-    enrichPool(ika, ikaState, REBALANCE_DATE)
-    enrichPool(aptos, thalaState, REBALANCE_DATE)
-
-    // Build groups
-    const turbosGroup: PoolGroup = {
-      protocol: 'Turbos Finance',
-      chain: 'sui',
-      chainColor: '#4da2ff',
-      walletBalance: suiWallet,
-      pools: [deep, wal, ika],
-    }
-
-    const thalaGroup: PoolGroup = {
-      protocol: 'Thala Finance',
-      chain: 'aptos',
-      chainColor: '#2ed8a3',
-      walletBalance: aptosWallet,
-      pools: [aptos],
-    }
-
-    setWallets({ sui: suiWallet, aptos: aptosWallet })
-    setGroups([turbosGroup, thalaGroup])
-
-    // Calculate performance per pool
-    const performances: PoolPerformance[] = []
-
-    // DEEP/USDC: price is USDC per DEEP, fees in DEEP + USDC
-    performances.push(calcPoolPerformance(
-      deep.name, deep.currentPrice, deep.positionValueUsd,
-      deep.pendingFeesUsd, deep.pendingRewardsUsd,
-      turbosState?.totalFeesCollectedA || 0, turbosState?.totalFeesCollectedB || 0,
-      deep.currentPrice, turbosState?.totalRebalances || 0,
-      deep.harvestedUsd,
-    ))
-
-    // WAL/USDC
-    performances.push(calcPoolPerformance(
-      wal.name, wal.currentPrice, wal.positionValueUsd,
-      wal.pendingFeesUsd, wal.pendingRewardsUsd,
-      walState?.totalFeesCollectedA || 0, walState?.totalFeesCollectedB || 0,
-      wal.currentPrice, walState?.totalRebalances || 0,
-      wal.harvestedUsd,
-    ))
-
-    // IKA/USDC
-    const ikaStartPrice = START_PRICES['IKA / USDC']
-    if (ikaStartPrice.price === 0 && ika.currentPrice > 0) {
-      ikaStartPrice.price = ika.currentPrice
-    }
-    performances.push(calcPoolPerformance(
-      ika.name, ika.currentPrice, ika.positionValueUsd,
-      ika.pendingFeesUsd, ika.pendingRewardsUsd,
-      ikaState?.totalFeesCollectedA || 0, ikaState?.totalFeesCollectedB || 0,
-      ika.currentPrice, ikaState?.totalRebalances || 0,
-      ika.harvestedUsd,
-    ))
-
-    // SUI/USDC — closed 2026-03-19, capital migrated to WAL/USDC
-    performances.push({
-      poolName: 'SUI / USDC',
-      initialInvestment: 0,
-      startPrice: 0.97936,
-      currentPrice: 0,
-      hodlValueUsd: 0,
-      lpValueUsd: 0,
-      outperformanceUsd: 0,
-      outperformancePct: 0,
-      totalFeesEarnedUsd: 0,
-      totalHarvestedUsd: 0,
-      totalRebalances: 3,
-      netProfitUsd: 0,
-      netProfitPct: 0,
-      daysRunning: Math.max(1, (Date.now() - new Date('2026-03-13T00:00:00.000Z').getTime()) / (1000 * 60 * 60 * 24)),
-      realizedApr: 0,
-      status: 'Closed — migrated to WAL/USDC',
-    })
-
-    // APT/USDC
-    performances.push(calcPoolPerformance(
-      aptos.name, aptos.currentPrice, aptos.positionValueUsd,
-      aptos.pendingFeesUsd, aptos.pendingRewardsUsd,
-      thalaState?.totalFeesCollectedA || 0, thalaState?.totalFeesCollectedB || 0,
-      aptos.currentPrice, thalaState?.totalRebalances || 0,
-      aptos.harvestedUsd,
-    ))
-
-    // ELON/USDC — closed position, capital migrated to APT/USDC
-    performances.push({
-      poolName: 'ELON / USDC',
-      initialInvestment: 0,
-      startPrice: 0.091,
-      currentPrice: 0,
-      hodlValueUsd: 0,
-      lpValueUsd: 0,
-      outperformanceUsd: 0,
-      outperformancePct: 0,
-      totalFeesEarnedUsd: 0,
-      totalHarvestedUsd: 2.41, // historical harvest before migration
-      totalRebalances: 0,
-      netProfitUsd: 2.41, // harvested - invested (0)
-      netProfitPct: 0,
-      daysRunning: Math.max(1, (Date.now() - new Date('2026-03-11T00:00:00.000Z').getTime()) / (1000 * 60 * 60 * 24)),
-      realizedApr: 0,
-      status: 'Closed — migrated',
-    })
-
-    setPoolPerformances(performances)
+    setPool(data)
+    setBotWallet(bw)
+    setPetraWallet(pw)
+    setMetrics(rebalanceMetrics)
     setLoading(false)
     setCountdown(REFRESH_INTERVAL / 1000)
   }, [])
@@ -383,60 +151,64 @@ export function usePoolData() {
     return () => clearInterval(timer)
   }, [])
 
-  // Flatten pools for totals
-  const allPools = groups.flatMap(g => g.pools)
-  const totalPositionUsd = allPools.reduce((sum, p) => sum + p.positionValueUsd, 0)
-  const totalIdleUsd = groups.reduce((sum, g) => sum + (g.walletBalance?.totalIdleUsd || 0), 0)
-  const totalHarvestedUsd = allPools.reduce((sum, p) => sum + (p.harvestedUsd || 0), 0)
-  const totalValueUsd = totalPositionUsd + totalIdleUsd
-  const totalFeesUsd = allPools.reduce((sum, p) => sum + p.pendingFeesUsd, 0)
-  const totalRewardsUsd = allPools.reduce((sum, p) => sum + p.pendingRewardsUsd, 0)
+  // Derived values
+  const positionValue = pool?.positionValueUsd ?? 0
+  const pendingFees = pool?.pendingFeesUsd ?? 0
+  const pendingRewards = pool?.pendingRewardsUsd ?? 0
+  const totalHarvested = pool?.harvestedUsd ?? 0
+  const netProfit = pool?.netProfit ?? 0
+  const netProfitPct = INVESTED > 0 ? (netProfit / INVESTED) * 100 : 0
+  const daysRunning = Math.max(1, (Date.now() - new Date(BOT_START).getTime()) / (1000 * 60 * 60 * 24))
+  const realizedApr = INVESTED > 0 ? (netProfit / INVESTED) * (365 / daysRunning) * 100 : 0
 
-  // P&L includes harvested amounts (already sent to personal wallets)
-  const pnlUsd = totalValueUsd + totalFeesUsd + totalRewardsUsd + totalHarvestedUsd - INITIAL_CAPITAL
-  const pnlPct = INITIAL_CAPITAL > 0 ? (pnlUsd / INITIAL_CAPITAL) * 100 : 0
-
-  const activePoolCount = allPools.length
-
-  // Aggregate daily estimate from all active pools
-  const totalDailyEst = allPools.reduce((sum, pool) => {
-    if (!pool.lastCollectAt || (pool.pendingFeesUsd + pool.pendingRewardsUsd) <= 0) return sum
+  // Daily estimate
+  let dailyEst = 0
+  if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
     const hoursSince = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
-    if (hoursSince < 0.5) return sum
-    return sum + ((pool.pendingFeesUsd + pool.pendingRewardsUsd) / hoursSince) * 24
-  }, 0)
+    if (hoursSince >= 0.5) {
+      dailyEst = ((pendingFees + pendingRewards) / hoursSince) * 24
+    }
+  }
 
-  // Aggregate performance
-  const totalNetProfit = poolPerformances.reduce((sum, p) => sum + p.netProfitUsd, 0)
-  const totalFeesEarned = poolPerformances.reduce((sum, p) => sum + p.totalFeesEarnedUsd, 0)
-  const totalHarvested = poolPerformances.reduce((sum, p) => sum + p.totalHarvestedUsd, 0)
-  const totalHodlValue = poolPerformances.reduce((sum, p) => sum + p.hodlValueUsd, 0)
-  const totalLpValue = poolPerformances.reduce((sum, p) => sum + p.lpValueUsd, 0)
-  const totalRebalances = poolPerformances.reduce((sum, p) => sum + p.totalRebalances, 0)
+  // Harvest rate (rolling 7d) — use rebalance metrics if available, else simple
+  const harvestRate7d = totalHarvested > 0 ? totalHarvested / Math.min(daysRunning, 7) : 0
+
+  // Rebalance stats
+  const totalRebalances = pool?.botState?.totalRebalances ?? 0
+  const now = Date.now()
+  const rebalances24h = metrics.filter(m => now - new Date(m.timestamp).getTime() < 86400_000).length
+  const rebalances7d = metrics.filter(m => now - new Date(m.timestamp).getTime() < 7 * 86400_000).length
+  const avgTimeBetweenRebalances = totalRebalances > 1
+    ? daysRunning * 24 / totalRebalances
+    : 0
+
+  // Capital efficiency
+  const rangeWidth = pool ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100 : 0
+  const ceMultiplier = rangeWidth > 0 ? 200 / rangeWidth : 0
 
   return {
-    groups,
-    poolPerformances,
-    wallets,
+    pool,
+    botWallet,
+    petraWallet,
+    metrics,
     loading,
     countdown,
     refresh,
-    totalPositionUsd,
-    totalIdleUsd,
-    totalValueUsd,
-    totalFeesUsd,
-    totalRewardsUsd,
-    totalHarvestedUsd,
-    pnlUsd,
-    pnlPct,
-    activePoolCount,
-    totalDailyEst,
-    initialCapital: INITIAL_CAPITAL,
-    totalNetProfit,
-    totalFeesEarned,
+    positionValue,
+    pendingFees,
+    pendingRewards,
     totalHarvested,
-    totalHodlValue,
-    totalLpValue,
+    netProfit,
+    netProfitPct,
+    daysRunning,
+    realizedApr,
+    dailyEst,
+    harvestRate7d,
     totalRebalances,
+    rebalances24h,
+    rebalances7d,
+    avgTimeBetweenRebalances,
+    rangeWidth,
+    ceMultiplier,
   }
 }

@@ -269,9 +269,11 @@ export async function fetchAptosPoolData(): Promise<PoolData> {
       harvestedUsd: 0,
       harvestDetails: [],
       triggerDistancePct,
-      botState: null, // filled by hook
-      feesApr: 0, // calculated by hook
-      rewardsApr: 0, // calculated by hook
+      botState: null,
+      feesApr: 0,
+      rewardsApr: 0,
+      invested: 0,
+      netProfit: 0,
       lastUpdated: Date.now(),
     }
   } catch (err) {
@@ -313,6 +315,8 @@ function makeErrorResult(error: string): PoolData {
     botState: null,
     feesApr: 0,
     rewardsApr: 0,
+    invested: 0,
+    netProfit: 0,
     lastUpdated: Date.now(),
     error,
   }

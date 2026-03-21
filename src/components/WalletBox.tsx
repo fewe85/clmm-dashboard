@@ -1,116 +1,86 @@
 import type { WalletBalance } from '../types'
 
-interface WalletBoxProps {
-  suiWallet: WalletBalance | null
-  aptosWallet: WalletBalance | null
+interface Props {
+  botWallet: WalletBalance | null
+  petraWallet: WalletBalance | null
 }
 
-function formatUsd(n: number): string {
-  if (n >= 1000) return `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  if (n >= 1) return `$${n.toFixed(2)}`
-  if (n >= 0.01) return `$${n.toFixed(4)}`
-  return `$${n.toFixed(6)}`
+function shortenAddr(addr: string): string {
+  return addr.slice(0, 6) + '...' + addr.slice(-4)
 }
 
-function formatAmount(n: number, token: string): string {
-  if (token === 'USDC') return n.toFixed(2)
-  if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 2 })
-  if (n >= 1) return n.toFixed(4)
-  return n.toFixed(6)
+function formatUsd(v: number): string {
+  if (v >= 1) return `$${v.toFixed(2)}`
+  if (v >= 0.01) return `$${v.toFixed(4)}`
+  return `$${v.toFixed(6)}`
 }
 
-interface CoinEntry {
-  token: string
-  amount: number
-  valueUsd: number
-  chain: string
-  isGas?: boolean
-  priceUnknown?: boolean
+function WalletCard({ wallet }: { wallet: WalletBalance }) {
+  return (
+    <div
+      className="rounded-lg p-4"
+      style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+          {wallet.label}
+        </span>
+        <span className="mono text-xs" style={{ color: 'var(--text-muted)' }}>
+          {shortenAddr(wallet.address)}
+        </span>
+      </div>
+
+      {wallet.balances.length === 0 && (
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>No balances</div>
+      )}
+
+      {wallet.balances.map((b, i) => (
+        <div key={i} className="flex items-center justify-between py-1">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+              {b.token}
+            </span>
+            {b.priceUnknown && (
+              <span className="text-xs" style={{ color: 'var(--accent-yellow)' }}>?</span>
+            )}
+          </div>
+          <div className="text-right">
+            <span className="mono text-xs" style={{ color: 'var(--text-primary)' }}>
+              {b.amount < 0.01 ? b.amount.toFixed(6) : b.amount.toFixed(4)}
+            </span>
+            {!b.priceUnknown && (
+              <span className="mono text-xs ml-2" style={{ color: 'var(--text-muted)' }}>
+                {formatUsd(b.valueUsd)}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+
+      <div className="mt-2 pt-2 flex justify-between" style={{ borderTop: '1px solid var(--border)' }}>
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Total</span>
+        <span className="mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
+          {formatUsd(wallet.totalUsd)}
+        </span>
+      </div>
+    </div>
+  )
 }
 
-export function WalletBox({ suiWallet, aptosWallet }: WalletBoxProps) {
-  const coins: CoinEntry[] = []
-
-  if (suiWallet) {
-    coins.push({
-      token: 'SUI',
-      amount: suiWallet.gasBalance,
-      valueUsd: suiWallet.gasValueUsd,
-      chain: 'Sui',
-      isGas: true,
-    })
-    for (const b of suiWallet.idleBalances) {
-      coins.push({ token: b.token, amount: b.amount, valueUsd: b.valueUsd, chain: 'Sui', priceUnknown: b.priceUnknown })
-    }
-  }
-
-  if (aptosWallet) {
-    coins.push({
-      token: 'APT',
-      amount: aptosWallet.gasBalance,
-      valueUsd: aptosWallet.gasValueUsd,
-      chain: 'Aptos',
-      isGas: true,
-    })
-    for (const b of aptosWallet.idleBalances) {
-      coins.push({ token: b.token, amount: b.amount, valueUsd: b.valueUsd, chain: 'Aptos', priceUnknown: b.priceUnknown })
-    }
-  }
-
-  const totalUsd = coins.reduce((s, c) => s + c.valueUsd, 0)
-
-  if (coins.length === 0) return null
+export function WalletBox({ botWallet, petraWallet }: Props) {
+  if (!botWallet && !petraWallet) return null
 
   return (
     <div
       className="rounded-xl p-5"
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
-          Wallet Balances
-        </h2>
-        <span className="text-sm font-semibold">{formatUsd(totalUsd)}</span>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-        {coins.map(c => (
-          <div
-            key={`${c.chain}-${c.token}`}
-            className="flex items-center justify-between px-3 py-2 rounded-lg"
-            style={{ background: 'var(--bg-primary)' }}
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{c.token}</span>
-              {c.isGas && (
-                <span
-                  className="px-1 py-px rounded text-xs"
-                  style={{ background: 'rgba(234,179,8,0.15)', color: 'var(--accent-yellow)', fontSize: '10px' }}
-                >
-                  GAS
-                </span>
-              )}
-              <span
-                className="text-xs px-1.5 py-px rounded-full"
-                style={{
-                  background: c.chain === 'Sui' ? '#4da2ff20' : '#2ed8a320',
-                  color: c.chain === 'Sui' ? '#4da2ff' : '#2ed8a3',
-                  fontSize: '10px',
-                }}
-              >
-                {c.chain}
-              </span>
-            </div>
-            <div className="text-right">
-              <span className="text-sm tabular-nums" style={{ color: 'var(--text-secondary)' }}>
-                {formatAmount(c.amount, c.token)}
-              </span>
-              <span className="text-xs tabular-nums ml-2" style={{ color: c.priceUnknown ? 'var(--accent-yellow)' : 'var(--text-muted)' }}>
-                {c.priceUnknown ? '?' : formatUsd(c.valueUsd)}
-              </span>
-            </div>
-          </div>
-        ))}
+      <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-secondary)' }}>
+        Wallets
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {botWallet && <WalletCard wallet={botWallet} />}
+        {petraWallet && <WalletCard wallet={petraWallet} />}
       </div>
     </div>
   )
