@@ -20,31 +20,18 @@ async function getPoolResource(): Promise<Record<string, unknown>> {
   return (data as any).data
 }
 
-// Position token cache
+// Indexer fallback: find ELON position via MintEvents when bot state has no positionNftId.
+// MintEvents are permanent — works regardless of whether the NFT is staked or in the wallet.
+// Filters by positive ticks to distinguish ELON positions (~66000) from APT positions (~-46000).
 let _cachedPositionToken: string | null = null
 let _positionTokenTs = 0
 const POSITION_CACHE_TTL = 300_000
 
-async function findPositionToken(): Promise<string | null> {
+async function findPositionViaIndexer(): Promise<string | null> {
   if (_cachedPositionToken && Date.now() - _positionTokenTs < POSITION_CACHE_TTL) {
     return _cachedPositionToken
   }
 
-  // Primary: use bot state's positionNftId (always correct, no indexer delay)
-  try {
-    const base = import.meta.env.BASE_URL || '/'
-    const res = await fetch(`${base}api/bot-state/elon.json`)
-    if (res.ok) {
-      const state = await res.json()
-      if (state?.positionNftId) {
-        _cachedPositionToken = state.positionNftId
-        _positionTokenTs = Date.now()
-        return _cachedPositionToken
-      }
-    }
-  } catch { /* fall through to indexer */ }
-
-  // Fallback: indexer query with tick-based filtering
   try {
     const result = await aptosIndexer(
       `query GetMintedPositions($wallet: String!, $collection: String!) {
@@ -71,12 +58,14 @@ async function findPositionToken(): Promise<string | null> {
     const minted = result?.data?.token_activities_v2 ?? []
     if (minted.length === 0) return _cachedPositionToken
 
+    // Sort by highest token name ID (most recent position)
     const sorted = minted.sort((a: any, b: any) => {
       const aId = parseInt(a.current_token_data?.token_name?.split(':')[1] ?? '0')
       const bId = parseInt(b.current_token_data?.token_name?.split(':')[1] ?? '0')
       return bId - aId
     })
 
+    // Find the ELON position by checking tick range (positive ticks = ELON pool)
     for (const pos of sorted) {
       try {
         const posResult = await aptosView(
@@ -86,8 +75,6 @@ async function findPositionToken(): Promise<string | null> {
         )
         const info = posResult[0] as any
         const tl = decodeI64(info.tick_lower.bits)
-        // ELON/USDC pool has positive ticks (~66000-67000 range)
-        // APT/USDC pool has negative ticks (~-46000 range)
         if (tl > 0) {
           _cachedPositionToken = pos.token_data_id
           _positionTokenTs = Date.now()
@@ -117,7 +104,7 @@ async function isPositionStaked(tokenAddress: string): Promise<boolean> {
   }
 }
 
-export async function fetchElonPoolData(): Promise<PoolData> {
+export async function fetchElonPoolData(positionNftId?: string): Promise<PoolData> {
   try {
     const poolData = await getPoolResource()
 
@@ -131,9 +118,9 @@ export async function fetchElonPoolData(): Promise<PoolData> {
     const currentPrice = nativePrice > 0 ? 1 / nativePrice : 0
     const elonPrice = currentPrice
 
-    const positionToken = await findPositionToken()
+    const positionToken = positionNftId || await findPositionViaIndexer()
     if (!positionToken) {
-      return makeErrorResult('No ELON/USDC position found')
+      return makeErrorResult('No ELON/USDC position found — bot state and indexer both failed')
     }
 
     let amountElon = 0

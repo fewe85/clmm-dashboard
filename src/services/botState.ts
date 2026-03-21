@@ -40,6 +40,7 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     ownedAptRaw: Number(data.ownedAptRaw || 0),
     ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
     centerPrice: Number(data.centerPrice || 0),
+    positionNftId: data.positionNftId || undefined,
   }
 }
 
@@ -62,6 +63,7 @@ export async function fetchElonBotState(): Promise<BotState | null> {
     ownedAptRaw: Number(data.ownedElonRaw || 0),
     ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
     centerPrice: Number(data.centerPrice || 0),
+    positionNftId: data.positionNftId || undefined,
   }
 }
 

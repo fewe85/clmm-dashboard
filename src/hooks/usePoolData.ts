@@ -160,13 +160,18 @@ export function usePoolData() {
   const refresh = useCallback(async () => {
     setLoading(true)
 
-    const [aptRaw, elonRaw, aptState, elonState, aptRebalanceMetrics, elonRebalanceMetrics] = await Promise.all([
-      fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchElonPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
+    // Fetch bot states first — we need the positionNftId for ELON pool lookup
+    // (staked NFTs can't be found via wallet/indexer queries)
+    const [aptState, elonState, aptRebalanceMetrics, elonRebalanceMetrics] = await Promise.all([
       fetchThalaBotState(),
       fetchElonBotState(),
       fetchRebalanceMetrics(),
       fetchElonRebalanceMetrics(),
+    ])
+
+    const [aptRaw, elonRaw] = await Promise.all([
+      fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
+      fetchElonPoolData(elonState?.positionNftId).catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
     ])
 
     // Handle APT pool errors

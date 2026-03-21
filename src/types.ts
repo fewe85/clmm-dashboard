@@ -17,6 +17,7 @@ export interface BotState {
   ownedAptRaw: number
   ownedUsdcRaw: number
   centerPrice: number
+  positionNftId?: string
 }
 
 export interface HarvestEntry {
