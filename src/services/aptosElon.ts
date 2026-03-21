@@ -30,8 +30,22 @@ async function findPositionToken(): Promise<string | null> {
     return _cachedPositionToken
   }
 
+  // Primary: use bot state's positionNftId (always correct, no indexer delay)
   try {
-    // Find positions minted by bot wallet, then filter by pool
+    const base = import.meta.env.BASE_URL || '/'
+    const res = await fetch(`${base}api/bot-state/elon.json`)
+    if (res.ok) {
+      const state = await res.json()
+      if (state?.positionNftId) {
+        _cachedPositionToken = state.positionNftId
+        _positionTokenTs = Date.now()
+        return _cachedPositionToken
+      }
+    }
+  } catch { /* fall through to indexer */ }
+
+  // Fallback: indexer query with tick-based filtering
+  try {
     const result = await aptosIndexer(
       `query GetMintedPositions($wallet: String!, $collection: String!) {
         token_activities_v2(
@@ -57,16 +71,12 @@ async function findPositionToken(): Promise<string | null> {
     const minted = result?.data?.token_activities_v2 ?? []
     if (minted.length === 0) return _cachedPositionToken
 
-    // Find the position that belongs to the ELON/USDC pool
-    // Try each position — check if position_info resolves with this pool
     const sorted = minted.sort((a: any, b: any) => {
       const aId = parseInt(a.current_token_data?.token_name?.split(':')[1] ?? '0')
       const bId = parseInt(b.current_token_data?.token_name?.split(':')[1] ?? '0')
       return bId - aId
     })
 
-    // Try to find the ELON pool position by checking position_total_value
-    // The ELON pool position will return different amounts than the APT pool
     for (const pos of sorted) {
       try {
         const posResult = await aptosView(
