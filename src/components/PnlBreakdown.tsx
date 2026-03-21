@@ -1,10 +1,10 @@
 import type { BotState, PoolData } from '../types'
-import { EST_SWAP_COST_PER_REBALANCE } from '../config'
 
 interface Props {
   pool: PoolData
   botState: BotState | null
   totalHarvested: number
+  estSwapCost?: number
 }
 
 function formatUsd(v: number): string {
@@ -14,35 +14,35 @@ function formatUsd(v: number): string {
   return `$${abs.toFixed(6)}`
 }
 
-export function PnlBreakdown({ pool, botState, totalHarvested }: Props) {
+export function PnlBreakdown({ pool, botState, totalHarvested, estSwapCost = 0.03 }: Props) {
   if (!botState || !pool) return null
 
-  const aptPrice = pool.currentPrice || 0.96
+  const tokenAPrice = pool.currentPrice || (pool.tokenA === 'APT' ? 0.96 : 0.12)
 
   // Fees earned from on-chain position
-  const feesUsd = pool.feesA * aptPrice + pool.feesB
+  const feesUsd = pool.feesA * tokenAPrice + pool.feesB
 
   // Rewards = total harvested
   const rewardsUsd = totalHarvested
 
   // IL calculation
-  const entryApt = botState.ownedAptRaw / 1e8
+  const entryA = botState.ownedAptRaw / 1e8
   const entryUsdc = botState.ownedUsdcRaw / 1e6
   let ilUsd = 0
   let ilPct = 0
   let hasIlData = false
 
-  if (entryApt > 0 || entryUsdc > 0) {
+  if (entryA > 0 || entryUsdc > 0) {
     hasIlData = true
-    const hodlValue = entryApt * aptPrice + entryUsdc
-    const positionValue = pool.amountA * aptPrice + pool.amountB
+    const hodlValue = entryA * tokenAPrice + entryUsdc
+    const positionValue = pool.amountA * tokenAPrice + pool.amountB
     ilUsd = positionValue - hodlValue
     ilPct = hodlValue > 0 ? (ilUsd / hodlValue) * 100 : 0
   }
 
   // Swap costs (estimated)
   const totalRebalances = botState.totalRebalances || 0
-  const swapCosts = totalRebalances * EST_SWAP_COST_PER_REBALANCE
+  const swapCosts = totalRebalances * estSwapCost
 
   // Net P&L
   const netPnl = feesUsd + rewardsUsd + ilUsd - swapCosts

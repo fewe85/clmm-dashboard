@@ -1,9 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { PoolData, BotState, WalletBalance, HarvestEntry, RebalanceMetric } from '../types'
 import { fetchAptosPoolData } from '../services/aptos'
-import { fetchThalaBotState, fetchRebalanceMetrics } from '../services/botState'
+import { fetchElonPoolData } from '../services/aptosElon'
+import { fetchThalaBotState, fetchElonBotState, fetchRebalanceMetrics, fetchElonRebalanceMetrics } from '../services/botState'
 import { fetchBotWallet, fetchPetraWallet } from '../services/wallet'
-import { INVESTED, BOT_START, REFRESH_INTERVAL } from '../config'
+import {
+  APT_INVESTED, APT_BOT_START, ELON_INVESTED, ELON_BOT_START,
+  INITIAL_CAPITAL, REFRESH_INTERVAL,
+} from '../config'
 
 function calcProjectedApr(
   pendingUsd: number,
@@ -41,99 +45,189 @@ function calcHarvestFromBotState(
   }
 }
 
-const POOL_STORAGE_KEY = 'clmm_last_good_pool'
+export interface PoolMetrics {
+  pool: PoolData | null
+  metrics: RebalanceMetric[]
+  positionValue: number
+  pendingFees: number
+  pendingRewards: number
+  totalHarvested: number
+  netProfit: number
+  netProfitPct: number
+  daysRunning: number
+  realizedApr: number
+  dailyEst: number
+  harvestRate7d: number
+  totalRebalances: number
+  rebalances24h: number
+  rebalances7d: number
+  avgTimeBetweenRebalances: number
+  rangeWidth: number
+  ceMultiplier: number
+  invested: number
+  botStart: string
+}
 
-function loadPersistedPool(): PoolData | null {
+const APT_STORAGE_KEY = 'clmm_last_good_pool'
+const ELON_STORAGE_KEY = 'clmm_last_good_elon'
+
+function loadPersistedPool(key: string): PoolData | null {
   try {
-    const stored = sessionStorage.getItem(POOL_STORAGE_KEY)
+    const stored = sessionStorage.getItem(key)
     if (stored) return JSON.parse(stored)
   } catch { /* ignore */ }
   return null
 }
 
-function persistPool(data: PoolData): void {
+function persistPool(key: string, data: PoolData): void {
   try {
-    sessionStorage.setItem(POOL_STORAGE_KEY, JSON.stringify(data))
+    sessionStorage.setItem(key, JSON.stringify(data))
   } catch { /* storage full */ }
 }
 
+function enrichPoolData(
+  rawData: PoolData,
+  botState: BotState | null,
+  invested: number,
+  botStart: string,
+  priceMap: Record<string, number>,
+): PoolData {
+  const data = { ...rawData }
+  if (botState) data.botState = botState
+  const fallback = data.positionOpenedAt || botStart
+  const lastCollectAt = getLastCollectAt(botState, fallback)
+  data.feesApr = calcProjectedApr(data.pendingFeesUsd, data.positionValueUsd, lastCollectAt)
+  data.rewardsApr = calcProjectedApr(data.pendingRewardsUsd, data.positionValueUsd, lastCollectAt)
+  data.lastCollectAt = lastCollectAt
+
+  const harvest = calcHarvestFromBotState(botState, priceMap)
+  data.harvestedUsd = harvest.harvestedUsd
+  data.harvestDetails = harvest.harvestDetails
+  data.invested = invested
+  const lpValue = data.positionValueUsd + data.pendingFeesUsd + data.pendingRewardsUsd
+  data.netProfit = lpValue + data.harvestedUsd - invested
+  return data
+}
+
+function derivePoolMetrics(pool: PoolData | null, metrics: RebalanceMetric[], invested: number, botStart: string): Omit<PoolMetrics, 'pool' | 'metrics'> {
+  const positionValue = pool?.positionValueUsd ?? 0
+  const pendingFees = pool?.pendingFeesUsd ?? 0
+  const pendingRewards = pool?.pendingRewardsUsd ?? 0
+  const totalHarvested = pool?.harvestedUsd ?? 0
+  const netProfit = pool?.netProfit ?? 0
+  const netProfitPct = invested > 0 ? (netProfit / invested) * 100 : 0
+  const daysRunning = Math.max(1, (Date.now() - new Date(botStart).getTime()) / (1000 * 60 * 60 * 24))
+  const realizedApr = invested > 0 ? (netProfit / invested) * (365 / daysRunning) * 100 : 0
+
+  let dailyEst = 0
+  if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
+    const hoursSince = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
+    if (hoursSince >= 0.5) {
+      dailyEst = ((pendingFees + pendingRewards) / hoursSince) * 24
+    }
+  }
+
+  const harvestRate7d = totalHarvested > 0 ? totalHarvested / Math.min(daysRunning, 7) : 0
+  const totalRebalances = pool?.botState?.totalRebalances ?? 0
+  const now = Date.now()
+  const rebalances24h = metrics.filter(m => now - new Date(m.timestamp).getTime() < 86400_000).length
+  const rebalances7d = metrics.filter(m => now - new Date(m.timestamp).getTime() < 7 * 86400_000).length
+  const avgTimeBetweenRebalances = totalRebalances > 1 ? daysRunning * 24 / totalRebalances : 0
+  const rangeWidth = pool ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100 : 0
+  const ceMultiplier = rangeWidth > 0 ? 200 / rangeWidth : 0
+
+  return {
+    positionValue, pendingFees, pendingRewards, totalHarvested,
+    netProfit, netProfitPct, daysRunning, realizedApr, dailyEst,
+    harvestRate7d, totalRebalances, rebalances24h, rebalances7d,
+    avgTimeBetweenRebalances, rangeWidth, ceMultiplier,
+    invested, botStart,
+  }
+}
+
 export function usePoolData() {
-  const [pool, setPool] = useState<PoolData | null>(null)
+  const [aptPool, setAptPool] = useState<PoolData | null>(null)
+  const [elonPool, setElonPool] = useState<PoolData | null>(null)
+  const [aptMetrics, setAptMetrics] = useState<RebalanceMetric[]>([])
+  const [elonMetrics, setElonMetrics] = useState<RebalanceMetric[]>([])
   const [botWallet, setBotWallet] = useState<WalletBalance | null>(null)
   const [petraWallet, setPetraWallet] = useState<WalletBalance | null>(null)
-  const [metrics, setMetrics] = useState<RebalanceMetric[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
-  const priceHistory = useRef<number[]>([])
-  const lastGood = useRef<PoolData | null>(loadPersistedPool())
+  const lastGoodApt = useRef<PoolData | null>(loadPersistedPool(APT_STORAGE_KEY))
+  const lastGoodElon = useRef<PoolData | null>(loadPersistedPool(ELON_STORAGE_KEY))
 
   const refresh = useCallback(async () => {
     setLoading(true)
 
-    const [aptosRaw, thalaState, rebalanceMetrics] = await Promise.all([
+    const [aptRaw, elonRaw, aptState, elonState, aptRebalanceMetrics, elonRebalanceMetrics] = await Promise.all([
       fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
+      fetchElonPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
       fetchThalaBotState(),
+      fetchElonBotState(),
       fetchRebalanceMetrics(),
+      fetchElonRebalanceMetrics(),
     ])
 
-    // Use last good data on error
-    let data: PoolData
-    if (aptosRaw.error) {
-      if (lastGood.current) {
-        data = { ...lastGood.current, stale: true, lastUpdated: Date.now(), error: aptosRaw.error }
-      } else {
-        data = aptosRaw
-      }
+    // Handle APT pool errors
+    let aptData: PoolData
+    if (aptRaw.error) {
+      aptData = lastGoodApt.current
+        ? { ...lastGoodApt.current, stale: true, lastUpdated: Date.now(), error: aptRaw.error }
+        : aptRaw
     } else {
-      data = aptosRaw
-      lastGood.current = data
-      persistPool(data)
+      aptData = aptRaw
+      lastGoodApt.current = aptData
+      persistPool(APT_STORAGE_KEY, aptData)
     }
 
-    // Enrich with bot state
-    if (thalaState) data.botState = thalaState
-    const fallback = data.positionOpenedAt || BOT_START
-    const lastCollectAt = getLastCollectAt(thalaState, fallback)
-    data.feesApr = calcProjectedApr(data.pendingFeesUsd, data.positionValueUsd, lastCollectAt)
-    data.rewardsApr = calcProjectedApr(data.pendingRewardsUsd, data.positionValueUsd, lastCollectAt)
-    data.lastCollectAt = lastCollectAt
-
-    const aptPrice = data.currentPrice || 0.96
-    const priceMap: Record<string, number> = {
-      'APT': aptPrice,
-      'USDC': 1,
-      'thAPT': aptPrice,
-      'sthAPT': aptPrice,
-      'AptosCoin': aptPrice,
+    // Handle ELON pool errors
+    let elonData: PoolData
+    if (elonRaw.error) {
+      elonData = lastGoodElon.current
+        ? { ...lastGoodElon.current, stale: true, lastUpdated: Date.now(), error: elonRaw.error }
+        : elonRaw
+    } else {
+      elonData = elonRaw
+      lastGoodElon.current = elonData
+      persistPool(ELON_STORAGE_KEY, elonData)
     }
 
-    // Harvest data
-    const harvest = calcHarvestFromBotState(thalaState, priceMap)
-    data.harvestedUsd = harvest.harvestedUsd
-    data.harvestDetails = harvest.harvestDetails
+    // APT price from APT pool
+    const aptPrice = aptData.currentPrice || 0.96
+    const elonPrice = elonData.currentPrice || 0.12
 
-    // Invested + Net Profit
-    data.invested = INVESTED
-    const lpValue = data.positionValueUsd + data.pendingFeesUsd + data.pendingRewardsUsd
-    data.netProfit = lpValue + data.harvestedUsd - INVESTED
-
-    // Price history (max 50 points)
-    if (data.currentPrice > 0) {
-      priceHistory.current.push(data.currentPrice)
-      if (priceHistory.current.length > 50) priceHistory.current.shift()
-      data.priceHistory = [...priceHistory.current]
+    // Price maps
+    const aptPriceMap: Record<string, number> = {
+      'APT': aptPrice, 'USDC': 1, 'thAPT': aptPrice, 'sthAPT': aptPrice, 'AptosCoin': aptPrice,
+    }
+    const elonPriceMap: Record<string, number> = {
+      'ELON': elonPrice, 'USDC': 1, 'thAPT': aptPrice, 'sthAPT': aptPrice,
     }
 
-    // Fetch wallets
+    // Enrich ELON pool rewards with APT price (thAPT ≈ APT)
+    if (!elonData.error && elonData.rewardAmount > 0) {
+      elonData.pendingRewardsUsd = elonData.rewardAmount * aptPrice
+      elonData.compoundPending = elonData.pendingFeesUsd + elonData.pendingRewardsUsd
+    }
+
+    // Enrich both pools
+    aptData = enrichPoolData(aptData, aptState, APT_INVESTED, APT_BOT_START, aptPriceMap)
+    elonData = enrichPoolData(elonData, elonState, ELON_INVESTED, ELON_BOT_START, elonPriceMap)
+
+    // Wallets — shared, use combined price map
+    const combinedPrices: Record<string, number> = { ...aptPriceMap, ...elonPriceMap }
     const [bw, pw] = await Promise.all([
-      fetchBotWallet(priceMap).catch(() => null),
-      fetchPetraWallet(priceMap).catch(() => null),
+      fetchBotWallet(combinedPrices).catch(() => null),
+      fetchPetraWallet(combinedPrices).catch(() => null),
     ])
 
-    setPool(data)
+    setAptPool(aptData)
+    setElonPool(elonData)
+    setAptMetrics(aptRebalanceMetrics)
+    setElonMetrics(elonRebalanceMetrics)
     setBotWallet(bw)
     setPetraWallet(pw)
-    setMetrics(rebalanceMetrics)
     setLoading(false)
     setCountdown(REFRESH_INTERVAL / 1000)
   }, [])
@@ -151,64 +245,47 @@ export function usePoolData() {
     return () => clearInterval(timer)
   }, [])
 
-  // Derived values
-  const positionValue = pool?.positionValueUsd ?? 0
-  const pendingFees = pool?.pendingFeesUsd ?? 0
-  const pendingRewards = pool?.pendingRewardsUsd ?? 0
-  const totalHarvested = pool?.harvestedUsd ?? 0
-  const netProfit = pool?.netProfit ?? 0
-  const netProfitPct = INVESTED > 0 ? (netProfit / INVESTED) * 100 : 0
-  const daysRunning = Math.max(1, (Date.now() - new Date(BOT_START).getTime()) / (1000 * 60 * 60 * 24))
-  const realizedApr = INVESTED > 0 ? (netProfit / INVESTED) * (365 / daysRunning) * 100 : 0
-
-  // Daily estimate
-  let dailyEst = 0
-  if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
-    const hoursSince = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
-    if (hoursSince >= 0.5) {
-      dailyEst = ((pendingFees + pendingRewards) / hoursSince) * 24
-    }
+  // Per-pool metrics
+  const apt: PoolMetrics = {
+    pool: aptPool,
+    metrics: aptMetrics,
+    ...derivePoolMetrics(aptPool, aptMetrics, APT_INVESTED, APT_BOT_START),
   }
 
-  // Harvest rate (rolling 7d) — use rebalance metrics if available, else simple
-  const harvestRate7d = totalHarvested > 0 ? totalHarvested / Math.min(daysRunning, 7) : 0
+  const elon: PoolMetrics = {
+    pool: elonPool,
+    metrics: elonMetrics,
+    ...derivePoolMetrics(elonPool, elonMetrics, ELON_INVESTED, ELON_BOT_START),
+  }
 
-  // Rebalance stats
-  const totalRebalances = pool?.botState?.totalRebalances ?? 0
-  const now = Date.now()
-  const rebalances24h = metrics.filter(m => now - new Date(m.timestamp).getTime() < 86400_000).length
-  const rebalances7d = metrics.filter(m => now - new Date(m.timestamp).getTime() < 7 * 86400_000).length
-  const avgTimeBetweenRebalances = totalRebalances > 1
-    ? daysRunning * 24 / totalRebalances
-    : 0
-
-  // Capital efficiency
-  const rangeWidth = pool ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100 : 0
-  const ceMultiplier = rangeWidth > 0 ? 200 / rangeWidth : 0
+  // Portfolio totals
+  const totalPositionValue = apt.positionValue + elon.positionValue
+  const totalPendingFees = apt.pendingFees + elon.pendingFees
+  const totalPendingRewards = apt.pendingRewards + elon.pendingRewards
+  const totalHarvested = apt.totalHarvested + elon.totalHarvested
+  const totalNetProfit = apt.netProfit + elon.netProfit
+  const totalNetProfitPct = INITIAL_CAPITAL > 0 ? (totalNetProfit / INITIAL_CAPITAL) * 100 : 0
+  const totalDailyEst = apt.dailyEst + elon.dailyEst
+  const maxDaysRunning = Math.max(apt.daysRunning, elon.daysRunning)
+  const totalRealizedApr = INITIAL_CAPITAL > 0 ? (totalNetProfit / INITIAL_CAPITAL) * (365 / maxDaysRunning) * 100 : 0
 
   return {
-    pool,
+    apt,
+    elon,
     botWallet,
     petraWallet,
-    metrics,
     loading,
     countdown,
     refresh,
-    positionValue,
-    pendingFees,
-    pendingRewards,
+    // Portfolio totals
+    totalPositionValue,
+    totalPendingFees,
+    totalPendingRewards,
     totalHarvested,
-    netProfit,
-    netProfitPct,
-    daysRunning,
-    realizedApr,
-    dailyEst,
-    harvestRate7d,
-    totalRebalances,
-    rebalances24h,
-    rebalances7d,
-    avgTimeBetweenRebalances,
-    rangeWidth,
-    ceMultiplier,
+    totalNetProfit,
+    totalNetProfitPct,
+    totalDailyEst,
+    totalRealizedApr,
+    maxDaysRunning,
   }
 }

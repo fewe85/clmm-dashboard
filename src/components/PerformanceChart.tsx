@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import type { RebalanceMetric } from '../types'
-import { INVESTED, BOT_START } from '../config'
+import { APT_BOT_START } from '../config'
 
 interface Props {
   metrics: RebalanceMetric[]
   currentPositionValue: number
   totalHarvested: number
+  invested: number
 }
 
 type TimeWindow = '24h' | '7d' | '30d' | 'all'
@@ -18,17 +19,16 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-export function PerformanceChart({ metrics, currentPositionValue, totalHarvested }: Props) {
+export function PerformanceChart({ metrics, currentPositionValue, totalHarvested, invested }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
 
   const chartData = useMemo(() => {
     if (metrics.length === 0) {
-      // Fallback: two points — start ($0) and current net profit
-      const netProfit = currentPositionValue + totalHarvested - INVESTED
+      const netProfit = currentPositionValue + totalHarvested - invested
       return [
         {
-          time: new Date(BOT_START).getTime(),
-          label: formatDate(new Date(BOT_START)),
+          time: new Date(APT_BOT_START).getTime(),
+          label: formatDate(new Date(APT_BOT_START)),
           netProfit: 0,
         },
         {
@@ -45,9 +45,9 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
       .map(m => ({
         time: new Date(m.timestamp).getTime(),
         label: formatDate(new Date(m.timestamp)),
-        netProfit: m.position_value_usd + totalHarvested - INVESTED,
+        netProfit: m.position_value_usd + totalHarvested - invested,
       }))
-  }, [metrics, window, currentPositionValue, totalHarvested])
+  }, [metrics, window, currentPositionValue, totalHarvested, invested])
 
   const hasData = metrics.length > 0
   const lastProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0

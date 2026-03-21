@@ -1,17 +1,15 @@
-import { SIGMA_DAILY, ESTIMATED_C, F_EFF_DAILY } from '../config'
-
 interface Props {
   rangeWidth: number
   currentPrice: number
+  sigmaDaily: number
+  estimatedC: number
+  fEffDaily: number
+  poolName?: string
 }
 
-export function FormulaBox({ rangeWidth }: Props) {
-  const sigmaDaily = SIGMA_DAILY // 0.047
-  const estC = ESTIMATED_C // 0.002
-  const fEff = F_EFF_DAILY // 0.00337
-
+export function FormulaBox({ rangeWidth, sigmaDaily, estimatedC, fEffDaily, poolName }: Props) {
   // δ* = 4cσ²/f_eff
-  const optimalDelta = (4 * estC * sigmaDaily * sigmaDaily) / fEff
+  const optimalDelta = (4 * estimatedC * sigmaDaily * sigmaDaily) / fEffDaily
   // Polling limit: δ_min = σ / √15
   const pollingLimit = sigmaDaily / Math.sqrt(15)
 
@@ -21,7 +19,7 @@ export function FormulaBox({ rangeWidth }: Props) {
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
       <h3 className="text-xs font-semibold mb-3" style={{ color: 'var(--text-muted)' }}>
-        Range Optimization
+        Range Optimization{poolName ? ` — ${poolName}` : ''}
       </h3>
 
       <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs">
@@ -32,7 +30,7 @@ export function FormulaBox({ rangeWidth }: Props) {
         <div className="mono" style={{ color: 'var(--text-primary)' }}>{(sigmaDaily * 100).toFixed(2)}%</div>
 
         <div style={{ color: 'var(--text-muted)' }}>Geschätztes c</div>
-        <div className="mono" style={{ color: 'var(--text-primary)' }}>{(estC * 100).toFixed(2)}%</div>
+        <div className="mono" style={{ color: 'var(--text-primary)' }}>{(estimatedC * 100).toFixed(2)}%</div>
 
         <div style={{ color: 'var(--text-muted)' }}>Formel-Optimum δ*</div>
         <div className="mono font-semibold" style={{ color: 'var(--accent-purple)' }}>±{(optimalDelta * 100).toFixed(1)}%</div>

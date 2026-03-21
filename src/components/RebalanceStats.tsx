@@ -1,5 +1,5 @@
 import type { RebalanceMetric } from '../types'
-import { EST_SWAP_COST_PER_REBALANCE } from '../config'
+import { APT_EST_SWAP_COST_PER_REBALANCE } from '../config'
 
 interface Props {
   totalRebalances: number
@@ -8,6 +8,7 @@ interface Props {
   avgTimeBetweenRebalances: number
   metrics: RebalanceMetric[]
   lastRebalanceAt: string | null
+  poolName?: string
 }
 
 function formatTimestamp(iso: string | null): string {
@@ -24,10 +25,9 @@ function formatTimestamp(iso: string | null): string {
   return `${hours}h ${mins}m ago`
 }
 
-export function RebalanceStats({ totalRebalances, rebalances24h, rebalances7d, avgTimeBetweenRebalances, metrics, lastRebalanceAt }: Props) {
+export function RebalanceStats({ totalRebalances, rebalances24h, rebalances7d, avgTimeBetweenRebalances, metrics, lastRebalanceAt, poolName }: Props) {
   const hasMetrics = metrics.length > 0
 
-  // Estimated swap costs from metrics
   const avgCostPerRebalance = hasMetrics
     ? metrics.reduce((s, m) => s + (m.range_delta_pct ?? 0), 0) / metrics.length
     : 0
@@ -41,7 +41,7 @@ export function RebalanceStats({ totalRebalances, rebalances24h, rebalances7d, a
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
     >
       <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--text-secondary)' }}>
-        Rebalance Stats
+        Rebalance Stats{poolName ? ` — ${poolName}` : ''}
       </h3>
 
       <div className="grid grid-cols-2 gap-3">
@@ -55,13 +55,13 @@ export function RebalanceStats({ totalRebalances, rebalances24h, rebalances7d, a
         />
         <StatRow
           label="Swap Costs"
-          value={hasMetrics ? `$${cumulativeSwapCost.toFixed(2)}` : `~$${(totalRebalances * EST_SWAP_COST_PER_REBALANCE).toFixed(2)}`}
+          value={hasMetrics ? `$${cumulativeSwapCost.toFixed(2)}` : `~$${(totalRebalances * APT_EST_SWAP_COST_PER_REBALANCE).toFixed(2)}`}
         />
       </div>
 
       {!hasMetrics && totalRebalances > 0 && (
         <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-          ~${EST_SWAP_COST_PER_REBALANCE}/Reb geschätzt — wird via Aggregator-Logs kalibriert
+          ~${APT_EST_SWAP_COST_PER_REBALANCE}/Reb geschätzt — wird via Aggregator-Logs kalibriert
         </div>
       )}
       {hasMetrics && avgCostPerRebalance > 0 && (

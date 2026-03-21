@@ -8,6 +8,8 @@ import os from 'os'
 const BOT_STATE_FILES: Record<string, string> = {
   'thala': path.join(os.homedir(), 'claude-workspace/thala-bot/apt-usdc/state.json'),
   'rebalance-metrics': path.join(os.homedir(), 'claude-workspace/thala-bot/apt-usdc/logs/rebalance-metrics.jsonl'),
+  'elon': path.join(os.homedir(), 'claude-workspace/thala-bot/elon-usdc/state.json'),
+  'elon-rebalance-metrics': path.join(os.homedir(), 'claude-workspace/thala-bot/elon-usdc/logs/rebalance-metrics.jsonl'),
 }
 
 export default defineConfig({

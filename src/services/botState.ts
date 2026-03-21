@@ -42,9 +42,41 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
   }
 }
 
+export async function fetchElonBotState(): Promise<BotState | null> {
+  const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/elon.json`) as any
+  if (!data || (!data.lastRebalanceAt && !data.openedAt && !data.startedAt)) return null
+  return {
+    lastRebalanceAt: data.lastRebalanceAt || data.openedAt || null,
+    lastCompoundAt: data.lastCompoundAt || null,
+    lastHarvestAt: data.lastHarvestAt || null,
+    lastIdleDeployAt: data.lastIdleDeployAt || null,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
+    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
+    harvestEntries: parseHarvestEntries(data, [
+      { key: 'totalHarvestedThaptRaw', token: 'thAPT', decimals: 1e8 },
+      { key: 'totalHarvestedElonRaw', token: 'ELON', decimals: 1e8 },
+      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
+    ]),
+    ownedAptRaw: Number(data.ownedElonRaw || 0), // reuse field for entry token A amount
+    ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
+  }
+}
+
 export async function fetchRebalanceMetrics(): Promise<any[]> {
   try {
     const res = await fetch(`${import.meta.env.BASE_URL}api/bot-state/rebalance-metrics.jsonl`)
+    if (!res.ok) return []
+    const text = await res.text()
+    return text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+  } catch {
+    return []
+  }
+}
+
+export async function fetchElonRebalanceMetrics(): Promise<any[]> {
+  try {
+    const res = await fetch(`${import.meta.env.BASE_URL}api/bot-state/elon-rebalance-metrics.jsonl`)
     if (!res.ok) return []
     const text = await res.text()
     return text.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
