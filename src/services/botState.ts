@@ -29,7 +29,7 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     lastCompoundAt: data.lastCompoundAt || null,
     lastHarvestAt: data.lastHarvestAt || null,
     lastIdleDeployAt: data.lastIdleDeployAt || null,
-    totalRebalances: data.totalRebalances || 0,
+    totalRebalances: data.lastRebalanceAt ? (data.totalRebalances || 0) : 0,
     totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0) / 1e8,
     totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
     harvestEntries: parseHarvestEntries(data, [
@@ -39,6 +39,7 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     ]),
     ownedAptRaw: Number(data.ownedAptRaw || 0),
     ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
+    centerPrice: Number(data.centerPrice || 0),
   }
 }
 
@@ -46,11 +47,11 @@ export async function fetchElonBotState(): Promise<BotState | null> {
   const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/elon.json`) as any
   if (!data || (!data.lastRebalanceAt && !data.openedAt && !data.startedAt)) return null
   return {
-    lastRebalanceAt: data.lastRebalanceAt || data.openedAt || null,
+    lastRebalanceAt: data.lastRebalanceAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
     lastHarvestAt: data.lastHarvestAt || null,
     lastIdleDeployAt: data.lastIdleDeployAt || null,
-    totalRebalances: data.totalRebalances || 0,
+    totalRebalances: data.lastRebalanceAt ? (data.totalRebalances || 0) : 0,
     totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
     totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
     harvestEntries: parseHarvestEntries(data, [
@@ -58,8 +59,9 @@ export async function fetchElonBotState(): Promise<BotState | null> {
       { key: 'totalHarvestedElonRaw', token: 'ELON', decimals: 1e8 },
       { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
     ]),
-    ownedAptRaw: Number(data.ownedElonRaw || 0), // reuse field for entry token A amount
+    ownedAptRaw: Number(data.ownedElonRaw || 0),
     ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
+    centerPrice: Number(data.centerPrice || 0),
   }
 }
 

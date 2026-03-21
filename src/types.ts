@@ -16,6 +16,7 @@ export interface BotState {
   harvestEntries: { token: string; amount: number }[]
   ownedAptRaw: number
   ownedUsdcRaw: number
+  centerPrice: number
 }
 
 export interface HarvestEntry {

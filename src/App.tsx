@@ -7,11 +7,26 @@ import { WalletBox } from './components/WalletBox'
 import { FormulaBox } from './components/FormulaBox'
 import { PnlBreakdown } from './components/PnlBreakdown'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import type { HarvestEntry } from './types'
 import {
   DEX, INITIAL_CAPITAL,
   APT_POOL_NAME, APT_SIGMA_DAILY, APT_ESTIMATED_C, APT_F_EFF_DAILY, APT_EST_SWAP_COST_PER_REBALANCE,
   ELON_POOL_NAME, ELON_SIGMA_DAILY, ELON_ESTIMATED_C, ELON_F_EFF_DAILY, ELON_EST_SWAP_COST_PER_REBALANCE,
 } from './config'
+
+function aggregateHarvestEntries(entries: HarvestEntry[]): HarvestEntry[] {
+  const map = new Map<string, HarvestEntry>()
+  for (const e of entries) {
+    const existing = map.get(e.token)
+    if (existing) {
+      existing.amount += e.amount
+      existing.valueUsd += e.valueUsd
+    } else {
+      map.set(e.token, { ...e })
+    }
+  }
+  return Array.from(map.values())
+}
 
 function formatUsd(v: number): string {
   if (Math.abs(v) >= 1000) return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -301,10 +316,10 @@ function AppContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <HarvestTracker
               totalHarvested={totalHarvested}
-              harvestDetails={[
+              harvestDetails={aggregateHarvestEntries([
                 ...(apt.pool?.harvestDetails ?? []),
                 ...(elon.pool?.harvestDetails ?? []),
-              ]}
+              ])}
               harvestRate7d={apt.harvestRate7d + elon.harvestRate7d}
               compoundPending={(apt.pool?.compoundPending ?? 0) + (elon.pool?.compoundPending ?? 0)}
               compoundThreshold={(apt.pool?.compoundThreshold ?? 0) + (elon.pool?.compoundThreshold ?? 0)}

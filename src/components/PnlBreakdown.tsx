@@ -25,15 +25,31 @@ export function PnlBreakdown({ pool, botState, totalHarvested, estSwapCost = 0.0
   // Rewards = total harvested
   const rewardsUsd = totalHarvested
 
-  // IL calculation
-  const entryA = botState.ownedAptRaw / 1e8
-  const entryUsdc = botState.ownedUsdcRaw / 1e6
+  // IL calculation — derive entry state for hodl comparison
+  let entryA = 0
+  let entryUsdc = 0
   let ilUsd = 0
   let ilPct = 0
   let hasIlData = false
 
-  if (entryA > 0 || entryUsdc > 0) {
+  // Try ownedRaw first (post-rebalance state)
+  const ownedA = botState.ownedAptRaw / 1e8
+  const ownedUsdc = botState.ownedUsdcRaw / 1e6
+  const ownedTotalValue = ownedA * tokenAPrice + ownedUsdc
+
+  if (ownedTotalValue > pool.invested * 0.5) {
+    // ownedRaw represents actual position entry (post-rebalance amounts)
+    entryA = ownedA
+    entryUsdc = ownedUsdc
     hasIlData = true
+  } else if (botState.centerPrice > 0 && pool.invested > 0) {
+    // ownedRaw is wallet remnants — compute entry from invested + centerPrice (50/50 split)
+    entryUsdc = pool.invested / 2
+    entryA = (pool.invested / 2) / botState.centerPrice
+    hasIlData = true
+  }
+
+  if (hasIlData) {
     const hodlValue = entryA * tokenAPrice + entryUsdc
     const positionValue = pool.amountA * tokenAPrice + pool.amountB
     ilUsd = positionValue - hodlValue
