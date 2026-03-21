@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import type { RebalanceMetric } from '../types'
 import { INVESTED, BOT_START } from '../config'
 
@@ -19,25 +19,22 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
 ]
 
 export function PerformanceChart({ metrics, currentPositionValue, totalHarvested }: Props) {
-  const [window, setWindow] = useState<TimeWindow>('7d')
+  const [window, setWindow] = useState<TimeWindow>('all')
 
   const chartData = useMemo(() => {
     if (metrics.length === 0) {
-      // Fallback: show current state as a single-point chart with start
+      // Fallback: two points — start ($0) and current net profit
+      const netProfit = currentPositionValue + totalHarvested - INVESTED
       return [
         {
           time: new Date(BOT_START).getTime(),
           label: formatDate(new Date(BOT_START)),
-          positionValue: INVESTED,
-          harvested: 0,
           netProfit: 0,
         },
         {
           time: Date.now(),
           label: formatDate(new Date()),
-          positionValue: currentPositionValue,
-          harvested: totalHarvested,
-          netProfit: currentPositionValue + totalHarvested - INVESTED,
+          netProfit,
         },
       ]
     }
@@ -48,13 +45,13 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
       .map(m => ({
         time: new Date(m.timestamp).getTime(),
         label: formatDate(new Date(m.timestamp)),
-        positionValue: m.position_value_usd,
-        harvested: 0, // cumulative harvest not tracked per-metric yet
-        netProfit: m.position_value_usd - (m.total_cost_usd ?? INVESTED),
+        netProfit: m.position_value_usd + totalHarvested - INVESTED,
       }))
   }, [metrics, window, currentPositionValue, totalHarvested])
 
   const hasData = metrics.length > 0
+  const lastProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0
+  const lineColor = lastProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
 
   return (
     <div
@@ -63,7 +60,7 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
     >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-          Performance
+          Net Profit
         </h3>
         <div className="flex gap-1">
           {WINDOWS.map(w => (
@@ -103,9 +100,10 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={v => `$${v.toFixed(0)}`}
-              width={45}
+              tickFormatter={v => `$${v.toFixed(2)}`}
+              width={50}
             />
+            <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" strokeOpacity={0.5} />
             <Tooltip
               contentStyle={{
                 background: 'var(--bg-card)',
@@ -118,17 +116,9 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
             />
             <Line
               type="monotone"
-              dataKey="positionValue"
-              name="Position Value"
-              stroke="var(--accent-blue)"
-              strokeWidth={2}
-              dot={chartData.length <= 10}
-            />
-            <Line
-              type="monotone"
               dataKey="netProfit"
               name="Net Profit"
-              stroke="var(--accent-green)"
+              stroke={lineColor}
               strokeWidth={2}
               dot={chartData.length <= 10}
             />

@@ -59,6 +59,13 @@ export function HarvestTracker({ totalHarvested, harvestDetails, harvestRate7d, 
               </span>
             </div>
           ))}
+          {/* Show info if APT/USDC surplus not yet tracked */}
+          {!harvestDetails.some(d => d.token === 'APT' && d.valueUsd > 0) &&
+           !harvestDetails.some(d => d.token === 'USDC' && d.valueUsd > 0) && (
+            <div className="text-xs py-1 mt-1" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              APT/USDC Surplus: tracking wird eingebaut
+            </div>
+          )}
         </div>
       )}
 

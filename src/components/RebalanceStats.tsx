@@ -1,4 +1,5 @@
 import type { RebalanceMetric } from '../types'
+import { EST_SWAP_COST_PER_REBALANCE } from '../config'
 
 interface Props {
   totalRebalances: number
@@ -54,10 +55,15 @@ export function RebalanceStats({ totalRebalances, rebalances24h, rebalances7d, a
         />
         <StatRow
           label="Swap Costs"
-          value={hasMetrics ? `$${cumulativeSwapCost.toFixed(2)}` : 'Wird gemessen...'}
+          value={hasMetrics ? `$${cumulativeSwapCost.toFixed(2)}` : `~$${(totalRebalances * EST_SWAP_COST_PER_REBALANCE).toFixed(2)}`}
         />
       </div>
 
+      {!hasMetrics && totalRebalances > 0 && (
+        <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+          ~${EST_SWAP_COST_PER_REBALANCE}/Reb geschätzt — wird via Aggregator-Logs kalibriert
+        </div>
+      )}
       {hasMetrics && avgCostPerRebalance > 0 && (
         <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)' }}>
           Avg range delta: {avgCostPerRebalance.toFixed(1)}%

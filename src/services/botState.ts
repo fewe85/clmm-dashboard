@@ -37,6 +37,8 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
       { key: 'totalHarvestedAptRaw', token: 'APT', decimals: 1e8 },
       { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
     ]),
+    ownedAptRaw: Number(data.ownedAptRaw || 0),
+    ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
   }
 }
 

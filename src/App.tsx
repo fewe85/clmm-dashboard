@@ -5,6 +5,7 @@ import { HarvestTracker } from './components/HarvestTracker'
 import { RebalanceStats } from './components/RebalanceStats'
 import { WalletBox } from './components/WalletBox'
 import { FormulaBox } from './components/FormulaBox'
+import { PnlBreakdown } from './components/PnlBreakdown'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { POOL_NAME, DEX, INVESTED } from './config'
 
@@ -178,6 +179,13 @@ function AppContent() {
             ceMultiplier={ceMultiplier}
           />
 
+          {/* P&L Breakdown */}
+          <PnlBreakdown
+            pool={pool}
+            botState={pool.botState}
+            totalHarvested={totalHarvested}
+          />
+
           {/* Performance Chart */}
           <PerformanceChart
             metrics={metrics}
@@ -239,12 +247,14 @@ function AppContent() {
                   {formatTimestamp(pool.botState?.lastRebalanceAt ?? null)}
                 </div>
               </div>
+              {pool.botState?.lastIdleDeployAt && (
               <div>
-                <div style={{ color: 'var(--text-muted)' }}>Last Compound</div>
+                <div style={{ color: 'var(--text-muted)' }}>Last Idle Deploy</div>
                 <div className="mono" style={{ color: 'var(--text-primary)' }}>
-                  {formatTimestamp(pool.botState?.lastCompoundAt ?? null)}
+                  {formatTimestamp(pool.botState.lastIdleDeployAt)}
                 </div>
               </div>
+              )}
               <div>
                 <div style={{ color: 'var(--text-muted)' }}>Last Harvest</div>
                 <div className="mono" style={{ color: 'var(--text-primary)' }}>

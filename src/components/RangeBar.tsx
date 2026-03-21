@@ -8,24 +8,24 @@ interface RangeBarProps {
   ceMultiplier: number
 }
 
-function pctToEdge(current: number, lower: number, upper: number): { pct: number; side: string } {
-  const distToLower = current - lower
-  const distToUpper = upper - current
+function nearestEdge(current: number, lower: number, upper: number): { pct: number; side: string } {
+  const distToLower = ((current - lower) / current) * 100
+  const distToUpper = ((upper - current) / current) * 100
   if (distToLower < distToUpper) {
-    return { pct: (distToLower / (upper - lower)) * 100, side: 'lower' }
+    return { pct: distToLower, side: 'lower bound' }
   }
-  return { pct: (distToUpper / (upper - lower)) * 100, side: 'upper' }
+  return { pct: distToUpper, side: 'upper bound' }
 }
 
-export function RangeBar({ priceLower, priceUpper, currentPrice, inRange, triggerDistancePct, rangeWidth, ceMultiplier }: RangeBarProps) {
+export function RangeBar({ priceLower, priceUpper, currentPrice, inRange, rangeWidth, ceMultiplier }: RangeBarProps) {
   const range = priceUpper - priceLower
   const position = range > 0 ? ((currentPrice - priceLower) / range) * 100 : 50
   const clampedPosition = Math.max(0, Math.min(100, position))
-  const edge = pctToEdge(currentPrice, priceLower, priceUpper)
+  const edge = nearestEdge(currentPrice, priceLower, priceUpper)
 
-  const triggerColor = triggerDistancePct >= 80
+  const edgeColor = edge.pct < 0.5
     ? 'var(--accent-red)'
-    : triggerDistancePct >= 50
+    : edge.pct < 1.0
       ? 'var(--accent-yellow)'
       : 'var(--accent-green)'
 
@@ -57,11 +57,12 @@ export function RangeBar({ priceLower, priceUpper, currentPrice, inRange, trigge
         <span className="mono">${priceUpper.toFixed(4)}</span>
       </div>
 
-      {/* Main range bar — bigger */}
-      <div
-        className="relative h-5 rounded-full overflow-hidden"
-        style={{ background: 'var(--bg-primary)' }}
-      >
+      {/* Main range bar with price marker */}
+      <div className="relative h-5 rounded-full overflow-visible">
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ background: 'var(--bg-primary)' }}
+        />
         <div
           className="absolute inset-0 rounded-full"
           style={{
@@ -70,6 +71,7 @@ export function RangeBar({ priceLower, priceUpper, currentPrice, inRange, trigge
               : 'linear-gradient(90deg, rgba(239,68,68,0.1), rgba(239,68,68,0.25), rgba(239,68,68,0.1))',
           }}
         />
+        {/* Price position indicator bar */}
         <div
           className="absolute top-0 h-full w-1.5 rounded-full transition-all duration-500"
           style={{
@@ -81,31 +83,27 @@ export function RangeBar({ priceLower, priceUpper, currentPrice, inRange, trigge
               : '0 0 12px rgba(239,68,68,0.7)',
           }}
         />
-      </div>
-
-      {/* Trigger distance */}
-      <div className="mt-3 flex items-center gap-3">
+        {/* Triangle marker above the bar */}
         <div
-          className="flex-1 h-2 rounded-full overflow-hidden"
-          style={{ background: 'var(--bg-primary)' }}
+          className="absolute transition-all duration-500"
+          style={{
+            left: `${clampedPosition}%`,
+            transform: 'translateX(-50%)',
+            top: '-14px',
+            fontSize: '12px',
+            lineHeight: 1,
+            color: inRange ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}
         >
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${Math.min(triggerDistancePct, 100)}%`,
-              background: triggerColor,
-              opacity: 0.8,
-            }}
-          />
+          ▼
         </div>
-        <span className="text-xs mono whitespace-nowrap" style={{ color: triggerColor }}>
-          {triggerDistancePct.toFixed(0)}% to edge
-        </span>
       </div>
 
-      {/* Edge distance detail */}
-      <div className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
-        <span className="mono">{edge.pct.toFixed(1)}%</span> to {edge.side} bound
+      {/* Nearest edge distance only */}
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          <span className="mono font-semibold" style={{ color: edgeColor }}>{edge.pct.toFixed(1)}%</span> to {edge.side}
+        </span>
       </div>
     </div>
   )

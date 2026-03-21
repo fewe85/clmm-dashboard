@@ -26,10 +26,22 @@ async function fetchWalletBalances(
     ) as any
 
     const balances = result?.data?.current_fungible_asset_balances ?? []
-    entries = balances.map((b: any) => ({
-      symbol: b.metadata?.symbol || 'UNKNOWN',
-      amount: Number(b.amount || 0) / Math.pow(10, b.metadata?.decimals ?? 8),
-    }))
+    // Native APT asset_type — only keep this one for APT, ignore staking/delegation resources
+    const NATIVE_APT_TYPES = ['0xa', '0x000000000000000000000000000000000000000000000000000000000000000a', '0x1::aptos_coin::AptosCoin']
+    const aptEntries = balances.filter((b: any) => (b.metadata?.symbol === 'APT' || b.metadata?.symbol === 'AptosCoin'))
+    const hasMultipleApt = aptEntries.length > 1
+    entries = balances
+      .filter((b: any) => {
+        // Deduplicate APT: keep only native APT coin
+        if (hasMultipleApt && (b.metadata?.symbol === 'APT' || b.metadata?.symbol === 'AptosCoin')) {
+          return NATIVE_APT_TYPES.some(t => b.asset_type === t)
+        }
+        return true
+      })
+      .map((b: any) => ({
+        symbol: b.metadata?.symbol || 'UNKNOWN',
+        amount: Number(b.amount || 0) / Math.pow(10, b.metadata?.decimals ?? 8),
+      }))
   } catch {
     try {
       const resources = await aptosGet(`/accounts/${address}/resources`) as any[]

@@ -1,14 +1,19 @@
+import { SIGMA_DAILY, ESTIMATED_C, F_EFF_DAILY } from '../config'
+
 interface Props {
   rangeWidth: number
   currentPrice: number
 }
 
 export function FormulaBox({ rangeWidth }: Props) {
-  // Placeholder values — will be calibrated with real data
-  const sigmaDaily = 1.2 // estimated daily vol %
-  const estC = 0.3 // estimated swap cost %
-  const f = 0.3 // fee tier %
-  const optimalDelta = (4 * estC * sigmaDaily * sigmaDaily) / f
+  const sigmaDaily = SIGMA_DAILY // 0.047
+  const estC = ESTIMATED_C // 0.002
+  const fEff = F_EFF_DAILY // 0.00337
+
+  // δ* = 4cσ²/f_eff
+  const optimalDelta = (4 * estC * sigmaDaily * sigmaDaily) / fEff
+  // Polling limit: δ_min = σ / √15
+  const pollingLimit = sigmaDaily / Math.sqrt(15)
 
   return (
     <div
@@ -24,17 +29,20 @@ export function FormulaBox({ rangeWidth }: Props) {
         <div className="mono" style={{ color: 'var(--text-primary)' }}>±{(rangeWidth / 2).toFixed(1)}%</div>
 
         <div style={{ color: 'var(--text-muted)' }}>σ_daily</div>
-        <div className="mono" style={{ color: 'var(--text-primary)' }}>{sigmaDaily.toFixed(2)}%</div>
+        <div className="mono" style={{ color: 'var(--text-primary)' }}>{(sigmaDaily * 100).toFixed(2)}%</div>
 
         <div style={{ color: 'var(--text-muted)' }}>Geschätztes c</div>
-        <div className="mono" style={{ color: 'var(--text-primary)' }}>{estC.toFixed(2)}%</div>
+        <div className="mono" style={{ color: 'var(--text-primary)' }}>{(estC * 100).toFixed(2)}%</div>
 
-        <div style={{ color: 'var(--text-muted)' }}>Berechnetes δ*</div>
-        <div className="mono font-semibold" style={{ color: 'var(--accent-purple)' }}>±{optimalDelta.toFixed(1)}%</div>
+        <div style={{ color: 'var(--text-muted)' }}>Formel-Optimum δ*</div>
+        <div className="mono font-semibold" style={{ color: 'var(--accent-purple)' }}>±{(optimalDelta * 100).toFixed(1)}%</div>
+
+        <div style={{ color: 'var(--text-muted)' }}>Polling-Limit δ_min</div>
+        <div className="mono" style={{ color: 'var(--text-primary)' }}>±{(pollingLimit * 100).toFixed(1)}%</div>
       </div>
 
       <div className="mt-3 text-xs" style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
-        δ* = 4cσ²/f — wird kalibriert
+        PnL-Kurve flach zwischen ±1.5% und ±2.5% — c wird kalibriert
       </div>
     </div>
   )

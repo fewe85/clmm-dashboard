@@ -14,6 +14,8 @@ export interface BotState {
   totalFeesCollectedA: number
   totalFeesCollectedB: number
   harvestEntries: { token: string; amount: number }[]
+  ownedAptRaw: number
+  ownedUsdcRaw: number
 }
 
 export interface HarvestEntry {
