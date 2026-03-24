@@ -18,6 +18,10 @@ export interface BotState {
   ownedUsdcRaw: number
   centerPrice: number
   positionNftId?: string
+  // Swap cost & volatility (for range optimization)
+  lastSwapCost: number    // last measured c (half round-trip %)
+  avgSwapCost: number     // average c from last 20 swaps (%)
+  sigmaDaily: number      // daily volatility estimate (%)
 }
 
 export interface HarvestEntry {
@@ -38,6 +42,7 @@ export interface PoolData {
   tickCurrent: number
   tickLower: number
   tickUpper: number
+  liquidity: number
   priceLower: number
   priceUpper: number
   inRange: boolean

@@ -75,20 +75,6 @@ async function findPositionToken(): Promise<string | null> {
   }
 }
 
-async function isPositionStaked(tokenAddress: string): Promise<boolean> {
-  try {
-    const result = await aptosView(
-      `${FARMING_PACKAGE}::farming::token_stakes`,
-      [],
-      [tokenAddress],
-    )
-    const stakes = result[0] as any[]
-    return stakes.length > 0
-  } catch {
-    return false
-  }
-}
-
 function getAptPriceUsd(poolPrice: number): number {
   return poolPrice
 }
@@ -216,19 +202,32 @@ export async function fetchAptosPoolData(): Promise<PoolData> {
     const pendingFeesUsd = feesA * aptPrice + feesB
 
     let rewardAmount = 0
-    const staked = await isPositionStaked(positionToken)
-    if (staked) {
+    // Try pending_reward_info directly — isPositionStaked can fail silently
+    // on rate limiting/network errors, causing rewards to show as 0.
+    // Also try bot state's cached incentive address in case it rotated.
+    const incentiveAddresses = [THAPT_INCENTIVE]
+    try {
+      const stateRes = await fetch(`${import.meta.env.BASE_URL}api/bot-state/thala.json`)
+      if (stateRes.ok) {
+        const st = await stateRes.json()
+        if (st.cachedIncentiveAddress && st.cachedIncentiveAddress !== THAPT_INCENTIVE) {
+          incentiveAddresses.push(st.cachedIncentiveAddress)
+        }
+      }
+    } catch { /* ignore */ }
+    for (const incentive of incentiveAddresses) {
       try {
         const rewardResult = await aptosView(
           `${FARMING_PACKAGE}::farming::pending_reward_info`,
           [],
-          [positionToken, THAPT_INCENTIVE],
+          [positionToken, incentive],
         )
-        if (rewardResult) {
+        if (rewardResult && Number(rewardResult[0]) > 0) {
           rewardAmount = Number(rewardResult[0]) / Math.pow(10, DECIMALS_APT)
+          break
         }
       } catch {
-        // rewards stay 0
+        // not staked to this incentive — try next
       }
     }
 
@@ -252,6 +251,7 @@ export async function fetchAptosPoolData(): Promise<PoolData> {
       tickCurrent,
       tickLower,
       tickUpper,
+      liquidity,
       priceLower,
       priceUpper,
       inRange,
@@ -295,6 +295,7 @@ function makeErrorResult(error: string): PoolData {
     tickCurrent: 0,
     tickLower: 0,
     tickUpper: 0,
+    liquidity: 0,
     priceLower: 0,
     priceUpper: 0,
     inRange: false,

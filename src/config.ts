@@ -7,33 +7,12 @@ export const REFRESH_INTERVAL = 120_000 // 2 min
 
 // ─── APT/USDC Pool ──────────────────────────────────────────────────────────
 export const APT_POOL_NAME = 'APT/USDC'
-export const APT_INVESTED = 101
-export const APT_RANGE_PERCENT = 2.1
-export const APT_BOT_START = '2026-03-10T17:11:59.000Z'
-export const APT_SIGMA_DAILY = 0.047
-export const APT_ESTIMATED_C = 0.002
-export const APT_F_EFF_DAILY = 0.00337
-export const APT_EST_SWAP_COST_PER_REBALANCE = 0.03
-
+export const APT_INVESTED = 91
+export const APT_BOT_START = '2026-03-23T13:33:18.000Z'
 // ─── ELON/USDC Pool ─────────────────────────────────────────────────────────
 export const ELON_POOL_NAME = 'ELON/USDC'
-export const ELON_INVESTED = 100
-export const ELON_RANGE_PERCENT = 2.5
-export const ELON_BOT_START = '2026-03-21T20:14:31.234Z'
-export const ELON_SIGMA_DAILY = 0.08
-export const ELON_ESTIMATED_C = 0.004
-export const ELON_F_EFF_DAILY = 0.0022
-export const ELON_EST_SWAP_COST_PER_REBALANCE = 0.03
+export const ELON_INVESTED = 80
+export const ELON_BOT_START = '2026-03-23T13:33:18.000Z'
 
 // ─── Totals ──────────────────────────────────────────────────────────────────
-export const INITIAL_CAPITAL = APT_INVESTED + ELON_INVESTED // 201
-
-// Legacy aliases (components that still use them)
-export const POOL_NAME = APT_POOL_NAME
-export const INVESTED = APT_INVESTED
-export const RANGE_PERCENT = APT_RANGE_PERCENT
-export const BOT_START = APT_BOT_START
-export const SIGMA_DAILY = APT_SIGMA_DAILY
-export const ESTIMATED_C = APT_ESTIMATED_C
-export const F_EFF_DAILY = APT_F_EFF_DAILY
-export const EST_SWAP_COST_PER_REBALANCE = APT_EST_SWAP_COST_PER_REBALANCE
+export const INITIAL_CAPITAL = APT_INVESTED + ELON_INVESTED // 171

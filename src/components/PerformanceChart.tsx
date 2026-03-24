@@ -26,16 +26,8 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
     if (metrics.length === 0) {
       const netProfit = currentPositionValue + totalHarvested - invested
       return [
-        {
-          time: new Date(APT_BOT_START).getTime(),
-          label: formatDate(new Date(APT_BOT_START)),
-          netProfit: 0,
-        },
-        {
-          time: Date.now(),
-          label: formatDate(new Date()),
-          netProfit,
-        },
+        { time: new Date(APT_BOT_START).getTime(), label: fmtDate(new Date(APT_BOT_START)), netProfit: 0 },
+        { time: Date.now(), label: fmtDate(new Date()), netProfit },
       ]
     }
 
@@ -44,21 +36,17 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
       .filter(m => new Date(m.timestamp).getTime() >= cutoff)
       .map(m => ({
         time: new Date(m.timestamp).getTime(),
-        label: formatDate(new Date(m.timestamp)),
+        label: fmtDate(new Date(m.timestamp)),
         netProfit: m.position_value_usd + totalHarvested - invested,
       }))
   }, [metrics, window, currentPositionValue, totalHarvested, invested])
 
-  const hasData = metrics.length > 0
   const lastProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0
   const lineColor = lastProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
 
   return (
-    <div
-      className="rounded-xl p-5"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-    >
-      <div className="flex items-center justify-between mb-4">
+    <div className="card-glow rounded-2xl p-5">
+      <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
           Net Profit
         </h3>
@@ -67,7 +55,7 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
             <button
               key={w.key}
               onClick={() => setWindow(w.key)}
-              className="text-xs px-2 py-1 rounded cursor-pointer transition-colors"
+              className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors"
               style={{
                 background: window === w.key ? 'var(--accent-blue)' : 'transparent',
                 color: window === w.key ? 'white' : 'var(--text-muted)',
@@ -80,13 +68,13 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
         </div>
       </div>
 
-      {!hasData && (
-        <div className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>
-          Waiting for rebalance-metrics.jsonl — showing start vs current
+      {metrics.length === 0 && (
+        <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+          Waiting for metrics — showing start vs current
         </div>
       )}
 
-      <div style={{ height: 220 }}>
+      <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -129,6 +117,6 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
   )
 }
 
-function formatDate(d: Date): string {
+function fmtDate(d: Date): string {
   return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
 }

@@ -152,6 +152,7 @@ export function usePoolData() {
   const [elonMetrics, setElonMetrics] = useState<RebalanceMetric[]>([])
   const [botWallet, setBotWallet] = useState<WalletBalance | null>(null)
   const [petraWallet, setPetraWallet] = useState<WalletBalance | null>(null)
+  const [priceChanges, setPriceChanges] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
   const lastGoodApt = useRef<PoolData | null>(loadPersistedPool(APT_STORAGE_KEY))
@@ -227,6 +228,20 @@ export function usePoolData() {
       fetchPetraWallet(combinedPrices).catch(() => null),
     ])
 
+    // Fetch 24h price changes from CoinGecko (best-effort)
+    try {
+      const cgRes = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=aptos,echelon-prime&vs_currencies=usd&include_24hr_change=true',
+      )
+      if (cgRes.ok) {
+        const cgData = await cgRes.json()
+        setPriceChanges({
+          APT: cgData.aptos?.usd_24h_change ?? 0,
+          ELON: cgData['echelon-prime']?.usd_24h_change ?? 0,
+        })
+      }
+    } catch { /* CoinGecko unavailable — skip */ }
+
     setAptPool(aptData)
     setElonPool(elonData)
     setAptMetrics(aptRebalanceMetrics)
@@ -273,6 +288,7 @@ export function usePoolData() {
   const totalDailyEst = apt.dailyEst + elon.dailyEst
   const maxDaysRunning = Math.max(apt.daysRunning, elon.daysRunning)
   const totalRealizedApr = INITIAL_CAPITAL > 0 ? (totalNetProfit / INITIAL_CAPITAL) * (365 / maxDaysRunning) * 100 : 0
+  const totalEarned = totalPendingFees + totalPendingRewards + totalHarvested
 
   return {
     apt,
@@ -282,11 +298,13 @@ export function usePoolData() {
     loading,
     countdown,
     refresh,
+    priceChanges,
     // Portfolio totals
     totalPositionValue,
     totalPendingFees,
     totalPendingRewards,
     totalHarvested,
+    totalEarned,
     totalNetProfit,
     totalNetProfitPct,
     totalDailyEst,

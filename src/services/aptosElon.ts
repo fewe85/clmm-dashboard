@@ -90,19 +90,8 @@ async function findPositionViaIndexer(): Promise<string | null> {
   }
 }
 
-async function isPositionStaked(tokenAddress: string): Promise<boolean> {
-  try {
-    const result = await aptosView(
-      `${FARMING_PACKAGE}::farming::token_stakes`,
-      [],
-      [tokenAddress],
-    )
-    const stakes = result[0] as any[]
-    return stakes.length > 0
-  } catch {
-    return false
-  }
-}
+// isPositionStaked removed — pending_reward_info is called directly
+// to avoid silent failures when token_stakes gets rate-limited
 
 export async function fetchElonPoolData(positionNftId?: string): Promise<PoolData> {
   try {
@@ -204,19 +193,34 @@ export async function fetchElonPoolData(positionNftId?: string): Promise<PoolDat
     const pendingFeesUsd = feesElon * elonPrice + feesUsdc
 
     let rewardAmount = 0
-    const staked = await isPositionStaked(positionToken)
-    if (staked) {
+    // Try pending_reward_info directly — token_stakes may return empty for some pools
+    // even when staked (wrapper token issue). Also try bot state's cached incentive address.
+    const incentiveAddresses = [THAPT_INCENTIVE]
+    if (positionNftId) {
+      // Bot state may have a different/rotated incentive address
+      try {
+        const stateRes = await fetch(`${import.meta.env.BASE_URL}api/bot-state/elon.json`)
+        if (stateRes.ok) {
+          const st = await stateRes.json()
+          if (st.cachedIncentiveAddress && st.cachedIncentiveAddress !== THAPT_INCENTIVE) {
+            incentiveAddresses.push(st.cachedIncentiveAddress)
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    for (const incentive of incentiveAddresses) {
       try {
         const rewardResult = await aptosView(
           `${FARMING_PACKAGE}::farming::pending_reward_info`,
           [],
-          [positionToken, THAPT_INCENTIVE],
+          [positionToken, incentive],
         )
-        if (rewardResult) {
-          rewardAmount = Number(rewardResult[0]) / Math.pow(10, 8) // thAPT has 8 decimals
+        if (rewardResult && Number(rewardResult[0]) > 0) {
+          rewardAmount = Number(rewardResult[0]) / Math.pow(10, 8)
+          break
         }
       } catch {
-        // rewards stay 0
+        // not staked to this incentive — try next
       }
     }
 
@@ -241,6 +245,7 @@ export async function fetchElonPoolData(positionNftId?: string): Promise<PoolDat
       tickCurrent,
       tickLower,
       tickUpper,
+      liquidity,
       priceLower,
       priceUpper,
       inRange,
@@ -284,6 +289,7 @@ function makeErrorResult(error: string): PoolData {
     tickCurrent: 0,
     tickLower: 0,
     tickUpper: 0,
+    liquidity: 0,
     priceLower: 0,
     priceUpper: 0,
     inRange: false,
