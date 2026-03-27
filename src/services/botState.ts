@@ -10,35 +10,24 @@ async function fetchJson(url: string): Promise<unknown | null> {
   }
 }
 
-function parseHarvestEntries(data: any, fields: { key: string; token: string; decimals: number }[]): { token: string; amount: number }[] {
-  const entries: { token: string; amount: number }[] = []
-  for (const { key, token, decimals } of fields) {
-    const raw = Number(data[key] || 0)
-    if (raw > 0) {
-      entries.push({ token, amount: raw / decimals })
-    }
-  }
-  return entries
-}
-
 export async function fetchThalaBotState(): Promise<BotState | null> {
   const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/thala.json`) as any
-  if (!data || (!data.lastRebalanceAt && !data.openedAt && !data.startedAt)) return null
+  if (!data || !data.positionNftId) return null
   return {
-    lastRebalanceAt: data.lastRebalanceAt || data.position?.openedAt || null,
+    lastRebalanceAt: data.lastRebalanceAt || data.openedAt || null,
     lastCompoundAt: data.lastCompoundAt || null,
     lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: data.lastIdleDeployAt || null,
-    totalRebalances: data.lastRebalanceAt ? (data.totalRebalances || 0) : 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedApt || 0) / 1e8,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedThaptRaw', token: 'thAPT', decimals: 1e8 },
-      { key: 'totalHarvestedAptRaw', token: 'APT', decimals: 1e8 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-    ]),
-    ownedAptRaw: Number(data.ownedAptRaw || 0),
-    ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
+    lastIdleDeployAt: null,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesHarvestedApt || 0),
+    totalFeesCollectedB: Number(data.totalFeesHarvestedUsdc || 0),
+    harvestEntries: [
+      ...(data.totalRewardsHarvested > 0 ? [{ token: 'thAPT', amount: Number(data.totalRewardsHarvested) }] : []),
+      ...(data.totalFeesHarvestedApt > 0 ? [{ token: 'APT', amount: Number(data.totalFeesHarvestedApt) }] : []),
+      ...(data.totalFeesHarvestedUsdc > 0 ? [{ token: 'USDC', amount: Number(data.totalFeesHarvestedUsdc) }] : []),
+    ],
+    ownedAptRaw: 0,
+    ownedUsdcRaw: 0,
     centerPrice: Number(data.centerPrice || 0),
     positionNftId: data.positionNftId || undefined,
     lastSwapCost: Number(data.lastSwapCost || 0),
@@ -49,22 +38,22 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
 
 export async function fetchElonBotState(): Promise<BotState | null> {
   const data = await fetchJson(`${import.meta.env.BASE_URL}api/bot-state/elon.json`) as any
-  if (!data || (!data.lastRebalanceAt && !data.openedAt && !data.startedAt)) return null
+  if (!data || !data.positionNftId) return null
   return {
-    lastRebalanceAt: data.lastRebalanceAt || null,
-    lastCompoundAt: data.lastCompoundAt || null,
-    lastHarvestAt: data.lastHarvestAt || null,
-    lastIdleDeployAt: data.lastIdleDeployAt || null,
-    totalRebalances: data.lastRebalanceAt ? (data.totalRebalances || 0) : 0,
-    totalFeesCollectedA: Number(data.totalFeesCollectedElon || 0) / 1e8,
-    totalFeesCollectedB: Number(data.totalFeesCollectedUsdc || 0) / 1e6,
-    harvestEntries: parseHarvestEntries(data, [
-      { key: 'totalHarvestedThaptRaw', token: 'thAPT', decimals: 1e8 },
-      { key: 'totalHarvestedElonRaw', token: 'ELON', decimals: 1e8 },
-      { key: 'totalHarvestedUsdcRaw', token: 'USDC', decimals: 1e6 },
-    ]),
-    ownedAptRaw: Number(data.ownedElonRaw || 0),
-    ownedUsdcRaw: Number(data.ownedUsdcRaw || 0),
+    lastRebalanceAt: data.lastRebalanceAt || data.lastRebalancedAt || data.openedAt || null,
+    lastCompoundAt: data.lastCompoundAt || data.lastCompoundedAt || null,
+    lastHarvestAt: data.lastHarvestAt || data.lastHarvestedAt || null,
+    lastIdleDeployAt: null,
+    totalRebalances: data.totalRebalances || 0,
+    totalFeesCollectedA: Number(data.totalFeesHarvestedElon || 0),
+    totalFeesCollectedB: Number(data.totalFeesHarvestedUsdc || 0),
+    harvestEntries: [
+      ...(data.totalRewardsHarvested > 0 ? [{ token: 'thAPT', amount: Number(data.totalRewardsHarvested) }] : []),
+      ...(data.totalFeesHarvestedElon > 0 ? [{ token: 'ELON', amount: Number(data.totalFeesHarvestedElon) }] : []),
+      ...(data.totalFeesHarvestedUsdc > 0 ? [{ token: 'USDC', amount: Number(data.totalFeesHarvestedUsdc) }] : []),
+    ],
+    ownedAptRaw: 0,
+    ownedUsdcRaw: 0,
     centerPrice: Number(data.centerPrice || 0),
     positionNftId: data.positionNftId || undefined,
     lastSwapCost: Number(data.lastSwapCost || 0),

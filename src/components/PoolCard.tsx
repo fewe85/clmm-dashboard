@@ -313,12 +313,16 @@ function HarvestSection({ pool, pm }: { pool: PoolData; pm: PoolMetrics }) {
   const pending = pool.compoundPending ?? 0
   const threshold = pool.compoundThreshold ?? 0
   const pct = threshold > 0 ? Math.min((pending / threshold) * 100, 100) : 0
+  const ready = pending >= threshold && threshold > 0
 
   return (
     <div>
       <div className="flex justify-between text-xs mb-1">
-        <span style={{ color: 'var(--text-secondary)' }}>Next Harvest (1% of position)</span>
-        <span className="mono" style={{ color: 'var(--text-muted)' }}>
+        <span style={{ color: 'var(--text-secondary)' }}>
+          Next Harvest (1% of position)
+          {ready && <span style={{ color: 'var(--accent-green)' }}> — Ready ({(pending / threshold).toFixed(1)}x)</span>}
+        </span>
+        <span className="mono" style={{ color: ready ? 'var(--accent-green)' : 'var(--text-muted)' }}>
           ${pending.toFixed(2)} / ${threshold.toFixed(2)}
         </span>
       </div>
@@ -347,10 +351,16 @@ function RebalanceLine({ pm, pool }: { pm: PoolMetrics; pool: PoolData }) {
   if (total === 0) return null
 
   const lastReb = pool.botState?.lastRebalanceAt ?? null
-  const metrics = pm.metrics
-  const swapCost = metrics.length > 0
-    ? metrics.reduce((s, m) => s + (m.total_cost_usd ?? 0), 0)
-    : total * 0.03
+  const botState = pool.botState
+  const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
+  const tokenAPrice = pool.currentPrice || (pool.tokenA === 'APT' ? 0.96 : 0.12)
+  const positionValue = pool.amountA * tokenAPrice + pool.amountB
+  const avgC = botState?.avgSwapCost || 0
+  const hasMeasured = avgC > 0
+  const costPerReb = hasMeasured
+    ? (avgC / 100) * positionValue
+    : positionValue * (feeBps / 10000) * 2
+  const swapCost = total * costPerReb
 
   const parts = [
     `Total: ${total}`,

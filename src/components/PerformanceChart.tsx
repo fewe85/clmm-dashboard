@@ -34,11 +34,14 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
     const cutoff = window === 'all' ? 0 : Date.now() - WINDOWS.find(w => w.key === window)!.ms
     return metrics
       .filter(m => new Date(m.timestamp).getTime() >= cutoff)
-      .map(m => ({
-        time: new Date(m.timestamp).getTime(),
-        label: fmtDate(new Date(m.timestamp)),
-        netProfit: m.position_value_usd + totalHarvested - invested,
-      }))
+      .map(m => {
+        const pv = Number(m.position_value_usd) || 0
+        return {
+          time: new Date(m.timestamp).getTime(),
+          label: fmtDate(new Date(m.timestamp)),
+          netProfit: pv + totalHarvested - invested,
+        }
+      })
   }, [metrics, window, currentPositionValue, totalHarvested, invested])
 
   const lastProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0
@@ -88,7 +91,7 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
               tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
               tickLine={false}
               axisLine={false}
-              tickFormatter={v => `$${v.toFixed(2)}`}
+              tickFormatter={v => `$${(Number(v) || 0).toFixed(2)}`}
               width={50}
             />
             <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" strokeOpacity={0.5} />
