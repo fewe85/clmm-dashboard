@@ -435,9 +435,9 @@ function RangeOptimization({ pool, metrics }: { pool: PoolData; metrics: Rebalan
   const fEff = fFee + 0.5 * fReward
 
   // --- Three constraints ---
-  // 1. Formula optimum: δ* = 4 × c_p75 × σ² / f_eff
+  // 1. Formula optimum: δ* = 2 × c_p75 × σ² / f_eff (pure optimum, safety in ×1.5)
   let deltaFormula = 0
-  if (cP75 > 0 && fEff > 0) deltaFormula = (4 * cP75 * sigma ** 2) / fEff
+  if (cP75 > 0 && fEff > 0) deltaFormula = (2 * cP75 * sigma ** 2) / fEff
 
   // 2. Rebalance cap: σ / √N_max — minimum range to keep rebalances ≤ N_max per day
   const N_MAX = 12
