@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { PoolMetrics } from '../hooks/usePoolData'
-import type { PoolData, BotState } from '../types'
+import type { PoolData, BotState, RebalanceMetric } from '../types'
 
 // Pool-specific fee config
 const POOL_FEE_BPS: Record<string, number> = { APT: 5, ELON: 30 }
@@ -149,7 +149,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         >
           Range Optimization {showOpt ? '▾' : '▸'}
         </button>
-        {showOpt && <RangeOptimization pool={pool} />}
+        {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
       </div>
     </div>
   )
@@ -232,7 +232,9 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
   const rewardsUsd = pool.pendingRewardsUsd
 
   // IL calculation: HODL value vs current position value
-  const cp = botState?.centerPrice || 0
+  // Use priceAtReset (stable across rebalances) if available, else fall back to centerPrice
+  const resetPrice = botState?.priceAtReset || 0
+  const cp = resetPrice > 0 ? resetPrice : (botState?.centerPrice || 0)
   const entryPrice = cp > 0 ? (Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp) : 0
   const hodlValue = entryPrice > 0 ? pool.invested * (tokenAPrice / entryPrice) : pool.invested
   const il = positionValue - hodlValue // negative = IL loss
@@ -287,26 +289,31 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
       </div>
 
       {/* CLMM vs HODL */}
-      <ClmmVsHodl pool={pool} botState={botState} tokenAPrice={tokenAPrice} netPnl={netPnl} />
+      <ClmmVsHodl pool={pool} botState={botState} tokenAPrice={tokenAPrice} aptPrice={aptPrice} />
     </div>
   )
 }
 
 /* ── CLMM vs HODL ────────────────────────────────────────────────────────── */
 
-function ClmmVsHodl({ pool, botState, tokenAPrice, netPnl }: {
-  pool: PoolData; botState: BotState | null; tokenAPrice: number; netPnl: number
+function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
+  pool: PoolData; botState: BotState | null; tokenAPrice: number; aptPrice: number
 }) {
   if (!botState?.centerPrice || pool.invested <= 0) return null
 
-  const cp = botState.centerPrice
+  // Use priceAtReset (stable across rebalances) if available, else fall back to centerPrice
+  const resetPrice = botState?.priceAtReset || 0
+  const cp = resetPrice > 0 ? resetPrice : botState.centerPrice
   const entryPrice = Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp
   if (entryPrice <= 0) return null
 
-  // HODL Return = Invested × (currentPrice / entryPrice) - Invested
+  // Clean comparison: total CLMM value vs what HODL would be worth
+  // pool.netProfit already includes swap costs (they reduced position value)
+  // Gas costs are external (paid from APT wallet), must be subtracted separately
+  const gasApt = (botState?.gasUsedApt || 0) - (botState?.gasAtReset || 0)
+  const gasUsd = gasApt * aptPrice
   const hodlReturn = pool.invested * (tokenAPrice / entryPrice) - pool.invested
-  // CLMM vs HODL = CLMM Return - HODL Return
-  const clmmAdv = netPnl - hodlReturn
+  const clmmAdv = pool.netProfit - gasUsd - hodlReturn
 
   return (
     <div className="flex justify-between text-xs pt-1.5 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
@@ -388,63 +395,121 @@ function RebalanceLine({ pm, pool }: { pm: PoolMetrics; pool: PoolData }) {
 
 /* ── Range Optimization (collapsible) ────────────────────────────────────── */
 
-function RangeOptimization({ pool }: { pool: PoolData }) {
+function RangeOptimization({ pool, metrics }: { pool: PoolData; metrics: RebalanceMetric[] }) {
   const botState = pool.botState
   const defaultSigma = POOL_DEFAULT_SIGMA[pool.tokenA] ?? 5
   const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
+  const tickSpacing = pool.tokenA === 'APT' ? 10 : 60
 
   const rangeWidth = pool.currentPrice > 0
     ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100
     : 0
   const currentDelta = rangeWidth / 2
 
-  const sigma = botState && botState.sigmaDaily > 0 ? botState.sigmaDaily : defaultSigma
+  // --- Inputs (display %) ---
+  const sigmaDisp = botState && botState.sigmaDaily > 0 ? botState.sigmaDaily : defaultSigma
   const sigmaSource = botState && botState.sigmaDaily > 0 ? 'measured' : 'default'
-  const c = botState?.avgSwapCost ?? 0
-  const cSource = c > 0 ? 'measured' : 'none'
 
-  const fFee = feeBps / 100
-  const fReward = pool.rewardsApr > 0 ? (pool.rewardsApr / 365) * (currentDelta / 100) : 0
+  // c_p75: 75th percentile of cHalfRoundTrip from rebalance metrics (more realistic than average)
+  const cValues = metrics
+    .map(m => m.cHalfRoundTrip ?? 0)
+    .filter(v => v > 0)
+    .sort((a, b) => a - b)
+  const cAvgDisp = botState?.avgSwapCost ?? 0
+  let cP75Disp = 0
+  if (cValues.length >= 4) {
+    const idx = Math.floor(cValues.length * 0.75)
+    cP75Disp = cValues[idx]
+  } else {
+    cP75Disp = cAvgDisp // fallback to average if not enough data
+  }
+  const cSource = cP75Disp > 0 ? (cValues.length >= 4 ? 'p75' : 'avg') : 'none'
+
+  // --- Convert to decimal ---
+  const sigma = sigmaDisp / 100
+  const cP75 = cP75Disp / 100
+  const delta = currentDelta / 100
+
+  const fFee = feeBps / 10000
+  const fReward = pool.rewardsApr > 0 ? (pool.rewardsApr / 100 / 365) * delta : 0
   const fEff = fFee + 0.5 * fReward
 
-  let deltaOpt = 0
-  if (c > 0 && fEff > 0) deltaOpt = (4 * c * sigma ** 2) / fEff
+  // --- Three constraints ---
+  // 1. Formula optimum: δ* = 4 × c_p75 × σ² / f_eff
+  let deltaFormula = 0
+  if (cP75 > 0 && fEff > 0) deltaFormula = (4 * cP75 * sigma ** 2) / fEff
 
-  const deltaMin = sigma / Math.sqrt(15)
-  const recommended = Math.max(deltaOpt, deltaMin)
+  // 2. Rebalance cap: σ / √N_max — minimum range to keep rebalances ≤ N_max per day
+  const N_MAX = 12
+  const deltaPolling = sigma / Math.sqrt(N_MAX)
 
+  // 3. Tick floor: minimum usable ticks (4 × tick_spacing in %)
+  const tickFloorPct = tickSpacing * 4 * 0.01 // each tick ≈ 0.01%
+  const deltaTick = tickFloorPct / 100
+
+  const recommended = Math.max(deltaFormula, deltaPolling, deltaTick)
+
+  // Risk-adjusted: 1.5× multiplier accounts for σ-spikes, crash-slippage, execution delay
+  const RISK_MULT = 1.5
+  const riskAdjusted = recommended * RISK_MULT
+
+  // Which constraint is binding?
+  let binding = 'formula'
+  if (recommended === deltaPolling) binding = 'polling'
+  else if (recommended === deltaTick) binding = 'tick'
+
+  // Convert to % for display
+  const deltaFormulaPct = deltaFormula * 100
+  const deltaPollingPct = deltaPolling * 100
+  const deltaTickPct = deltaTick * 100
+  const recommendedPct = recommended * 100
+  const riskAdjustedPct = riskAdjusted * 100
+
+  // Compare current range to risk-adjusted recommendation
   let rec = '', recColor = 'var(--text-muted)'
-  if (c <= 0) {
+  if (cP75Disp <= 0) {
     rec = 'wird kalibriert'
-  } else if (recommended > 0) {
-    const dev = Math.abs(currentDelta - recommended) / recommended
-    if (dev <= 0.15) { rec = 'Range passt'; recColor = 'var(--accent-green)' }
-    else if (dev <= 0.5) { rec = currentDelta > recommended ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-yellow)' }
-    else { rec = currentDelta > recommended ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-red)' }
+  } else if (riskAdjustedPct > 0) {
+    const dev = Math.abs(currentDelta - riskAdjustedPct) / riskAdjustedPct
+    if (dev <= 0.25) { rec = 'Range passt'; recColor = 'var(--accent-green)' }
+    else if (dev <= 0.75) { rec = currentDelta > recommendedPct ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-yellow, #eab308)' }
+    else { rec = currentDelta > recommendedPct ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-red)' }
   }
 
-  const rows = [
+  const bindingLabel: Record<string, string> = {
+    formula: 'Formel', polling: 'Reb-Cap', tick: 'Tick-Min',
+  }
+
+  const rows: [string, string, string?][] = [
     ['Aktuelle Range', `±${currentDelta.toFixed(1)}%`],
-    [`σ_daily (${sigmaSource})`, sigma > 0 ? `${sigma.toFixed(2)}%` : '—'],
-    ['Gemessenes c', cSource === 'measured' ? `${c.toFixed(2)}%` : '—'],
-    ['f_eff', `${fEff.toFixed(3)}%`],
-    ['Formel-Optimum δ*', deltaOpt > 0 ? `±${deltaOpt.toFixed(2)}%` : '—'],
-    ['Polling-Limit δ_min', `±${deltaMin.toFixed(2)}%`],
+    [`σ_daily (${sigmaSource})`, `${sigmaDisp.toFixed(2)}%`],
+    [`c (${cSource})`, cSource !== 'none' ? `${cP75Disp.toFixed(2)}%` : '—',
+      cValues.length >= 4 ? `avg ${cAvgDisp.toFixed(2)}%` : undefined],
+    ['f_eff', `${(fEff * 100).toFixed(3)}%`],
+    ['δ* Formel', deltaFormulaPct > 0 ? `±${deltaFormulaPct.toFixed(2)}%` : '—'],
+    ['δ* Reb-Cap (≤12/d)', `±${deltaPollingPct.toFixed(2)}%`],
+    ['δ* Tick-Min', `±${deltaTickPct.toFixed(2)}%`],
+    ['δ* Optimum', recommendedPct > 0 ? `±${recommendedPct.toFixed(2)}%` : '—',
+      binding !== 'formula' ? bindingLabel[binding] : undefined],
+    ['δ* Risk-Adj. (×1.5)', riskAdjustedPct > 0 ? `±${riskAdjustedPct.toFixed(1)}%` : '—'],
   ]
 
   return (
     <div className="space-y-1 pt-1">
-      {rows.map(([label, val], i) => (
+      {rows.map(([label, val, sub], i) => (
         <div key={i} className="flex justify-between text-xs">
           <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-          <span className="mono" style={{ color: 'var(--text-primary)' }}>{val}</span>
+          <span className="mono" style={{ color: 'var(--text-primary)' }}>
+            {val}
+            {sub && <span style={{ color: 'var(--text-muted)' }}> ({sub})</span>}
+          </span>
         </div>
       ))}
       <div className="flex justify-between text-xs pt-1">
         <span style={{ color: 'var(--text-muted)' }}>Empfehlung</span>
         <span className="mono font-semibold" style={{ color: recColor }}>
           {rec || '—'}
-          {recommended > 0 && c > 0 && ` (±${recommended.toFixed(1)}%)`}
+          {riskAdjustedPct > 0 && cP75Disp > 0 && ` (±${riskAdjustedPct.toFixed(1)}%)`}
         </span>
       </div>
     </div>

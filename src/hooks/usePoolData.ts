@@ -339,44 +339,26 @@ export function usePoolData() {
   const maxDaysRunning = Math.max(apt.daysRunning, elon.daysRunning)
   const totalEarned = totalPendingFees + totalPendingRewards + totalHarvested
 
-  // CLMM vs HODL — mirrors PoolCard PnlSection + ClmmVsHodl exactly
-  const POOL_FEE_BPS: Record<string, number> = { APT: 5, ELON: 30 }
+  // CLMM vs HODL — clean comparison: total CLMM value vs what HODL would be worth
   function calcPoolClmmVsHodl(pm: PoolMetrics, invested: number): number {
     const pool = pm.pool
     if (!pool || !pool.botState?.centerPrice || invested <= 0) return 0
     const botState = pool.botState
     const tokenAPrice = pool.currentPrice || 0
-    const cp = botState.centerPrice
+    // Use priceAtReset (stable across rebalances) if available, else fall back to centerPrice
+    const resetPrice = botState.priceAtReset || 0
+    const cp = resetPrice > 0 ? resetPrice : botState.centerPrice
     const entryPrice = Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp
     if (entryPrice <= 0) return 0
 
-    const positionValue = pool.amountA * tokenAPrice + pool.amountB
-    const feesUsd = pool.feesA * tokenAPrice + pool.feesB
-    const rewardsUsd = pool.pendingRewardsUsd
-
-    // IL: position value vs what HODL would be worth
-    const hodlValue = invested * (tokenAPrice / entryPrice)
-    const il = positionValue - hodlValue
-
-    // Swap costs
-    const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
-    const avgC = botState?.avgSwapCost || 0
-    const totalRebalances = (botState?.totalRebalances || 0) - (botState?.rebalancesAtReset || 0)
-    const costPerReb = avgC > 0
-      ? (avgC / 100) * positionValue
-      : positionValue * (feeBps / 10000) * 2
-    const swapCosts = Math.max(0, totalRebalances) * costPerReb
-
-    // Gas costs
+    // pool.netProfit already includes swap costs (they reduced position value)
+    // Gas costs are external (paid from APT wallet), must be subtracted separately
     const aptPrice = pool.tokenA === 'APT' ? tokenAPrice : (apt.pool?.currentPrice || 0.9)
     const gasApt = (botState?.gasUsedApt || 0) - (botState?.gasAtReset || 0)
-    const gasCosts = gasApt * aptPrice
+    const gasUsd = gasApt * aptPrice
 
-    // netPnl = fees + rewards + harvested + IL - swapCosts - gasCosts
-    const netPnl = feesUsd + rewardsUsd + pm.totalHarvested + il - swapCosts - gasCosts
-    // hodlReturn = what you'd have gained just holding
-    const hodlReturn = hodlValue - invested
-    return netPnl - hodlReturn
+    const hodlReturn = invested * (tokenAPrice / entryPrice) - invested
+    return pool.netProfit - gasUsd - hodlReturn
   }
   const aptClmmVsHodl = calcPoolClmmVsHodl(apt, APT_INVESTED)
   const elonClmmVsHodl = calcPoolClmmVsHodl(elon, ELON_INVESTED)

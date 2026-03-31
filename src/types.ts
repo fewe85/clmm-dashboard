@@ -27,6 +27,8 @@ export interface BotState {
   rebalancesAtReset: number
   externalDeposits: number
   resetAt: string | null
+  priceAtReset: number | null
+  nextHarvestAt: string | null
   gasUsedApt: number
   gasAtReset: number
 }
@@ -86,4 +88,7 @@ export interface RebalanceMetric {
   total_cost_usd?: number
   range_delta_pct?: number
   minutes_since_last?: number
+  cHalfRoundTrip?: number
+  slippagePercent?: number
+  aggregator?: string
 }

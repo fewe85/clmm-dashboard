@@ -38,6 +38,8 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     rebalancesAtReset: Number(data.rebalancesAtReset || 0),
     externalDeposits: Number(data.externalDeposits || 0),
     resetAt: data.resetAt || null,
+    priceAtReset: data.priceAtReset != null ? Number(data.priceAtReset) : null,
+    nextHarvestAt: data.nextHarvestAt || null,
     gasUsedApt: Number(data.gasUsedApt || 0),
     gasAtReset: Number(data.gasAtReset || 0),
   }
@@ -71,6 +73,8 @@ export async function fetchElonBotState(): Promise<BotState | null> {
     rebalancesAtReset: Number(data.rebalancesAtReset || 0),
     externalDeposits: Number(data.externalDeposits || 0),
     resetAt: data.resetAt || null,
+    priceAtReset: data.priceAtReset != null ? Number(data.priceAtReset) : null,
+    nextHarvestAt: data.nextHarvestAt || null,
     gasUsedApt: Number(data.gasUsedApt || 0),
     gasAtReset: Number(data.gasAtReset || 0),
   }

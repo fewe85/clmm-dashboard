@@ -1,4 +1,5 @@
-import { usePoolData } from './hooks/usePoolData'
+import { useState, useEffect } from 'react'
+import { usePoolData, type PoolMetrics } from './hooks/usePoolData'
 import { PoolCard } from './components/PoolCard'
 import { PerformanceChart } from './components/PerformanceChart'
 import { WalletBox } from './components/WalletBox'
@@ -68,6 +69,7 @@ function AppContent() {
             label="Est. Daily"
             value={totalDailyEst > 0 ? formatUsd(totalDailyEst) : '—'}
           />
+          <NextHarvestTimer apt={apt} elon={elon} />
         </div>
       )}
 
@@ -105,6 +107,43 @@ function AppContent() {
       <div className="text-center mt-5 text-xs" style={{ color: 'var(--text-muted)' }}>
         On-chain data only · No backend
       </div>
+    </div>
+  )
+}
+
+function NextHarvestTimer({ apt, elon }: { apt: PoolMetrics; elon: PoolMetrics }) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  const timers = [
+    { name: 'APT', nextAt: apt.pool?.botState?.nextHarvestAt },
+    { name: 'ELON', nextAt: elon.pool?.botState?.nextHarvestAt },
+  ].filter(t => t.nextAt)
+
+  if (timers.length === 0) return null
+
+  const parts = timers.map(t => {
+    const ms = new Date(t.nextAt!).getTime() - now
+    if (ms <= 0) return { name: t.name, label: '0:00', color: 'var(--accent-green)' }
+    const min = Math.floor(ms / 60_000)
+    const sec = Math.floor((ms % 60_000) / 1000)
+    const label = `${min}:${sec.toString().padStart(2, '0')}`
+    const color = min < 5 ? 'var(--accent-yellow, #eab308)' : 'var(--text-primary)'
+    return { name: t.name, label, color }
+  })
+
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span style={{ color: 'var(--text-muted)' }}>Harvest</span>
+      {parts.map((p, i) => (
+        <span key={p.name} className="mono font-semibold" style={{ color: p.color }}>
+          {i > 0 && <span style={{ color: 'var(--text-muted)' }}> · </span>}
+          {p.name} {p.label}
+        </span>
+      ))}
     </div>
   )
 }
