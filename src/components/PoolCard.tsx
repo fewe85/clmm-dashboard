@@ -353,9 +353,9 @@ function HarvestSection({ pool, pm }: { pool: PoolData; pm: PoolMetrics }) {
           }}
         />
       </div>
-      {pm.harvestRate7d > 0 && (
+      {(pm.dailyEst > 0 || pm.harvestRate7d > 0) && (
         <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          Earn Rate: <span className="mono">{fmtUsd(pm.harvestRate7d)}/day</span> (projected)
+          Earn Rate: <span className="mono">{fmtUsd(pm.dailyEst > 0 ? pm.dailyEst : pm.harvestRate7d)}/day</span> (projected)
         </div>
       )}
     </div>
