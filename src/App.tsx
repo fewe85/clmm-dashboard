@@ -14,47 +14,13 @@ function formatUsd(v: number): string {
   return `$${v.toFixed(4)}`
 }
 
-const POOL_FEE_BPS: Record<string, number> = { APT: 5, ELON: 30 }
-
-function buildPoolContext(pm: ReturnType<typeof usePoolData>['apt']): { invested: number; entryPrice: number; totalHarvested: number; swapCosts: number; gasCosts: number } | undefined {
-  const pool = pm.pool
-  if (!pool || !pool.botState?.centerPrice || pm.invested <= 0) return undefined
-
-  const tokenAPrice = pool.currentPrice || 0
-  const cp = pool.botState.centerPrice
-  const entryPrice = Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp
-  if (entryPrice <= 0) return undefined
-
-  const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
-  const positionValue = pool.amountA * tokenAPrice + pool.amountB
-  const botState = pool.botState
-  const avgC = botState?.avgSwapCost || 0
-  const totalRebalances = (botState?.totalRebalances || 0) - (botState?.rebalancesAtReset || 0)
-  const costPerReb = avgC > 0
-    ? (avgC / 100) * positionValue
-    : positionValue * (feeBps / 10000) * 2
-  const swapCosts = Math.max(0, totalRebalances) * costPerReb
-
-  const aptPrice = pool.tokenA === 'APT' ? tokenAPrice : (pool.currentPrice || 0.9)
-  const gasApt = (botState?.gasUsedApt || 0) - (botState?.gasAtReset || 0)
-  const gasCosts = gasApt * aptPrice
-
-  return {
-    invested: pm.invested,
-    entryPrice,
-    totalHarvested: pm.totalHarvested,
-    swapCosts,
-    gasCosts,
-  }
-}
-
 function AppContent() {
   const {
     apt, elon,
     botWallet, petraWallet,
     loading, countdown, refresh,
     priceChanges,
-    totalPositionValue, totalClmmVsHodl,
+    totalPositionValue, aptClmmVsHodl, elonClmmVsHodl, totalClmmVsHodl,
     totalDailyEst, totalEarned,
   } = usePoolData()
 
@@ -129,8 +95,8 @@ function AppContent() {
           <PerformanceChart
             aptSnapshots={apt.pool?.botState?.earningsSnapshots ?? []}
             elonSnapshots={elon.pool?.botState?.earningsSnapshots ?? []}
-            aptContext={buildPoolContext(apt)}
-            elonContext={buildPoolContext(elon)}
+            aptClmmVsHodl={aptClmmVsHodl}
+            elonClmmVsHodl={elonClmmVsHodl}
           />
         </div>
       )}

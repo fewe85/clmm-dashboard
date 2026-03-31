@@ -11,19 +11,11 @@ interface Snapshot {
   posUsd: number
 }
 
-interface PoolContext {
-  invested: number
-  entryPrice: number
-  totalHarvested: number
-  swapCosts: number
-  gasCosts: number
-}
-
 interface Props {
   aptSnapshots: Snapshot[]
   elonSnapshots: Snapshot[]
-  aptContext?: PoolContext
-  elonContext?: PoolContext
+  aptClmmVsHodl: number
+  elonClmmVsHodl: number
 }
 
 type TimeWindow = '24h' | '7d' | '30d' | 'all'
@@ -35,16 +27,7 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-/**
- * Net P&L at snapshot = (posUsd + feesUsd + rewardsUsd + totalHarvested) - invested - swapCosts - gasCosts
- * HODL return at snapshot = invested × (snapshotPrice / entryPrice) - invested
- *   where snapshotPrice is derived from posUsd relative to invested
- * CLMM vs HODL = netPnl - hodlReturn
- *
- * This mirrors PoolCard PnlSection + ClmmVsHodl exactly.
- */
-
-export function PerformanceChart({ aptSnapshots, elonSnapshots, aptContext, elonContext }: Props) {
+export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
   const [mode, setMode] = useState<'profit' | 'vshodl'>('profit')
 
@@ -54,57 +37,81 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptContext, elon
       ...elonSnapshots.map(s => ({ ...s, pool: 'elon' as const })),
     ].sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
 
-    if (allSnaps.length < 2) return []
+    if (allSnaps.length < 2) {
+      const val = mode === 'vshodl' ? aptClmmVsHodl + elonClmmVsHodl : 0
+      return [
+        { time: Date.now() - 3600_000, label: fmtDate(new Date(Date.now() - 3600_000)), value: 0 },
+        { time: Date.now(), label: fmtDate(new Date()), value: val },
+      ]
+    }
 
     const cutoff = window === 'all' ? 0 : Date.now() - WINDOWS.find(w => w.key === window)!.ms
     const filteredSnaps = allSnaps.filter(s => new Date(s.t).getTime() >= cutoff)
     if (filteredSnaps.length < 2) return []
 
-    const points: { time: number; label: string; value: number }[] = []
+    // Baseline: first snapshot per pool
+    const baseApt = filteredSnaps.find(s => s.pool === 'apt')
+    const baseElon = filteredSnaps.find(s => s.pool === 'elon')
 
-    // Track latest snapshot values per pool
+    const points: { time: number; label: string; profit: number; vshodl: number }[] = []
+
     let lastApt: Snapshot | null = null
     let lastElon: Snapshot | null = null
 
-    // Baseline: first snapshot per pool in window (cumulative values are relative to this)
-    const baseAptSnap = filteredSnaps.find(s => s.pool === 'apt')
-    const baseElonSnap = filteredSnaps.find(s => s.pool === 'elon')
-
     for (const snap of filteredSnaps) {
       const t = new Date(snap.t).getTime()
-
       if (snap.pool === 'apt') lastApt = snap
       else lastElon = snap
 
-      // Delta earnings since first snapshot (cumulative values, so subtract baseline)
-      // Net P&L = deltaEarnings + (posChange) - swapCosts - gasCosts
-      // vs HODL = deltaEarnings - swapCosts - gasCosts (IL cancels out)
-      let totalNetPnl = 0
-      let totalVsHodl = 0
-
-      if (lastApt && aptContext && aptContext.invested > 0 && baseAptSnap) {
-        const deltaEarnings = (lastApt.feesUsd - baseAptSnap.feesUsd) + (lastApt.rewardsUsd - baseAptSnap.rewardsUsd)
-        const posChange = (lastApt.posUsd || 0) - (baseAptSnap.posUsd || 0)
-        totalNetPnl += deltaEarnings + posChange - aptContext.swapCosts - aptContext.gasCosts
-        totalVsHodl += deltaEarnings - aptContext.swapCosts - aptContext.gasCosts
+      // Net Profit: delta(fees + rewards + posValue) since baseline
+      let profit = 0
+      if (lastApt && baseApt) {
+        profit += (lastApt.feesUsd - baseApt.feesUsd) + (lastApt.rewardsUsd - baseApt.rewardsUsd)
+          + ((lastApt.posUsd || 0) - (baseApt.posUsd || 0))
+      }
+      if (lastElon && baseElon) {
+        profit += (lastElon.feesUsd - baseElon.feesUsd) + (lastElon.rewardsUsd - baseElon.rewardsUsd)
+          + ((lastElon.posUsd || 0) - (baseElon.posUsd || 0))
       }
 
-      if (lastElon && elonContext && elonContext.invested > 0 && baseElonSnap) {
-        const deltaEarnings = (lastElon.feesUsd - baseElonSnap.feesUsd) + (lastElon.rewardsUsd - baseElonSnap.rewardsUsd)
-        const posChange = (lastElon.posUsd || 0) - (baseElonSnap.posUsd || 0)
-        totalNetPnl += deltaEarnings + posChange - elonContext.swapCosts - elonContext.gasCosts
-        totalVsHodl += deltaEarnings - elonContext.swapCosts - elonContext.gasCosts
-      }
-
-      points.push({
-        time: t,
-        label: fmtDate(new Date(t)),
-        value: mode === 'vshodl' ? totalVsHodl : totalNetPnl,
-      })
+      points.push({ time: t, label: fmtDate(new Date(t)), profit, vshodl: 0 })
     }
 
-    return points
-  }, [aptSnapshots, elonSnapshots, window, mode, aptContext, elonContext])
+    // For vsHodl: we can't compute exact per-snapshot HODL returns (no price data).
+    // Use the accurate PoolCard values for the final point, and scale the earnings
+    // curve (profit minus position changes = pure earnings) proportionally.
+    if (mode === 'vshodl' && points.length > 0) {
+      const currentVsHodl = aptClmmVsHodl + elonClmmVsHodl
+
+      // Pure earnings curve (no position value changes, just fees+rewards delta)
+      const earningsPoints: number[] = points.map((_p, i) => {
+        let earnings = 0
+        if (lastApt && baseApt) {
+          const a = filteredSnaps.filter(s => s.pool === 'apt' && new Date(s.t).getTime() <= (points[i]?.time || 0)).pop()
+          if (a) earnings += (a.feesUsd - baseApt.feesUsd) + (a.rewardsUsd - baseApt.rewardsUsd)
+        }
+        if (lastElon && baseElon) {
+          const e = filteredSnaps.filter(s => s.pool === 'elon' && new Date(s.t).getTime() <= (points[i]?.time || 0)).pop()
+          if (e) earnings += (e.feesUsd - baseElon.feesUsd) + (e.rewardsUsd - baseElon.rewardsUsd)
+        }
+        return earnings
+      })
+
+      const finalEarnings = earningsPoints[earningsPoints.length - 1] || 1
+      for (let i = 0; i < points.length; i++) {
+        // Scale: earnings proportion × current accurate vsHodl value
+        points[i].vshodl = finalEarnings > 0
+          ? (earningsPoints[i] / finalEarnings) * currentVsHodl
+          : 0
+      }
+    }
+
+    return points.map(p => ({
+      time: p.time,
+      label: p.label,
+      value: mode === 'vshodl' ? p.vshodl : p.profit,
+    }))
+  }, [aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, window, mode])
 
   const lastValue = chartData.length > 0 ? chartData[chartData.length - 1].value : 0
 

@@ -355,7 +355,9 @@ export function usePoolData() {
     const hodlReturn = invested * (tokenAPrice / entryPrice) - invested
     return netPnl - hodlReturn
   }
-  const totalClmmVsHodl = calcPoolClmmVsHodl(apt, APT_INVESTED) + calcPoolClmmVsHodl(elon, ELON_INVESTED)
+  const aptClmmVsHodl = calcPoolClmmVsHodl(apt, APT_INVESTED)
+  const elonClmmVsHodl = calcPoolClmmVsHodl(elon, ELON_INVESTED)
+  const totalClmmVsHodl = aptClmmVsHodl + elonClmmVsHodl
 
   return {
     apt,
@@ -372,6 +374,8 @@ export function usePoolData() {
     totalPendingRewards,
     totalHarvested,
     totalEarned,
+    aptClmmVsHodl,
+    elonClmmVsHodl,
     totalClmmVsHodl,
     totalDailyEst,
     maxDaysRunning,
