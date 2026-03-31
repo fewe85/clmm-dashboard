@@ -13,15 +13,15 @@ interface Snapshot {
 
 interface PoolContext {
   invested: number
-  entryPrice: number  // centerPrice at reset
-  currentPrice: number
+  entryPrice: number
+  totalHarvested: number
+  swapCosts: number
+  gasCosts: number
 }
 
 interface Props {
   aptSnapshots: Snapshot[]
   elonSnapshots: Snapshot[]
-  aptClmmVsHodl: number
-  elonClmmVsHodl: number
   aptContext?: PoolContext
   elonContext?: PoolContext
 }
@@ -35,7 +35,16 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, aptContext, elonContext }: Props) {
+/**
+ * Net P&L at snapshot = (posUsd + feesUsd + rewardsUsd + totalHarvested) - invested - swapCosts - gasCosts
+ * HODL return at snapshot = invested × (snapshotPrice / entryPrice) - invested
+ *   where snapshotPrice is derived from posUsd relative to invested
+ * CLMM vs HODL = netPnl - hodlReturn
+ *
+ * This mirrors PoolCard PnlSection + ClmmVsHodl exactly.
+ */
+
+export function PerformanceChart({ aptSnapshots, elonSnapshots, aptContext, elonContext }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
   const [mode, setMode] = useState<'profit' | 'vshodl'>('profit')
 
@@ -45,65 +54,55 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
       ...elonSnapshots.map(s => ({ ...s, pool: 'elon' as const })),
     ].sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
 
-    if (allSnaps.length < 2) {
-      const total = mode === 'vshodl'
-        ? aptClmmVsHodl + elonClmmVsHodl
-        : aptClmmVsHodl + elonClmmVsHodl
-      return [
-        { time: Date.now() - 3600_000, label: fmtDate(new Date(Date.now() - 3600_000)), value: 0 },
-        { time: Date.now(), label: fmtDate(new Date()), value: total },
-      ]
-    }
+    if (allSnaps.length < 2) return []
 
     const cutoff = window === 'all' ? 0 : Date.now() - WINDOWS.find(w => w.key === window)!.ms
     const filteredSnaps = allSnaps.filter(s => new Date(s.t).getTime() >= cutoff)
     if (filteredSnaps.length < 2) return []
 
-    const firstApt = filteredSnaps.find(s => s.pool === 'apt')
-    const firstElon = filteredSnaps.find(s => s.pool === 'elon')
-    const baseApt = firstApt ? (firstApt.posUsd || 0) + firstApt.feesUsd + firstApt.rewardsUsd : 0
-    const baseElon = firstElon ? (firstElon.posUsd || 0) + firstElon.feesUsd + firstElon.rewardsUsd : 0
-    const baseTotal = baseApt + baseElon
-
-    // For vsHodl: track price changes to compute HODL return at each snapshot
-    const firstAptPos = firstApt?.posUsd || 0
-    const firstElonPos = firstElon?.posUsd || 0
-
     const points: { time: number; label: string; value: number }[] = []
-    let lastAptValue = baseApt
-    let lastElonValue = baseElon
-    let lastAptPos = firstAptPos
-    let lastElonPos = firstElonPos
+
+    // Track latest snapshot values per pool
+    let lastApt: Snapshot | null = null
+    let lastElon: Snapshot | null = null
 
     for (const snap of filteredSnaps) {
       const t = new Date(snap.t).getTime()
-      const snapTotal = (snap.posUsd || 0) + snap.feesUsd + snap.rewardsUsd
 
-      if (snap.pool === 'apt') {
-        lastAptValue = snapTotal
-        lastAptPos = snap.posUsd || lastAptPos
-      } else {
-        lastElonValue = snapTotal
-        lastElonPos = snap.posUsd || lastElonPos
+      if (snap.pool === 'apt') lastApt = snap
+      else lastElon = snap
+
+      // Net P&L per pool = fees + rewards + harvested + (posValue - invested) - swapCosts - gasCosts
+      // CLMM vs HODL = fees + rewards + harvested - swapCosts - gasCosts (IL cancels out)
+      let totalNetPnl = 0
+      let totalVsHodl = 0
+
+      if (lastApt && aptContext && aptContext.invested > 0) {
+        const feesRewards = lastApt.feesUsd + lastApt.rewardsUsd
+        const posValue = lastApt.posUsd || 0
+        totalNetPnl += feesRewards + aptContext.totalHarvested + (posValue - aptContext.invested) - aptContext.swapCosts - aptContext.gasCosts
+        totalVsHodl += feesRewards + aptContext.totalHarvested - aptContext.swapCosts - aptContext.gasCosts
       }
 
-      const netProfit = (lastAptValue + lastElonValue) - baseTotal
-
-      if (mode === 'vshodl') {
-        // HODL return = change in position value (price movement effect)
-        const hodlReturn = (lastAptPos - firstAptPos) + (lastElonPos - firstElonPos)
-        points.push({ time: t, label: fmtDate(new Date(t)), value: netProfit - hodlReturn })
-      } else {
-        points.push({ time: t, label: fmtDate(new Date(t)), value: netProfit })
+      if (lastElon && elonContext && elonContext.invested > 0) {
+        const feesRewards = lastElon.feesUsd + lastElon.rewardsUsd
+        const posValue = lastElon.posUsd || 0
+        totalNetPnl += feesRewards + elonContext.totalHarvested + (posValue - elonContext.invested) - elonContext.swapCosts - elonContext.gasCosts
+        totalVsHodl += feesRewards + elonContext.totalHarvested - elonContext.swapCosts - elonContext.gasCosts
       }
+
+      points.push({
+        time: t,
+        label: fmtDate(new Date(t)),
+        value: mode === 'vshodl' ? totalVsHodl : totalNetPnl,
+      })
     }
 
     return points
-  }, [aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, window, mode, aptContext, elonContext])
+  }, [aptSnapshots, elonSnapshots, window, mode, aptContext, elonContext])
 
   const lastValue = chartData.length > 0 ? chartData[chartData.length - 1].value : 0
 
-  // Y-axis domain: always include 0
   const values = chartData.map(d => d.value)
   const minVal = Math.min(0, ...values)
   const maxVal = Math.max(0, ...values)
