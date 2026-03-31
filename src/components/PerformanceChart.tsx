@@ -66,31 +66,34 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptContext, elon
     let lastApt: Snapshot | null = null
     let lastElon: Snapshot | null = null
 
+    // Baseline: first snapshot per pool in window (cumulative values are relative to this)
+    const baseAptSnap = filteredSnaps.find(s => s.pool === 'apt')
+    const baseElonSnap = filteredSnaps.find(s => s.pool === 'elon')
+
     for (const snap of filteredSnaps) {
       const t = new Date(snap.t).getTime()
 
       if (snap.pool === 'apt') lastApt = snap
       else lastElon = snap
 
-      // Snapshot feesUsd/rewardsUsd are CUMULATIVE (include already harvested)
-      // So do NOT add totalHarvested — it's already in the snapshot values
-      // Net P&L = cumFees + cumRewards + (posValue - invested) - swapCosts - gasCosts
-      // vs HODL = cumFees + cumRewards - swapCosts - gasCosts (IL cancels out)
+      // Delta earnings since first snapshot (cumulative values, so subtract baseline)
+      // Net P&L = deltaEarnings + (posChange) - swapCosts - gasCosts
+      // vs HODL = deltaEarnings - swapCosts - gasCosts (IL cancels out)
       let totalNetPnl = 0
       let totalVsHodl = 0
 
-      if (lastApt && aptContext && aptContext.invested > 0) {
-        const cumEarnings = lastApt.feesUsd + lastApt.rewardsUsd
-        const posValue = lastApt.posUsd || 0
-        totalNetPnl += cumEarnings + (posValue - aptContext.invested) - aptContext.swapCosts - aptContext.gasCosts
-        totalVsHodl += cumEarnings - aptContext.swapCosts - aptContext.gasCosts
+      if (lastApt && aptContext && aptContext.invested > 0 && baseAptSnap) {
+        const deltaEarnings = (lastApt.feesUsd - baseAptSnap.feesUsd) + (lastApt.rewardsUsd - baseAptSnap.rewardsUsd)
+        const posChange = (lastApt.posUsd || 0) - (baseAptSnap.posUsd || 0)
+        totalNetPnl += deltaEarnings + posChange
+        totalVsHodl += deltaEarnings
       }
 
-      if (lastElon && elonContext && elonContext.invested > 0) {
-        const cumEarnings = lastElon.feesUsd + lastElon.rewardsUsd
-        const posValue = lastElon.posUsd || 0
-        totalNetPnl += cumEarnings + (posValue - elonContext.invested) - elonContext.swapCosts - elonContext.gasCosts
-        totalVsHodl += cumEarnings - elonContext.swapCosts - elonContext.gasCosts
+      if (lastElon && elonContext && elonContext.invested > 0 && baseElonSnap) {
+        const deltaEarnings = (lastElon.feesUsd - baseElonSnap.feesUsd) + (lastElon.rewardsUsd - baseElonSnap.rewardsUsd)
+        const posChange = (lastElon.posUsd || 0) - (baseElonSnap.posUsd || 0)
+        totalNetPnl += deltaEarnings + posChange
+        totalVsHodl += deltaEarnings
       }
 
       points.push({
