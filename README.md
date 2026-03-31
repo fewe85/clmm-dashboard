@@ -1,22 +1,38 @@
 # CLMM Dashboard
 
-Real-time monitoring dashboard for two CLMM liquidity bot positions:
+Real-time monitoring dashboard for concentrated liquidity bot positions on **Thala Finance** (Aptos Mainnet).
 
-- **DEEP/USDC** on Turbos Finance (Sui Mainnet)
-- **APT/USDC** on Thala Finance (Aptos Mainnet)
+## Pools
 
-Static site — no backend, no secrets, only public RPC calls.
+| Pool | Fee Tier | Strategy |
+|------|----------|----------|
+| **APT/USDC** | 0.05% (5 bps) | Tight range, low slippage, high concentration |
+| **ELON/USDC** | 0.3% (30 bps) | Wider range, high APR from thAPT rewards |
+
+Both pools are managed by automated CLMM bots that rebalance positions, harvest fees + thAPT rewards, and transfer earnings to a separate wallet.
 
 ## Features
 
-- Two pool panels side-by-side (stacked on mobile)
-- Current price, position range with visual range bar
-- In-Range / Out-of-Range status indicator
-- Position value, pending fees, pending rewards in USD
-- Compound progress bar
-- Portfolio overview (total value, daily fee estimate)
-- Auto-refresh every 60 seconds
-- Dark theme, mobile-first design
+- **Portfolio Overview** — total value, CLMM vs HODL performance, daily earnings estimate, harvest countdown timer
+- **Per-Pool Cards** — price, position range with visual bar, in-range status, APR breakdown (fees + rewards)
+- **P&L Breakdown** — fees, rewards, harvested, IL, swap costs, gas costs, net P&L
+- **CLMM vs HODL** — accurate comparison using `priceAtReset` baseline (no double-counting)
+- **Range Optimization** — live formula output with three constraints:
+  - `δ* Formel` = `4 × c_p75 × σ² / f_eff` (75th percentile slippage)
+  - `δ* Reb-Cap` = `σ / √N_max` (max 12 rebalances/day)
+  - `δ* Tick-Min` = minimum viable tick count
+  - `δ* Risk-Adj.` = 1.5× safety multiplier on the binding constraint
+- **Harvest Timer** — real countdown to next harvest check (synced with bot poll cycle)
+- **Performance Chart** — net profit and vs HODL over time (from earnings snapshots)
+- **Wallet Balances** — bot wallet + harvest wallet with live token prices
+- Auto-refresh every 3 minutes, dark theme
+
+## Architecture
+
+Static site — no backend, no secrets. All data comes from:
+- Aptos fullnode RPC (pool state, position info, pending fees/rewards)
+- Bot state JSON files (written by bots to `dist/api/bot-state/`)
+- CoinGecko API (24h price changes)
 
 ## Development
 
@@ -25,20 +41,17 @@ npm install
 npm run dev
 ```
 
-## Deploy to GitHub Pages
-
-1. Update `homepage` in `package.json` with your GitHub username
-2. Update `base` in `vite.config.ts` if your repo name differs
+## Deploy
 
 ```bash
-npm run deploy
+npm run build
+npx gh-pages -d dist
 ```
 
-This builds the project and publishes the `dist/` folder to the `gh-pages` branch.
+Bots also write state to `dist/api/bot-state/` on every poll cycle, keeping the dashboard data fresh.
 
 ## Tech Stack
 
 - Vite + React + TypeScript
-- Tailwind CSS v4
-- Recharts (available for future charts)
-- Direct on-chain RPC calls (no indexers, no external APIs)
+- Recharts (performance charts)
+- Direct on-chain Aptos RPC calls
