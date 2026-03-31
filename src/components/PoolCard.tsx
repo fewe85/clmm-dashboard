@@ -299,7 +299,7 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
 function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
   pool: PoolData; botState: BotState | null; tokenAPrice: number; aptPrice: number
 }) {
-  if (!botState?.centerPrice || pool.invested <= 0) return null
+  if ((!botState?.centerPrice && !botState?.priceAtReset) || pool.invested <= 0) return null
 
   // Use priceAtReset (stable across rebalances) if available, else fall back to centerPrice
   const resetPrice = botState?.priceAtReset || 0

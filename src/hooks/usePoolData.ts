@@ -342,7 +342,7 @@ export function usePoolData() {
   // CLMM vs HODL — clean comparison: total CLMM value vs what HODL would be worth
   function calcPoolClmmVsHodl(pm: PoolMetrics, invested: number): number {
     const pool = pm.pool
-    if (!pool || !pool.botState?.centerPrice || invested <= 0) return 0
+    if (!pool || (!pool.botState?.centerPrice && !pool.botState?.priceAtReset) || invested <= 0) return 0
     const botState = pool.botState
     const tokenAPrice = pool.currentPrice || 0
     // Use priceAtReset (stable across rebalances) if available, else fall back to centerPrice
