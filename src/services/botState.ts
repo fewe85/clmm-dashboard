@@ -33,6 +33,13 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     lastSwapCost: Number(data.lastSwapCost || 0),
     avgSwapCost: Number(data.avgSwapCost || 0),
     sigmaDaily: Number(data.sigmaDaily || 0),
+    earningsSnapshots: Array.isArray(data.earningsSnapshots) ? data.earningsSnapshots : [],
+    harvestedBaseline: data.harvestedBaseline || { feesUsdcAtReset: 0, feesTokenAtReset: 0, rewardsAtReset: 0 },
+    rebalancesAtReset: Number(data.rebalancesAtReset || 0),
+    externalDeposits: Number(data.externalDeposits || 0),
+    resetAt: data.resetAt || null,
+    gasUsedApt: Number(data.gasUsedApt || 0),
+    gasAtReset: Number(data.gasAtReset || 0),
   }
 }
 
@@ -59,6 +66,13 @@ export async function fetchElonBotState(): Promise<BotState | null> {
     lastSwapCost: Number(data.lastSwapCost || 0),
     avgSwapCost: Number(data.avgSwapCost || 0),
     sigmaDaily: Number(data.sigmaDaily || 0),
+    earningsSnapshots: Array.isArray(data.earningsSnapshots) ? data.earningsSnapshots : [],
+    harvestedBaseline: data.harvestedBaseline || { feesUsdcAtReset: 0, feesTokenAtReset: 0, rewardsAtReset: 0 },
+    rebalancesAtReset: Number(data.rebalancesAtReset || 0),
+    externalDeposits: Number(data.externalDeposits || 0),
+    resetAt: data.resetAt || null,
+    gasUsedApt: Number(data.gasUsedApt || 0),
+    gasAtReset: Number(data.gasAtReset || 0),
   }
 }
 

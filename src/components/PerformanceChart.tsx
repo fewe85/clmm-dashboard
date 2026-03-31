@@ -1,13 +1,21 @@
 import { useState, useMemo } from 'react'
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
-import type { RebalanceMetric } from '../types'
-import { APT_BOT_START } from '../config'
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  CartesianGrid, ReferenceLine,
+} from 'recharts'
+
+interface Snapshot {
+  t: string
+  feesUsd: number
+  rewardsUsd: number
+  posUsd: number
+}
 
 interface Props {
-  metrics: RebalanceMetric[]
-  currentPositionValue: number
-  totalHarvested: number
-  invested: number
+  aptSnapshots: Snapshot[]
+  elonSnapshots: Snapshot[]
+  aptClmmVsHodl: number
+  elonClmmVsHodl: number
 }
 
 type TimeWindow = '24h' | '7d' | '30d' | 'all'
@@ -19,39 +27,74 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-export function PerformanceChart({ metrics, currentPositionValue, totalHarvested, invested }: Props) {
+export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
 
   const chartData = useMemo(() => {
-    if (metrics.length === 0) {
-      const netProfit = currentPositionValue + totalHarvested - invested
+    // Merge all snapshots into a timeline of cumulative earnings
+    const allSnaps = [
+      ...aptSnapshots.map(s => ({ ...s, pool: 'apt' as const })),
+      ...elonSnapshots.map(s => ({ ...s, pool: 'elon' as const })),
+    ].sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
+
+    if (allSnaps.length < 2) {
+      // Not enough data — show current point vs zero
+      const total = aptClmmVsHodl + elonClmmVsHodl
       return [
-        { time: new Date(APT_BOT_START).getTime(), label: fmtDate(new Date(APT_BOT_START)), netProfit: 0 },
-        { time: Date.now(), label: fmtDate(new Date()), netProfit },
+        { time: Date.now() - 3600_000, label: fmtDate(new Date(Date.now() - 3600_000)), value: 0 },
+        { time: Date.now(), label: fmtDate(new Date()), value: total },
       ]
     }
 
     const cutoff = window === 'all' ? 0 : Date.now() - WINDOWS.find(w => w.key === window)!.ms
-    return metrics
-      .filter(m => new Date(m.timestamp).getTime() >= cutoff)
-      .map(m => {
-        const pv = Number(m.position_value_usd) || 0
-        return {
-          time: new Date(m.timestamp).getTime(),
-          label: fmtDate(new Date(m.timestamp)),
-          netProfit: pv + totalHarvested - invested,
-        }
-      })
-  }, [metrics, window, currentPositionValue, totalHarvested, invested])
+    const filteredSnaps = allSnaps.filter(s => new Date(s.t).getTime() >= cutoff)
+    if (filteredSnaps.length < 2) return []
 
-  const lastProfit = chartData.length > 0 ? chartData[chartData.length - 1].netProfit : 0
-  const lineColor = lastProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
+    // Total value = posUsd + cumFees + cumRewards (captures everything: fees, rewards, IL, swap costs)
+    // Profit[t] = totalValue[t] - totalValue[0] → net gain/loss over time
+    const firstApt = filteredSnaps.find(s => s.pool === 'apt')
+    const firstElon = filteredSnaps.find(s => s.pool === 'elon')
+    const baseApt = firstApt ? (firstApt.posUsd || 0) + firstApt.feesUsd + firstApt.rewardsUsd : 0
+    const baseElon = firstElon ? (firstElon.posUsd || 0) + firstElon.feesUsd + firstElon.rewardsUsd : 0
+    const baseTotal = baseApt + baseElon
+
+    const points: { time: number; label: string; value: number }[] = []
+    let lastAptValue = baseApt
+    let lastElonValue = baseElon
+
+    for (const snap of filteredSnaps) {
+      const t = new Date(snap.t).getTime()
+      const snapTotal = (snap.posUsd || 0) + snap.feesUsd + snap.rewardsUsd
+
+      if (snap.pool === 'apt') {
+        lastAptValue = snapTotal
+      } else {
+        lastElonValue = snapTotal
+      }
+
+      points.push({
+        time: t,
+        label: fmtDate(new Date(t)),
+        value: (lastAptValue + lastElonValue) - baseTotal,
+      })
+    }
+
+    return points
+  }, [aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, window])
+
+  const lastValue = chartData.length > 0 ? chartData[chartData.length - 1].value : 0
+
+  // Y-axis domain: always include 0
+  const values = chartData.map(d => d.value)
+  const minVal = Math.min(0, ...values)
+  const maxVal = Math.max(0, ...values)
+  const padding = Math.max(Math.abs(maxVal - minVal) * 0.1, 0.5)
 
   return (
     <div className="card-glow rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-          Net Profit
+          Net Profit (Fees + Rewards - IL - Swaps)
         </h3>
         <div className="flex gap-1">
           {WINDOWS.map(w => (
@@ -71,15 +114,25 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
         </div>
       </div>
 
-      {metrics.length === 0 && (
+      {chartData.length <= 2 && (
         <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
-          Waiting for metrics — showing start vs current
+          Collecting hourly snapshots — chart fills over time
         </div>
       )}
 
       <div style={{ height: 180 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+          <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+            <defs>
+              <linearGradient id="gradGreen" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="var(--accent-green)" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="var(--accent-green)" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gradRed" x1="0" y1="1" x2="0" y2="0">
+                <stop offset="0%" stopColor="var(--accent-red)" stopOpacity={0.3} />
+                <stop offset="100%" stopColor="var(--accent-red)" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
             <XAxis
               dataKey="label"
@@ -92,9 +145,10 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
               tickLine={false}
               axisLine={false}
               tickFormatter={v => `$${(Number(v) || 0).toFixed(2)}`}
-              width={50}
+              width={55}
+              domain={[minVal - padding, maxVal + padding]}
             />
-            <ReferenceLine y={0} stroke="var(--text-muted)" strokeDasharray="3 3" strokeOpacity={0.5} />
+            <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1.5} strokeOpacity={0.7} />
             <Tooltip
               contentStyle={{
                 background: 'var(--bg-card)',
@@ -103,17 +157,17 @@ export function PerformanceChart({ metrics, currentPositionValue, totalHarvested
                 fontSize: 12,
               }}
               labelStyle={{ color: 'var(--text-muted)' }}
-              formatter={(val, name) => [`$${Number(val).toFixed(2)}`, String(name)]}
+              formatter={(val) => [`$${Number(val).toFixed(2)}`, 'Net Profit']}
             />
-            <Line
+            <Area
               type="monotone"
-              dataKey="netProfit"
-              name="Net Profit"
-              stroke={lineColor}
+              dataKey="value"
+              name="Earnings"
+              stroke={lastValue >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
               strokeWidth={2}
-              dot={chartData.length <= 10}
+              fill={lastValue >= 0 ? 'url(#gradGreen)' : 'url(#gradRed)'}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>

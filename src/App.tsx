@@ -4,7 +4,7 @@ import { PerformanceChart } from './components/PerformanceChart'
 import { WalletBox } from './components/WalletBox'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import {
-  DEX, INITIAL_CAPITAL,
+  DEX,
   APT_POOL_NAME, ELON_POOL_NAME,
 } from './config'
 
@@ -20,7 +20,7 @@ function AppContent() {
     botWallet, petraWallet,
     loading, countdown, refresh,
     priceChanges,
-    totalPositionValue, totalNetProfit, totalNetProfitPct,
+    totalPositionValue, totalClmmVsHodl,
     totalDailyEst, totalEarned,
   } = usePoolData()
 
@@ -54,12 +54,10 @@ function AppContent() {
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
         >
           <SummaryItem label="Portfolio" value={formatUsd(totalPositionValue)} />
-          <SummaryItem label="Invested" value={formatUsd(INITIAL_CAPITAL)} muted />
           <SummaryItem
-            label="Net P&L"
-            value={`${totalNetProfit >= 0 ? '+' : ''}${formatUsd(totalNetProfit)}`}
-            color={totalNetProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
-            sub={`${totalNetProfitPct >= 0 ? '+' : ''}${totalNetProfitPct.toFixed(1)}%`}
+            label="CLMM vs HODL"
+            value={`${totalClmmVsHodl >= 0 ? '+' : ''}${formatUsd(totalClmmVsHodl)}`}
+            color={totalClmmVsHodl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
           />
           <SummaryItem
             label="Total Earned"
@@ -87,7 +85,7 @@ function AppContent() {
           {/* Pool Cards — side by side on desktop */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <PoolCard pm={apt} poolName={APT_POOL_NAME} priceChange24h={priceChanges.APT} />
-            <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} />
+            <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} aptPrice={apt.pool?.currentPrice} />
           </div>
 
           {/* Wallets */}
@@ -95,10 +93,10 @@ function AppContent() {
 
           {/* Performance Chart */}
           <PerformanceChart
-            metrics={apt.metrics}
-            currentPositionValue={apt.positionValue + elon.positionValue}
-            totalHarvested={apt.totalHarvested + elon.totalHarvested}
-            invested={INITIAL_CAPITAL}
+            aptSnapshots={apt.pool?.botState?.earningsSnapshots ?? []}
+            elonSnapshots={elon.pool?.botState?.earningsSnapshots ?? []}
+            aptClmmVsHodl={0}
+            elonClmmVsHodl={0}
           />
         </div>
       )}

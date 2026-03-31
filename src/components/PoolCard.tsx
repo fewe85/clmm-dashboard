@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import type { PoolMetrics } from '../hooks/usePoolData'
 import type { PoolData, BotState } from '../types'
-import { calculatePositionAmounts } from '../services/math'
 
 // Pool-specific fee config
 const POOL_FEE_BPS: Record<string, number> = { APT: 5, ELON: 30 }
@@ -11,6 +10,7 @@ interface PoolCardProps {
   pm: PoolMetrics
   poolName: string
   priceChange24h?: number
+  aptPrice?: number
 }
 
 function fmtUsd(v: number): string {
@@ -33,7 +33,7 @@ function fmtTime(iso: string | null): string {
   return `${h}h ${m}m ago`
 }
 
-export function PoolCard({ pm, poolName, priceChange24h }: PoolCardProps) {
+export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp }: PoolCardProps) {
   const [showOpt, setShowOpt] = useState(false)
   const { pool } = pm
   if (!pool) return null
@@ -112,10 +112,19 @@ export function PoolCard({ pm, poolName, priceChange24h }: PoolCardProps) {
           </div>
         </div>
         <div>
-          <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Invested</div>
-          <div className="mono text-sm" style={{ color: 'var(--text-muted)' }}>
-            {fmtUsd(pm.invested)}
+          <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>APR</div>
+          <div className="mono text-sm font-semibold" style={{ color: 'var(--accent-green)' }}>
+            {(pool.feesApr + pool.rewardsApr) > 0
+              ? `${(pool.feesApr + pool.rewardsApr).toFixed(0)}%`
+              : '—'}
           </div>
+          {(pool.feesApr > 0 || pool.rewardsApr > 0) && (
+            <div className="mono text-xs" style={{ color: 'var(--text-muted)' }}>
+              {pool.feesApr > 0 ? `Fees ${pool.feesApr.toFixed(0)}%` : ''}
+              {pool.feesApr > 0 && pool.rewardsApr > 0 ? ' + ' : ''}
+              {pool.rewardsApr > 0 ? `Rewards ${pool.rewardsApr.toFixed(0)}%` : ''}
+            </div>
+          )}
         </div>
       </div>
 
@@ -123,7 +132,7 @@ export function PoolCard({ pm, poolName, priceChange24h }: PoolCardProps) {
       <VerticalRange pool={pool} rangeWidth={pm.rangeWidth} ceMultiplier={pm.ceMultiplier} />
 
       {/* 5. P&L Breakdown */}
-      <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} />
+      <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
 
       {/* 6. Harvest Progress Bar */}
       <HarvestSection pool={pool} pm={pm} />
@@ -214,31 +223,42 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
 /* ── P&L Breakdown ───────────────────────────────────────────────────────── */
 
-function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice }: {
-  pool: PoolData; totalHarvested: number; feeBps: number; tokenAPrice: number
+function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
+  pool: PoolData; totalHarvested: number; feeBps: number; tokenAPrice: number; aptPrice: number
 }) {
   const botState = pool.botState
   const positionValue = pool.amountA * tokenAPrice + pool.amountB
-  const positionChange = positionValue - pool.invested
   const feesUsd = pool.feesA * tokenAPrice + pool.feesB
   const rewardsUsd = pool.pendingRewardsUsd
 
+  // IL calculation: HODL value vs current position value
+  const cp = botState?.centerPrice || 0
+  const entryPrice = cp > 0 ? (Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp) : 0
+  const hodlValue = entryPrice > 0 ? pool.invested * (tokenAPrice / entryPrice) : pool.invested
+  const il = positionValue - hodlValue // negative = IL loss
+
   const avgC = botState?.avgSwapCost || 0
-  const totalRebalances = botState?.totalRebalances || 0
+  const totalRebalances = (botState?.totalRebalances || 0) - (botState?.rebalancesAtReset || 0)
   const hasMeasured = avgC > 0
   const costPerReb = hasMeasured
     ? (avgC / 100) * positionValue
     : positionValue * (feeBps / 10000) * 2
-  const swapCosts = totalRebalances * costPerReb
+  const swapCosts = Math.max(0, totalRebalances) * costPerReb
 
-  const netPnl = positionChange + feesUsd + rewardsUsd + totalHarvested - swapCosts
+  // Gas costs (measured from on-chain TX receipts)
+  const gasApt = (botState?.gasUsedApt || 0) - (botState?.gasAtReset || 0)
+  const gasUsd = gasApt * aptPrice
+  const hasGasMeasured = gasApt > 0
+
+  const netPnl = feesUsd + rewardsUsd + totalHarvested + il - swapCosts - gasUsd
 
   const rows = [
-    { label: 'Position Change', value: positionChange },
     { label: 'Fees', value: feesUsd },
     { label: 'Rewards', value: rewardsUsd },
     { label: 'Harvested', value: totalHarvested },
-    { label: 'Swap Costs', value: -swapCosts, estimated: !hasMeasured },
+    { label: 'IL', value: il },
+    { label: `Swap Costs (${hasMeasured ? 'meas.' : 'est.'})`, value: -swapCosts },
+    ...(hasGasMeasured ? [{ label: 'Gas Costs', value: -gasUsd }] : []),
   ]
 
   return (
@@ -250,7 +270,7 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice }: {
             className="mono font-medium"
             style={{ color: r.value >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}
           >
-            {r.estimated ? '~' : ''}{fmtSign(r.value)}
+            {fmtSign(r.value)}
           </span>
         </div>
       ))}
@@ -277,25 +297,16 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice }: {
 function ClmmVsHodl({ pool, botState, tokenAPrice, netPnl }: {
   pool: PoolData; botState: BotState | null; tokenAPrice: number; netPnl: number
 }) {
-  if (!botState?.centerPrice || pool.liquidity <= 0 || pool.tickLower === pool.tickUpper) return null
+  if (!botState?.centerPrice || pool.invested <= 0) return null
 
   const cp = botState.centerPrice
   const entryPrice = Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp
+  if (entryPrice <= 0) return null
 
-  const nativeSwapped = pool.tokenA === 'ELON'
-  const dec0 = nativeSwapped ? pool.decimalsB : pool.decimalsA
-  const dec1 = nativeSwapped ? pool.decimalsA : pool.decimalsB
-  const R = nativeSwapped ? (1 / entryPrice) : entryPrice
-  const nativePrice = R * Math.pow(10, dec1) / Math.pow(10, dec0)
-  const tickEntry = Math.log(nativePrice) / Math.log(1.0001)
-
-  const native = calculatePositionAmounts(pool.liquidity, tickEntry, pool.tickLower, pool.tickUpper, dec0, dec1)
-  const entryA = nativeSwapped ? native.amountB : native.amountA
-  const entryB = nativeSwapped ? native.amountA : native.amountB
-
-  const hodlValue = entryA * tokenAPrice + entryB
-  const entryValue = entryA * entryPrice + entryB
-  const clmmAdv = netPnl - (hodlValue - entryValue)
+  // HODL Return = Invested × (currentPrice / entryPrice) - Invested
+  const hodlReturn = pool.invested * (tokenAPrice / entryPrice) - pool.invested
+  // CLMM vs HODL = CLMM Return - HODL Return
+  const clmmAdv = netPnl - hodlReturn
 
   return (
     <div className="flex justify-between text-xs pt-1.5 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
@@ -337,7 +348,7 @@ function HarvestSection({ pool, pm }: { pool: PoolData; pm: PoolMetrics }) {
       </div>
       {pm.harvestRate7d > 0 && (
         <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          Harvest Rate: <span className="mono">{fmtUsd(pm.harvestRate7d)}/day</span>
+          Earn Rate: <span className="mono">{fmtUsd(pm.harvestRate7d)}/day</span> (projected)
         </div>
       )}
     </div>
@@ -348,7 +359,7 @@ function HarvestSection({ pool, pm }: { pool: PoolData; pm: PoolMetrics }) {
 
 function RebalanceLine({ pm, pool }: { pm: PoolMetrics; pool: PoolData }) {
   const total = pm.totalRebalances
-  if (total === 0) return null
+  if (total <= 0) return null
 
   const lastReb = pool.botState?.lastRebalanceAt ?? null
   const botState = pool.botState

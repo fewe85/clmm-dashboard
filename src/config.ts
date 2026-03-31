@@ -7,12 +7,12 @@ export const REFRESH_INTERVAL = 120_000 // 2 min
 
 // ─── APT/USDC Pool ──────────────────────────────────────────────────────────
 export const APT_POOL_NAME = 'APT/USDC'
-export const APT_INVESTED = 91
-export const APT_BOT_START = '2026-03-23T13:33:18.000Z'
+export const APT_INVESTED = 131  // reset baseline 2026-03-30 (position value at reset)
+export const APT_BOT_START = '2026-03-30T16:00:00.000Z'  // P&L measurement reset
 // ─── ELON/USDC Pool ─────────────────────────────────────────────────────────
 export const ELON_POOL_NAME = 'ELON/USDC'
-export const ELON_INVESTED = 80
-export const ELON_BOT_START = '2026-03-23T13:33:18.000Z'
+export const ELON_INVESTED = 216  // reset baseline 2026-03-30 (position value at reset)
+export const ELON_BOT_START = '2026-03-30T16:00:00.000Z'  // P&L measurement reset
 
 // ─── Totals ──────────────────────────────────────────────────────────────────
-export const INITIAL_CAPITAL = APT_INVESTED + ELON_INVESTED // 171
+export const INITIAL_CAPITAL = APT_INVESTED + ELON_INVESTED

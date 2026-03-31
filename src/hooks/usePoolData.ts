@@ -6,18 +6,30 @@ import { fetchThalaBotState, fetchElonBotState, fetchRebalanceMetrics, fetchElon
 import { fetchBotWallet, fetchPetraWallet } from '../services/wallet'
 import {
   APT_INVESTED, APT_BOT_START, ELON_INVESTED, ELON_BOT_START,
-  INITIAL_CAPITAL, REFRESH_INTERVAL,
+  REFRESH_INTERVAL,
 } from '../config'
 
-function calcProjectedApr(
-  pendingUsd: number,
-  positionValueUsd: number,
-  lastCollectAt: string | null,
-): number {
-  if (positionValueUsd <= 0 || !lastCollectAt) return 0
-  const hoursSinceCollect = (Date.now() - new Date(lastCollectAt).getTime()) / (1000 * 60 * 60)
-  if (hoursSinceCollect < 0.5) return 0
-  return (pendingUsd / positionValueUsd) * (365 * 24 / hoursSinceCollect) * 100
+function calcRolling24hApr(
+  snapshots: { t: string; feesUsd: number; rewardsUsd: number; posUsd?: number }[],
+  currentPosUsd: number,
+): { feesApr: number; rewardsApr: number } {
+  if (snapshots.length < 2) return { feesApr: 0, rewardsApr: 0 }
+  const oldest = snapshots[0]
+  const newest = snapshots[snapshots.length - 1]
+  const hoursSpan = (new Date(newest.t).getTime() - new Date(oldest.t).getTime()) / (1000 * 60 * 60)
+  if (hoursSpan < 2) return { feesApr: 0, rewardsApr: 0 }
+  // Time-weighted average position value across all snapshots
+  const posValues = snapshots.map(s => s.posUsd ?? 0).filter(v => v > 0)
+  const avgPosUsd = posValues.length > 0
+    ? posValues.reduce((a, b) => a + b, 0) / posValues.length
+    : currentPosUsd
+  if (avgPosUsd <= 0) return { feesApr: 0, rewardsApr: 0 }
+  const feesEarned = newest.feesUsd - oldest.feesUsd
+  const rewardsEarned = newest.rewardsUsd - oldest.rewardsUsd
+  return {
+    feesApr: feesEarned > 0 ? (feesEarned / avgPosUsd) * (365 * 24 / hoursSpan) * 100 : 0,
+    rewardsApr: rewardsEarned > 0 ? (rewardsEarned / avgPosUsd) * (365 * 24 / hoursSpan) * 100 : 0,
+  }
 }
 
 function getLastCollectAt(state: BotState | null, fallback: string): string {
@@ -34,11 +46,19 @@ function calcHarvestFromBotState(
   if (!state || state.harvestEntries.length === 0) {
     return { harvestedUsd: 0, harvestDetails: [] }
   }
-  const details: HarvestEntry[] = state.harvestEntries.map(e => ({
-    token: e.token,
-    amount: e.amount,
-    valueUsd: e.amount * (priceMap[e.token] || 0),
-  }))
+  const baseline = state.harvestedBaseline || { feesUsdcAtReset: 0, feesTokenAtReset: 0, rewardsAtReset: 0 }
+  const details: HarvestEntry[] = state.harvestEntries.map(e => {
+    let baselineAmount = 0
+    if (e.token === 'USDC') baselineAmount = baseline.feesUsdcAtReset
+    else if (e.token === 'APT' || e.token === 'ELON') baselineAmount = baseline.feesTokenAtReset
+    else if (e.token === 'thAPT') baselineAmount = baseline.rewardsAtReset
+    const sinceReset = Math.max(0, e.amount - baselineAmount)
+    return {
+      token: e.token,
+      amount: sinceReset,
+      valueUsd: sinceReset * (priceMap[e.token] || 0),
+    }
+  })
   return {
     harvestedUsd: details.reduce((s, d) => s + d.valueUsd, 0),
     harvestDetails: details,
@@ -96,14 +116,24 @@ function enrichPoolData(
   if (botState) data.botState = botState
   const fallback = data.positionOpenedAt || botStart
   const lastCollectAt = getLastCollectAt(botState, fallback)
-  data.feesApr = calcProjectedApr(data.pendingFeesUsd, data.positionValueUsd, lastCollectAt)
-  data.rewardsApr = calcProjectedApr(data.pendingRewardsUsd, data.positionValueUsd, lastCollectAt)
+
+  // Rolling 24h APR from earnings snapshots (newest - oldest, annualized)
+  const snapshots = botState?.earningsSnapshots
+  if (snapshots && snapshots.length >= 2) {
+    const apr = calcRolling24hApr(snapshots, data.positionValueUsd)
+    data.feesApr = apr.feesApr
+    data.rewardsApr = apr.rewardsApr
+  } else {
+    data.feesApr = 0
+    data.rewardsApr = 0
+  }
   data.lastCollectAt = lastCollectAt
 
   const harvest = calcHarvestFromBotState(botState, priceMap)
   data.harvestedUsd = harvest.harvestedUsd
   data.harvestDetails = harvest.harvestDetails
-  data.invested = invested
+  const effectiveInvested = invested + (botState?.externalDeposits ?? 0)
+  data.invested = effectiveInvested
   const lpValue = data.positionValueUsd + data.pendingFeesUsd + data.pendingRewardsUsd
   data.netProfit = lpValue + data.harvestedUsd - invested
   return data
@@ -120,15 +150,32 @@ function derivePoolMetrics(pool: PoolData | null, metrics: RebalanceMetric[], in
   const realizedApr = invested > 0 ? (netProfit / invested) * (365 / daysRunning) * 100 : 0
 
   let dailyEst = 0
-  if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
+  const totalEarnings = totalHarvested + pendingFees + pendingRewards
+  if (daysRunning >= 1 && totalEarnings > 0) {
+    // Stable: total earnings over full run period
+    dailyEst = totalEarnings / daysRunning
+  } else if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
+    // Fallback for first day: project from current pending
     const hoursSince = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
     if (hoursSince >= 0.5) {
       dailyEst = ((pendingFees + pendingRewards) / hoursSince) * 24
     }
   }
 
-  const harvestRate7d = totalHarvested > 0 ? totalHarvested / Math.min(daysRunning, 7) : 0
-  const totalRebalances = pool?.botState?.totalRebalances ?? 0
+  // Harvest rate: extrapolate current earnings velocity to 24h
+  // Uses pending fees+rewards accumulated since last harvest/rebalance
+  let harvestRate7d = 0
+  if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
+    const hoursSinceCollect = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
+    if (hoursSinceCollect >= 0.5) {
+      harvestRate7d = ((pendingFees + pendingRewards) / hoursSinceCollect) * 24
+    }
+  }
+  // Fallback: total earnings / days running
+  if (harvestRate7d === 0 && totalHarvested > 0) {
+    harvestRate7d = (totalHarvested + pendingFees + pendingRewards) / daysRunning
+  }
+  const totalRebalances = (pool?.botState?.totalRebalances ?? 0) - (pool?.botState?.rebalancesAtReset ?? 0)
   const now = Date.now()
   const rebalances24h = metrics.filter(m => now - new Date(m.timestamp).getTime() < 86400_000).length
   const rebalances7d = metrics.filter(m => now - new Date(m.timestamp).getTime() < 7 * 86400_000).length
@@ -266,16 +313,21 @@ export function usePoolData() {
   }, [])
 
   // Per-pool metrics
+  const aptEffInvested = APT_INVESTED + (aptPool?.botState?.externalDeposits ?? 0)
+  const elonEffInvested = ELON_INVESTED + (elonPool?.botState?.externalDeposits ?? 0)
+  const aptStart = aptPool?.botState?.resetAt ?? APT_BOT_START
+  const elonStart = elonPool?.botState?.resetAt ?? ELON_BOT_START
+
   const apt: PoolMetrics = {
     pool: aptPool,
     metrics: aptMetrics,
-    ...derivePoolMetrics(aptPool, aptMetrics, APT_INVESTED, APT_BOT_START),
+    ...derivePoolMetrics(aptPool, aptMetrics, aptEffInvested, aptStart),
   }
 
   const elon: PoolMetrics = {
     pool: elonPool,
     metrics: elonMetrics,
-    ...derivePoolMetrics(elonPool, elonMetrics, ELON_INVESTED, ELON_BOT_START),
+    ...derivePoolMetrics(elonPool, elonMetrics, elonEffInvested, elonStart),
   }
 
   // Portfolio totals
@@ -283,12 +335,27 @@ export function usePoolData() {
   const totalPendingFees = apt.pendingFees + elon.pendingFees
   const totalPendingRewards = apt.pendingRewards + elon.pendingRewards
   const totalHarvested = apt.totalHarvested + elon.totalHarvested
-  const totalNetProfit = apt.netProfit + elon.netProfit
-  const totalNetProfitPct = INITIAL_CAPITAL > 0 ? (totalNetProfit / INITIAL_CAPITAL) * 100 : 0
   const totalDailyEst = apt.dailyEst + elon.dailyEst
   const maxDaysRunning = Math.max(apt.daysRunning, elon.daysRunning)
-  const totalRealizedApr = INITIAL_CAPITAL > 0 ? (totalNetProfit / INITIAL_CAPITAL) * (365 / maxDaysRunning) * 100 : 0
   const totalEarned = totalPendingFees + totalPendingRewards + totalHarvested
+
+  // CLMM vs HODL — mirrors PoolCard PnlSection + ClmmVsHodl logic exactly
+  function calcPoolClmmVsHodl(pm: PoolMetrics, invested: number): number {
+    const pool = pm.pool
+    if (!pool || !pool.botState?.centerPrice || invested <= 0) return 0
+    const tokenAPrice = pool.currentPrice || 0
+    const cp = pool.botState.centerPrice
+    const entryPrice = Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp
+    if (entryPrice <= 0) return 0
+    // Same as PoolCard: netPnl = positionChange + fees + rewards + harvested
+    const positionValue = pool.amountA * tokenAPrice + pool.amountB
+    const positionChange = positionValue - invested
+    const feesUsd = pool.feesA * tokenAPrice + pool.feesB
+    const netPnl = positionChange + feesUsd + pool.pendingRewardsUsd + pm.totalHarvested
+    const hodlReturn = invested * (tokenAPrice / entryPrice) - invested
+    return netPnl - hodlReturn
+  }
+  const totalClmmVsHodl = calcPoolClmmVsHodl(apt, APT_INVESTED) + calcPoolClmmVsHodl(elon, ELON_INVESTED)
 
   return {
     apt,
@@ -305,10 +372,8 @@ export function usePoolData() {
     totalPendingRewards,
     totalHarvested,
     totalEarned,
-    totalNetProfit,
-    totalNetProfitPct,
+    totalClmmVsHodl,
     totalDailyEst,
-    totalRealizedApr,
     maxDaysRunning,
   }
 }

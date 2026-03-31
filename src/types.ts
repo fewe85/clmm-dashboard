@@ -22,6 +22,13 @@ export interface BotState {
   lastSwapCost: number    // last measured c (half round-trip %)
   avgSwapCost: number     // average c from last 20 swaps (%)
   sigmaDaily: number      // daily volatility estimate (%)
+  earningsSnapshots: { t: string; feesUsd: number; rewardsUsd: number; posUsd: number }[]
+  harvestedBaseline: { feesUsdcAtReset: number; feesTokenAtReset: number; rewardsAtReset: number }
+  rebalancesAtReset: number
+  externalDeposits: number
+  resetAt: string | null
+  gasUsedApt: number
+  gasAtReset: number
 }
 
 export interface HarvestEntry {
