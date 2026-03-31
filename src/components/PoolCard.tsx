@@ -449,8 +449,8 @@ function RangeOptimization({ pool, metrics }: { pool: PoolData; metrics: Rebalan
 
   const recommended = Math.max(deltaFormula, deltaPolling, deltaTick)
 
-  // Risk-adjusted: 1.5× multiplier accounts for σ-spikes, crash-slippage, execution delay
-  const RISK_MULT = 1.5
+  // Risk-adjusted: 1.6× multiplier accounts for σ-spikes, crash-slippage, execution delay
+  const RISK_MULT = 1.6
   const riskAdjusted = recommended * RISK_MULT
 
   // Which constraint is binding?
@@ -491,7 +491,7 @@ function RangeOptimization({ pool, metrics }: { pool: PoolData; metrics: Rebalan
     ['δ* Tick-Min', `±${deltaTickPct.toFixed(2)}%`],
     ['δ* Optimum', recommendedPct > 0 ? `±${recommendedPct.toFixed(2)}%` : '—',
       binding !== 'formula' ? bindingLabel[binding] : undefined],
-    ['δ* Risk-Adj. (×1.5)', riskAdjustedPct > 0 ? `±${riskAdjustedPct.toFixed(1)}%` : '—'],
+    ['δ* Risk-Adj. (×1.6)', riskAdjustedPct > 0 ? `±${riskAdjustedPct.toFixed(1)}%` : '—'],
   ]
 
   return (
