@@ -85,15 +85,15 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptContext, elon
       if (lastApt && aptContext && aptContext.invested > 0 && baseAptSnap) {
         const deltaEarnings = (lastApt.feesUsd - baseAptSnap.feesUsd) + (lastApt.rewardsUsd - baseAptSnap.rewardsUsd)
         const posChange = (lastApt.posUsd || 0) - (baseAptSnap.posUsd || 0)
-        totalNetPnl += deltaEarnings + posChange
-        totalVsHodl += deltaEarnings
+        totalNetPnl += deltaEarnings + posChange - aptContext.swapCosts - aptContext.gasCosts
+        totalVsHodl += deltaEarnings - aptContext.swapCosts - aptContext.gasCosts
       }
 
       if (lastElon && elonContext && elonContext.invested > 0 && baseElonSnap) {
         const deltaEarnings = (lastElon.feesUsd - baseElonSnap.feesUsd) + (lastElon.rewardsUsd - baseElonSnap.rewardsUsd)
         const posChange = (lastElon.posUsd || 0) - (baseElonSnap.posUsd || 0)
-        totalNetPnl += deltaEarnings + posChange
-        totalVsHodl += deltaEarnings
+        totalNetPnl += deltaEarnings + posChange - elonContext.swapCosts - elonContext.gasCosts
+        totalVsHodl += deltaEarnings - elonContext.swapCosts - elonContext.gasCosts
       }
 
       points.push({
