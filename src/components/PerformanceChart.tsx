@@ -11,11 +11,19 @@ interface Snapshot {
   posUsd: number
 }
 
+interface PoolContext {
+  invested: number
+  entryPrice: number  // centerPrice at reset
+  currentPrice: number
+}
+
 interface Props {
   aptSnapshots: Snapshot[]
   elonSnapshots: Snapshot[]
   aptClmmVsHodl: number
   elonClmmVsHodl: number
+  aptContext?: PoolContext
+  elonContext?: PoolContext
 }
 
 type TimeWindow = '24h' | '7d' | '30d' | 'all'
@@ -27,19 +35,20 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl }: Props) {
+export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, aptContext, elonContext }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
+  const [mode, setMode] = useState<'profit' | 'vshodl'>('profit')
 
   const chartData = useMemo(() => {
-    // Merge all snapshots into a timeline of cumulative earnings
     const allSnaps = [
       ...aptSnapshots.map(s => ({ ...s, pool: 'apt' as const })),
       ...elonSnapshots.map(s => ({ ...s, pool: 'elon' as const })),
     ].sort((a, b) => new Date(a.t).getTime() - new Date(b.t).getTime())
 
     if (allSnaps.length < 2) {
-      // Not enough data — show current point vs zero
-      const total = aptClmmVsHodl + elonClmmVsHodl
+      const total = mode === 'vshodl'
+        ? aptClmmVsHodl + elonClmmVsHodl
+        : aptClmmVsHodl + elonClmmVsHodl
       return [
         { time: Date.now() - 3600_000, label: fmtDate(new Date(Date.now() - 3600_000)), value: 0 },
         { time: Date.now(), label: fmtDate(new Date()), value: total },
@@ -50,17 +59,21 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
     const filteredSnaps = allSnaps.filter(s => new Date(s.t).getTime() >= cutoff)
     if (filteredSnaps.length < 2) return []
 
-    // Total value = posUsd + cumFees + cumRewards (captures everything: fees, rewards, IL, swap costs)
-    // Profit[t] = totalValue[t] - totalValue[0] → net gain/loss over time
     const firstApt = filteredSnaps.find(s => s.pool === 'apt')
     const firstElon = filteredSnaps.find(s => s.pool === 'elon')
     const baseApt = firstApt ? (firstApt.posUsd || 0) + firstApt.feesUsd + firstApt.rewardsUsd : 0
     const baseElon = firstElon ? (firstElon.posUsd || 0) + firstElon.feesUsd + firstElon.rewardsUsd : 0
     const baseTotal = baseApt + baseElon
 
+    // For vsHodl: track price changes to compute HODL return at each snapshot
+    const firstAptPos = firstApt?.posUsd || 0
+    const firstElonPos = firstElon?.posUsd || 0
+
     const points: { time: number; label: string; value: number }[] = []
     let lastAptValue = baseApt
     let lastElonValue = baseElon
+    let lastAptPos = firstAptPos
+    let lastElonPos = firstElonPos
 
     for (const snap of filteredSnaps) {
       const t = new Date(snap.t).getTime()
@@ -68,19 +81,25 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
 
       if (snap.pool === 'apt') {
         lastAptValue = snapTotal
+        lastAptPos = snap.posUsd || lastAptPos
       } else {
         lastElonValue = snapTotal
+        lastElonPos = snap.posUsd || lastElonPos
       }
 
-      points.push({
-        time: t,
-        label: fmtDate(new Date(t)),
-        value: (lastAptValue + lastElonValue) - baseTotal,
-      })
+      const netProfit = (lastAptValue + lastElonValue) - baseTotal
+
+      if (mode === 'vshodl') {
+        // HODL return = change in position value (price movement effect)
+        const hodlReturn = (lastAptPos - firstAptPos) + (lastElonPos - firstElonPos)
+        points.push({ time: t, label: fmtDate(new Date(t)), value: netProfit - hodlReturn })
+      } else {
+        points.push({ time: t, label: fmtDate(new Date(t)), value: netProfit })
+      }
     }
 
     return points
-  }, [aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, window])
+  }, [aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, window, mode, aptContext, elonContext])
 
   const lastValue = chartData.length > 0 ? chartData[chartData.length - 1].value : 0
 
@@ -93,9 +112,27 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
   return (
     <div className="card-glow rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-          Net Profit (Fees + Rewards - IL - Swaps)
-        </h3>
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+            {mode === 'profit' ? 'Net Profit (Fees + Rewards - IL - Swaps)' : 'CLMM vs HODL (Outperformance)'}
+          </h3>
+          <div className="flex gap-1">
+            {([['profit', 'P&L'], ['vshodl', 'vs HODL']] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setMode(key)}
+                className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors"
+                style={{
+                  background: mode === key ? 'var(--accent-purple, #8b5cf6)' : 'transparent',
+                  color: mode === key ? 'white' : 'var(--text-muted)',
+                  border: 'none',
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="flex gap-1">
           {WINDOWS.map(w => (
             <button
@@ -157,7 +194,7 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
                 fontSize: 12,
               }}
               labelStyle={{ color: 'var(--text-muted)' }}
-              formatter={(val) => [`$${Number(val).toFixed(2)}`, 'Net Profit']}
+              formatter={(val) => [`$${Number(val).toFixed(2)}`, mode === 'profit' ? 'Net Profit' : 'vs HODL']}
             />
             <Area
               type="monotone"
