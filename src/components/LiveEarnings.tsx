@@ -31,12 +31,12 @@ function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
     }
   }, [pendingTotal])
   const apr = positionValue > 0 ? (rateRef.current * 24 * 365 / positionValue) * 100 : 0
-  const tier = apr > 10000 ? 'ULTRA RICH' : apr > 3000 ? 'RICH VEIN' : apr > 1000 ? 'GOOD' : 'SPARSE'
-  const col = apr > 10000 ? '#ff2a6d' : apr > 3000 ? '#ffcc00' : apr > 1000 ? '#00ff88' : '#9a9ab0'
+  const tier = apr > 10000 ? '💎 DIAMOND' : apr > 5000 ? '⚪ PLATINUM' : apr > 2000 ? '🥇 GOLD' : apr > 500 ? '🥈 SILVER' : '🪨 STONE'
+  const col = apr > 10000 ? '#b9f2ff' : apr > 5000 ? '#e0e0e0' : apr > 2000 ? '#ffd700' : apr > 500 ? '#c0c0c0' : '#9a9ab0'
   return (
     <div className="w-full flex-shrink-0 px-1">
       <div className="flex items-center justify-between">
-        <span className="mono font-bold" style={{ fontSize: '9px', color: '#b0b8cc' }}>ORE DENSITY</span>
+        <span className="mono font-bold" style={{ fontSize: '9px', color: '#b0b8cc' }}>ORE TYPE</span>
         <span className="mono font-bold" style={{ fontSize: '9px', color: col }}>
           {tier} {apr > 0 ? (apr >= 1000 ? `${(apr / 1000).toFixed(1)}k` : `${apr.toFixed(0)}`) + '%' : '—'}
         </span>
