@@ -479,12 +479,16 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }:
 
       {/* MISSION DETAILS — collapsible dropdown */}
       <div
-        className="flex items-center gap-1 px-2 py-1 cursor-pointer"
-        style={{ borderTop: '1px solid #1a1a2a' }}
+        className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer"
+        style={{
+          background: 'rgba(199,125,255,0.12)',
+          borderTop: '1px solid rgba(199,125,255,0.2)',
+          borderBottom: '1px solid rgba(199,125,255,0.2)',
+        }}
         onClick={() => setShowDetails(!showDetails)}
       >
-        <span className="mono" style={{ color: '#c77dff', fontSize: '9px' }}>{showDetails ? '▾' : '▸'}</span>
-        <span className="hud-label" style={{ fontSize: '9px', color: '#c77dff' }}>MISSION DETAILS</span>
+        <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showDetails ? '▾' : '▸'}</span>
+        <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>MISSION DETAILS</span>
       </div>
       {showDetails && (
         <div>
