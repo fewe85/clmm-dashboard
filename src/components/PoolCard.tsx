@@ -340,13 +340,10 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               fill="#3d3d4e" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.2)'} strokeWidth="0.6"
             />
 
-            {/* Upper deck / bridge tower (raised center) */}
-            <rect x={ufoX - 6} y="22" width="12" height="14" fill="#4a4a5a" />
-            <rect x={ufoX - 5} y="23" width="10" height="4" fill="#555566" />
-
-            {/* Bridge windows — tiny horizontal slits */}
+            {/* Bridge — flush with hull, slightly lighter panel */}
+            <rect x={ufoX - 5} y="22" width="10" height="6" fill="#4e4e5e" />
+            {/* Bridge window strip */}
             <rect x={ufoX - 4} y="24" width="8" height="1" fill={danger ? 'rgba(255,42,109,0.5)' : 'rgba(126,184,255,0.3)'} />
-            <rect x={ufoX - 3} y="26" width="6" height="0.6" fill={danger ? 'rgba(255,42,109,0.3)' : 'rgba(126,184,255,0.15)'} />
 
             {/* Hull panel lines — horizontal */}
             {[30, 34, 38].map(y => (
