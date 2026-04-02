@@ -417,23 +417,6 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
         </svg>
       </div>
 
-      {/* Distance label */}
-      <div className="flex justify-center pb-2">
-        {(() => {
-          const mid = (priceLower + priceUpper) / 2
-          const halfRange = (priceUpper - priceLower) / 2
-          const drift = halfRange > 0 ? ((currentPrice - mid) / halfRange) * 100 : 0
-          const sign = drift >= 0 ? '+' : ''
-          return (
-            <span className="mono text-xs font-semibold" style={{
-              color: danger ? '#ff2a6d' : warn ? '#e0c3fc' : '#39ff14',
-              textShadow: danger ? '0 0 8px rgba(255,42,109,0.6)' : '0 0 8px rgba(57,255,20,0.4)',
-            }}>
-              {sign}{drift.toFixed(0)}% TO MINE CENTER
-            </span>
-          )
-        })()}
-      </div>
     </div>
   )
 }
