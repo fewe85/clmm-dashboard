@@ -7,7 +7,7 @@ interface RebalanceHeartbeatProps {
   swapCostTotal: number
 }
 
-/** Mini EKG-style chart showing rebalance events over time */
+/** Oscilloscope-style rebalance visualization */
 export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, swapCostTotal }: RebalanceHeartbeatProps) {
   if (totalRebalances <= 0) return null
 
@@ -28,79 +28,103 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
   }
 
   const maxBin = Math.max(1, ...bins)
-
-  // Generate SVG path — flat line with spikes at rebalance events
   const w = 320
-  const h = 28
-  const baseline = h - 2
+  const h = 40
+  const baseline = h - 4
 
-  let path = `M 0 ${baseline}`
+  // Generate oscilloscope path with smooth curves
+  const points: string[] = []
   for (let i = 0; i < BINS; i++) {
     const x = (i / (BINS - 1)) * w
     if (bins[i] > 0) {
-      const spikeH = (bins[i] / maxBin) * (h - 6)
-      path += ` L ${x} ${baseline} L ${x} ${baseline - spikeH} L ${x + 0.5} ${baseline}`
+      const spikeH = (bins[i] / maxBin) * (h - 10)
+      // Sharp spike up and smooth decay
+      const x0 = x - 1.5
+      const x1 = x
+      const x2 = x + 3
+      points.push(`L ${x0} ${baseline}`)
+      points.push(`L ${x1} ${baseline - spikeH}`)
+      points.push(`C ${x1 + 1} ${baseline - spikeH * 0.3}, ${x2 - 1} ${baseline - 1}, ${x2} ${baseline}`)
     }
   }
-  path += ` L ${w} ${baseline}`
 
-  // Glow dots at spike peaks
+  const path = `M 0 ${baseline} ${points.join(' ')} L ${w} ${baseline}`
+
+  // Glow dots at peaks
   const dots: { x: number; y: number; count: number }[] = []
   for (let i = 0; i < BINS; i++) {
     if (bins[i] > 0) {
       const x = (i / (BINS - 1)) * w
-      const spikeH = (bins[i] / maxBin) * (h - 6)
+      const spikeH = (bins[i] / maxBin) * (h - 10)
       dots.push({ x, y: baseline - spikeH, count: bins[i] })
     }
   }
 
   return (
-    <div className="rounded-xl px-3 py-2" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-      {/* SVG heartbeat */}
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: '28px' }}>
-        {/* Baseline */}
-        <line x1="0" y1={baseline} x2={w} y2={baseline} stroke="var(--border)" strokeWidth="0.5" />
+    <div className="rounded-xl overflow-hidden" style={{ background: '#050510', border: '1px solid var(--border)' }}>
+      {/* Oscilloscope label */}
+      <div className="flex justify-between items-center px-3 pt-2">
+        <span className="hud-label" style={{ color: 'var(--neon-cyan)', opacity: 0.6 }}>Rebalance Activity</span>
+        <span className="hud-label" style={{ opacity: 0.4 }}>7d</span>
+      </div>
 
-        {/* EKG path */}
-        <path
-          d={path}
-          fill="none"
-          stroke="var(--accent-green)"
-          strokeWidth="1.2"
-          strokeLinecap="round"
-          opacity="0.7"
-        />
+      {/* SVG oscilloscope */}
+      <div className="px-2 py-1">
+        <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: '40px' }}>
+          <defs>
+            {/* Phosphor glow filter */}
+            <filter id="phosphor">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
 
-        {/* Glow dots at peaks */}
-        {dots.map((d, i) => (
-          <circle
-            key={i}
-            cx={d.x}
-            cy={d.y}
-            r={d.count > 1 ? 2.5 : 1.5}
-            fill="var(--accent-green)"
-            opacity={0.6 + (d.count / maxBin) * 0.4}
-          >
-            {/* Pulse animation on most recent dot */}
-            {i === dots.length - 1 && (
-              <animate attributeName="r" values="1.5;3;1.5" dur="2s" repeatCount="indefinite" />
-            )}
-          </circle>
-        ))}
+            {/* Afterglow gradient */}
+            <linearGradient id="trace-grad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="var(--neon-cyan)" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="var(--neon-cyan)" stopOpacity="0.7" />
+            </linearGradient>
+          </defs>
 
-        {/* Day markers */}
-        {Array.from({ length: DAYS - 1 }, (_, d) => {
-          const x = ((d + 1) / DAYS) * w
-          return (
-            <line key={d} x1={x} y1={0} x2={x} y2={h} stroke="var(--border)" strokeWidth="0.3" strokeDasharray="2,3" />
-          )
-        })}
-      </svg>
+          {/* Grid */}
+          {Array.from({ length: 5 }, (_, i) => {
+            const y = 4 + (i / 4) * (h - 8)
+            return <line key={`h${i}`} x1="0" y1={y} x2={w} y2={y} stroke="var(--neon-cyan)" strokeWidth="0.15" opacity="0.15" />
+          })}
+          {Array.from({ length: DAYS + 1 }, (_, d) => {
+            const x = (d / DAYS) * w
+            return <line key={`v${d}`} x1={x} y1="0" x2={x} y2={h} stroke="var(--neon-cyan)" strokeWidth="0.15" opacity="0.15" />
+          })}
+
+          {/* Afterglow trace (wider, dimmer) */}
+          <path d={path} fill="none" stroke="var(--neon-cyan)" strokeWidth="3" opacity="0.08" filter="url(#phosphor)" />
+
+          {/* Main trace */}
+          <path d={path} fill="none" stroke="url(#trace-grad)" strokeWidth="1.2" strokeLinecap="round" filter="url(#phosphor)" />
+
+          {/* Peak dots */}
+          {dots.map((d, i) => (
+            <g key={i}>
+              <circle cx={d.x} cy={d.y} r="4" fill="var(--neon-cyan)" opacity="0.1" />
+              <circle cx={d.x} cy={d.y} r={d.count > 1 ? 2 : 1.2} fill="var(--neon-cyan)" opacity="0.8">
+                {i === dots.length - 1 && (
+                  <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
+                )}
+              </circle>
+            </g>
+          ))}
+
+          {/* Baseline glow */}
+          <line x1="0" y1={baseline} x2={w} y2={baseline} stroke="var(--neon-cyan)" strokeWidth="0.4" opacity="0.2" />
+        </svg>
+      </div>
 
       {/* Stats row */}
-      <div className="flex justify-between text-xs mono mt-1" style={{ color: 'var(--text-muted)' }}>
-        <span>{totalRebalances} rebalances · last {lastAgo}</span>
-        <span>~${swapCostTotal.toFixed(2)} swap costs</span>
+      <div className="flex justify-between px-3 pb-2">
+        <span className="mono hud-label">{totalRebalances} rebalances · last {lastAgo}</span>
+        <span className="mono hud-label">~${swapCostTotal.toFixed(2)} swap costs</span>
       </div>
     </div>
   )

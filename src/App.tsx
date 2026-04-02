@@ -36,8 +36,8 @@ function AppContent() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>CLMM Portfolio</h1>
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{DEX} — Aptos</p>
+          <h1 className="text-lg font-bold glitch-text neon-value" style={{ color: 'var(--neon-cyan)' }}>CLMM Portfolio</h1>
+          <p className="text-xs hud-label">{DEX} — Aptos</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{countdown}s</span>

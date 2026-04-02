@@ -71,8 +71,8 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
 
       {/* 2. Token Price + 24h Change */}
       <div className="flex items-baseline gap-2">
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{pool.tokenA}</span>
-        <span className="mono text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+        <span className="hud-label">{pool.tokenA}</span>
+        <span className="mono text-lg font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
           ${tokenAPrice.toFixed(4)}
         </span>
         {priceChange24h != null && priceChange24h !== 0 && (
@@ -87,22 +87,22 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
 
       {/* 3. Key Metrics 2×2 — with glow cards */}
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-          <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Position Value</div>
-          <div className="mono text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+        <div className="rounded-lg px-3 py-2.5" style={{ background: '#050510', border: '1px solid var(--border)' }}>
+          <div className="hud-label mb-0.5">Position Value</div>
+          <div className="mono text-xl font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
             {fmtUsd(pm.positionValue)}
           </div>
         </div>
         <div
-          className="rounded-xl px-3 py-2.5"
+          className="rounded-lg px-3 py-2.5"
           style={{
             background: pm.netProfit >= 0
-              ? 'linear-gradient(135deg, rgba(34,197,94,0.08), var(--bg-primary))'
-              : 'linear-gradient(135deg, rgba(239,68,68,0.08), var(--bg-primary))',
-            border: `1px solid ${pm.netProfit >= 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+              ? 'linear-gradient(135deg, rgba(0,240,255,0.06), #050510)'
+              : 'linear-gradient(135deg, rgba(255,0,85,0.06), #050510)',
+            border: `1px solid ${pm.netProfit >= 0 ? 'rgba(0,240,255,0.2)' : 'rgba(255,0,85,0.2)'}`,
           }}
         >
-          <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Net P&L</div>
+          <div className="hud-label mb-0.5">Net P&L</div>
           <div
             className="mono text-lg font-bold"
             style={{ color: pm.netProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}
@@ -113,20 +113,20 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
             {pm.netProfitPct >= 0 ? '+' : ''}{pm.netProfitPct.toFixed(1)}%
           </div>
         </div>
-        <div className="rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-          <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Est. Daily</div>
+        <div className="rounded-lg px-3 py-2.5" style={{ background: '#050510', border: '1px solid var(--border)' }}>
+          <div className="hud-label mb-0.5">Est. Daily</div>
           <div className="mono text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             {pm.dailyEst > 0 ? fmtUsd(pm.dailyEst) : '—'}
           </div>
         </div>
         <div
-          className="rounded-xl px-3 py-2.5"
+          className="rounded-lg px-3 py-2.5"
           style={{
-            background: 'linear-gradient(135deg, rgba(34,197,94,0.06), var(--bg-primary))',
-            border: '1px solid rgba(34,197,94,0.15)',
+            background: 'linear-gradient(135deg, rgba(57,255,20,0.05), #050510)',
+            border: '1px solid rgba(57,255,20,0.15)',
           }}
         >
-          <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>APR</div>
+          <div className="hud-label mb-0.5">APR</div>
           <div className="mono text-sm font-semibold" style={{ color: 'var(--accent-green)' }}>
             {(pool.feesApr + pool.rewardsApr) > 0
               ? `${(pool.feesApr + pool.rewardsApr).toFixed(0)}%`
@@ -183,15 +183,14 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
   )
 }
 
-/* ── Range Radar ────────────────────────────────────────────────────────── */
+/* ── Sonar Radar ────────────────────────────────────────────────────────── */
 
 function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   pool: PoolData; rangeWidth: number; ceMultiplier: number
 }) {
   const { priceLower, priceUpper, currentPrice, inRange } = pool
   const range = priceUpper - priceLower
-  const position = range > 0 ? ((currentPrice - priceLower) / range) * 100 : 50
-  const clamped = Math.max(3, Math.min(97, position))
+  const position = range > 0 ? ((currentPrice - priceLower) / range) : 0.5
 
   const distLower = ((currentPrice - priceLower) / currentPrice) * 100
   const distUpper = ((priceUpper - currentPrice) / currentPrice) * 100
@@ -200,108 +199,102 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   const danger = nearestPct < 0.5
   const warn = nearestPct < 1.2 && !danger
 
-  // Price history trail from botState hourlyPriceBuffer (last 10 entries)
-  const priceHistory = pool.priceHistory ?? []
-  const trailDots = priceHistory.slice(-10).map(p => {
-    const pct = range > 0 ? ((p - priceLower) / range) * 100 : 50
-    return Math.max(0, Math.min(100, pct))
-  })
+  // Map price position to angle: 0% = -90° (left), 100% = +90° (right), 50% = 0° (top)
+  const angle = (position - 0.5) * 180 // -90 to +90
+  const blipColor = danger ? 'var(--neon-pink)' : warn ? 'var(--neon-yellow)' : 'var(--neon-cyan)'
+
+  // Blip position on circle (r=38, center 50,50)
+  const rad = (angle - 90) * (Math.PI / 180)
+  const blipR = 32
+  const bx = 50 + Math.cos(rad) * blipR
+  const by = 50 + Math.sin(rad) * blipR
 
   return (
-    <div className="rounded-xl px-4 py-3" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-      {/* Labels row */}
-      <div className="flex justify-between text-xs mb-2">
-        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</span>
-        <span className="mono font-semibold" style={{ color: inRange ? 'var(--text-primary)' : 'var(--accent-red)' }}>
-          ${currentPrice.toFixed(4)}
-        </span>
-        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</span>
-      </div>
+    <div className="rounded-xl p-3" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
+      <div className="flex items-center gap-4">
+        {/* Sonar circle */}
+        <div className="flex-shrink-0 relative" style={{ width: 100, height: 100 }}>
+          <svg viewBox="0 0 100 100" width="100" height="100">
+            {/* Grid lines */}
+            <line x1="50" y1="5" x2="50" y2="95" stroke="var(--border)" strokeWidth="0.3" />
+            <line x1="5" y1="50" x2="95" y2="50" stroke="var(--border)" strokeWidth="0.3" />
 
-      {/* Horizontal range bar */}
-      <div className="relative rounded-full overflow-hidden" style={{ height: 24 }}>
-        {/* Background gradient: red edges, green center */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{
-            background: inRange
-              ? 'linear-gradient(to right, rgba(239,68,68,0.35), rgba(239,68,68,0.08) 15%, rgba(34,197,94,0.15) 30%, rgba(34,197,94,0.2) 50%, rgba(34,197,94,0.15) 70%, rgba(239,68,68,0.08) 85%, rgba(239,68,68,0.35))'
-              : 'rgba(239,68,68,0.15)',
-          }}
-        />
+            {/* Concentric range rings */}
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" strokeWidth="0.4" />
+            <circle cx="50" cy="50" r="32" fill="none" stroke="var(--border)" strokeWidth="0.3" strokeDasharray="2,3" />
+            <circle cx="50" cy="50" r="22" fill="none" stroke="var(--border)" strokeWidth="0.3" strokeDasharray="2,3" />
 
-        {/* Danger zone pulse — left */}
-        {(danger || warn) && nearestSide === 'lower' && (
-          <div className="absolute left-0 top-0 bottom-0 rounded-l-full range-danger-pulse"
-            style={{ width: '15%', background: danger ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.2)' }} />
-        )}
-        {/* Danger zone pulse — right */}
-        {(danger || warn) && nearestSide === 'upper' && (
-          <div className="absolute right-0 top-0 bottom-0 rounded-r-full range-danger-pulse"
-            style={{ width: '15%', background: danger ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.2)' }} />
-        )}
+            {/* Danger zone arc (outer ring, red/pink) */}
+            <circle cx="50" cy="50" r="42" fill="none" stroke={danger ? 'var(--neon-pink)' : 'var(--border)'}
+              strokeWidth={danger ? '1.5' : '0.4'} opacity={danger ? 0.6 : 1} className={danger ? 'range-danger-pulse' : ''} />
 
-        {/* Price trail dots */}
-        {trailDots.map((pct, i) => (
-          <div
-            key={i}
-            className="absolute top-1/2 rounded-full"
-            style={{
-              left: `${pct}%`,
-              transform: 'translate(-50%, -50%)',
-              width: 3,
-              height: 3,
-              background: 'var(--accent-green)',
-              opacity: 0.1 + (i / trailDots.length) * 0.25,
-            }}
-          />
-        ))}
+            {/* Sweep line — rotates */}
+            <line x1="50" y1="50" x2="50" y2="8" stroke="var(--neon-cyan)" strokeWidth="0.8" opacity="0.3">
+              <animateTransform
+                attributeName="transform" type="rotate"
+                from="0 50 50" to="360 50 50"
+                dur="4s" repeatCount="indefinite"
+              />
+            </line>
 
-        {/* Current price marker — glowing orb */}
-        <div
-          className="absolute top-1/2 transition-all duration-700 ease-out"
-          style={{
-            left: `${clamped}%`,
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          {/* Outer glow */}
-          <div
-            className={danger ? 'range-marker-danger' : 'range-marker-glow'}
-            style={{
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              background: danger
-                ? 'radial-gradient(circle, rgba(239,68,68,0.6), transparent 70%)'
-                : warn
-                  ? 'radial-gradient(circle, rgba(234,179,8,0.5), transparent 70%)'
-                  : 'radial-gradient(circle, rgba(34,197,94,0.5), transparent 70%)',
-            }}
-          />
-          {/* Inner dot */}
-          <div
-            className="absolute top-1/2 left-1/2"
-            style={{
-              transform: 'translate(-50%, -50%)',
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              background: danger ? 'var(--accent-red)' : warn ? 'var(--accent-yellow)' : 'var(--accent-green)',
-              boxShadow: `0 0 6px ${danger ? 'rgba(239,68,68,0.8)' : warn ? 'rgba(234,179,8,0.7)' : 'rgba(34,197,94,0.8)'}`,
-            }}
-          />
+            {/* Sweep glow cone */}
+            <path d="M 50 50 L 45 10 A 42 42 0 0 1 55 10 Z" fill="var(--neon-cyan)" opacity="0.04">
+              <animateTransform
+                attributeName="transform" type="rotate"
+                from="0 50 50" to="360 50 50"
+                dur="4s" repeatCount="indefinite"
+              />
+            </path>
+
+            {/* Blip afterglow (fading trail) */}
+            <circle cx={bx} cy={by} r="8" fill={blipColor} opacity="0.08" />
+            <circle cx={bx} cy={by} r="5" fill={blipColor} opacity="0.15" />
+
+            {/* Blip */}
+            <circle cx={bx} cy={by} r="3" fill={blipColor}>
+              <animate attributeName="r" values="2.5;3.5;2.5" dur="2s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Center dot */}
+            <circle cx="50" cy="50" r="1.5" fill="var(--neon-cyan)" opacity="0.5" />
+          </svg>
+
+          {/* TRACKING label */}
+          <div className="absolute top-1 left-1.5 hud-label" style={{
+            fontSize: '7px', color: inRange ? 'var(--neon-cyan)' : 'var(--neon-pink)', opacity: 0.7,
+          }}>
+            {inRange ? 'TRACKING' : 'WARNING'}
+          </div>
         </div>
-      </div>
 
-      {/* Info row */}
-      <div className="flex justify-between items-center mt-2 text-xs">
-        <span style={{ color: danger ? 'var(--accent-red)' : warn ? 'var(--accent-yellow)' : 'var(--accent-green)' }}>
-          <span className="mono font-semibold">{nearestPct.toFixed(1)}%</span> to {nearestSide}
-        </span>
-        <span style={{ color: 'var(--text-muted)' }}>
-          ±{(rangeWidth / 2).toFixed(1)}% range · {ceMultiplier.toFixed(0)}x CE
-        </span>
+        {/* Info column */}
+        <div className="flex-1 space-y-2">
+          <div>
+            <div className="hud-label mb-0.5">Current Price</div>
+            <div className="mono text-sm font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
+              ${currentPrice.toFixed(4)}
+            </div>
+          </div>
+          <div className="flex gap-4">
+            <div>
+              <div className="hud-label mb-0.5">Lower</div>
+              <div className="mono text-xs" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</div>
+            </div>
+            <div>
+              <div className="hud-label mb-0.5">Upper</div>
+              <div className="mono text-xs" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</div>
+            </div>
+          </div>
+          <div className="flex gap-4 items-baseline">
+            <span className="mono text-xs font-semibold" style={{ color: blipColor }}>
+              {nearestPct.toFixed(1)}% to {nearestSide}
+            </span>
+            <span className="hud-label">
+              ±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   )

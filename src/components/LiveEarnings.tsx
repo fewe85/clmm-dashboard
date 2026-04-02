@@ -75,12 +75,12 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
   // Generate deterministic "drops" at different speeds/positions
   const drops = useMemo(() =>
-    Array.from({ length: 12 }, (_, i) => ({
-      left: 10 + (i * 37 + 13) % 80, // pseudo-random spread
-      delay: (i * 0.7) % 4,
-      duration: 2.5 + (i % 3) * 0.8,
-      size: i % 3 === 0 ? 4 : 3,
-      isReward: i > Math.floor(12 * feesRatio), // color by ratio
+    Array.from({ length: 14 }, (_, i) => ({
+      left: 8 + (i * 31 + 17) % 84,
+      delay: (i * 0.6) % 4,
+      duration: 2 + (i % 4) * 0.6,
+      size: i % 4 === 0 ? 4 : 3,
+      isReward: i > Math.floor(14 * feesRatio),
     })),
   [feesRatio])
 
@@ -89,31 +89,40 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       {/* Rate label */}
       <div className="text-center mb-1 z-10">
         <div className="earning-pulse mx-auto mb-1" />
-        <div className="mono text-xs font-semibold" style={{ color: 'var(--accent-green)' }}>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
           ${displayTotal.toFixed(4)}
         </div>
-        <div className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '9px' }}>
+        <div className="hud-label" style={{ fontSize: '8px' }}>
           pending
         </div>
       </div>
 
       {/* Tank container — the drip zone */}
       <div className="relative flex-1 w-full" style={{ minHeight: 180 }}>
-        {/* Tank outline */}
+        {/* Tank outline with grid */}
         <div
-          className="absolute inset-x-2 top-0 bottom-0 rounded-xl overflow-hidden"
+          className="absolute inset-x-2 top-0 bottom-0 rounded-lg overflow-hidden"
           style={{
-            border: '1px solid var(--border)',
-            background: 'var(--bg-primary)',
+            border: '1px solid rgba(0,240,255,0.15)',
+            background: '#050510',
           }}
         >
-          {/* Fill level (bottom-up) */}
+          {/* Grid overlay */}
+          <div className="absolute inset-0" style={{
+            backgroundImage: `
+              linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px)
+            `,
+            backgroundSize: '12px 12px',
+          }} />
+
+          {/* Fill level (bottom-up) — neon gradient */}
           <div
             className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
             style={{
               height: `${fillPct}%`,
-              background: `linear-gradient(to top, rgba(34,197,94,0.25), rgba(59,130,246,0.15) ${feesRatio * 100}%, rgba(34,197,94,0.25))`,
-              borderTop: fillPct > 2 ? '1px solid rgba(34,197,94,0.3)' : 'none',
+              background: `linear-gradient(to top, rgba(0,240,255,0.3), rgba(180,0,255,0.15) ${feesRatio * 100}%, rgba(0,240,255,0.25))`,
+              borderTop: fillPct > 2 ? '1px solid rgba(0,240,255,0.4)' : 'none',
             }}
           >
             {/* Surface shimmer */}
@@ -122,7 +131,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             )}
           </div>
 
-          {/* Falling drops */}
+          {/* Falling drops — neon colors */}
           {drops.map((d, i) => (
             <div
               key={i}
@@ -133,7 +142,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
                 animationDuration: `${d.duration}s`,
                 width: d.size,
                 height: d.size,
-                background: d.isReward ? 'var(--accent-green)' : 'var(--accent-blue)',
+                background: d.isReward ? 'var(--neon-cyan)' : 'var(--neon-purple)',
+                color: d.isReward ? 'var(--neon-cyan)' : 'var(--neon-purple)',
               }}
             />
           ))}
@@ -142,16 +152,16 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       {/* Bottom stats */}
       <div className="text-center mt-1.5 z-10 space-y-0.5">
-        <div className="mono text-xs" style={{ color: 'var(--text-muted)', fontSize: '9px' }}>
-          <span style={{ color: 'var(--accent-blue)' }}>fees</span>
+        <div className="hud-label" style={{ fontSize: '8px' }}>
+          <span style={{ color: 'var(--neon-purple)' }}>fees</span>
           {' + '}
-          <span style={{ color: 'var(--accent-green)' }}>rewards</span>
+          <span style={{ color: 'var(--neon-cyan)' }}>rewards</span>
         </div>
-        <div className="mono text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
           ${(totalPerHour * 24).toFixed(2)}/d
         </div>
         {harvestSec !== null && harvestSec > 0 && (
-          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--accent-green)' : 'var(--text-muted)', fontSize: '9px' }}>
+          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '9px' }}>
             {Math.floor(harvestSec / 60)}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
           </div>
         )}
