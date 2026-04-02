@@ -153,7 +153,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       const B2Y = H * 0.18
       const B2L = 6, B2R = W - 6
       const FK_SCALE = 1.3
-      const FK_OX = 6, FK_OY = H * 0.32       // Flask lower + closer
+      const FK_OX = 6, FK_OY = H * 0.38       // Flask much lower
       const FK_H = 12 * PX
       const FK_W = 12 * PX
       const S = FK_SCALE
@@ -195,16 +195,18 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       // ═══ BAND 2 (← left, same style as band 1) ═══════════
       pxBelt(c, B2L, B2Y, B2R - B2L, -1, now)
 
-      // ═══ PIPE: Band 2 left end → Flask opening ════════════
+      // ═══ PIPE: Band 2 left end → Flask neck ═════════════
       const pipeX = B2L + PX * 3
       const pipeTop = B2Y + PX * 2 + 2
-      const pipeBot = FK_OY + PX * S
+      const pipeBot = FK_OY + 3 * PX * S  // reaches into flask neck
       // Outer pipe
       pxRect(c, pipeX - PX, pipeTop, PX * 3, pipeBot - pipeTop, '#3a3a4a')
       // Inner dark
       pxRect(c, pipeX, pipeTop + PX, PX, pipeBot - pipeTop - PX, '#1a1a2a')
-      // Small funnel mouth at top
+      // Funnel mouth at top
       pxRect(c, pipeX - PX * 2, pipeTop - PX, PX * 5, PX, '#444455')
+      // Small nozzle at bottom
+      pxRect(c, pipeX - PX, pipeBot - PX, PX * 3, PX, '#333344')
 
       // ═══ FLASK (pixel art, scaled) ════════════════════════
       c.save(); c.translate(FK_OX, FK_OY); c.scale(S, S); drawFlask(c, 0, 0); c.restore()
@@ -222,18 +224,22 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           }
         }
       }
-      // Tripod stand (3 legs under flask)
-      const tripodY = FK_OY + FK_H * S
-      pxRect(c, FK_OX + 2 * PX * S, tripodY, PX, PX * 3, '#3a3a4a') // left leg
-      pxRect(c, FK_OX + 6 * PX * S, tripodY, PX, PX * 3, '#3a3a4a') // center leg
-      pxRect(c, FK_OX + 10 * PX * S, tripodY, PX, PX * 3, '#3a3a4a') // right leg
-      // Cross bar
-      pxRect(c, FK_OX + 2 * PX * S, tripodY + PX, 8 * PX * S, PX, '#444455')
-      // Flame under tripod
+      // Flame directly under flask
+      const flaskBot = FK_OY + FK_H * S
       const ff = Math.floor((now / 180) % 3)
-      const fOX = FK_OX + 3 * PX * S, fOY = tripodY + PX * 3
+      const fOX = FK_OX + 3 * PX * S, fOY = flaskBot + PX
       const flames = [[[1,0],[3,0],[5,0],[1,-1],[3,-2],[5,-1]],[[0,0],[2,0],[4,0],[2,-1],[4,-2]],[[1,0],[4,0],[2,-2],[3,-1],[5,-1]]]
       for (const [dx, dy] of flames[ff]) pxRect(c, fOX + dx * PX, fOY + dy * PX, PX, PX, dy < -1 ? '#ffaa00' : '#ff6b35')
+      // Platform UNDER the flame
+      const platY = fOY + PX * 2
+      pxRect(c, FK_OX + PX * S, platY, 10 * PX * S, PX, '#444455')
+      pxRect(c, FK_OX + PX * S, platY + 1, 10 * PX * S, PX - 1, '#3a3a4a')
+      // 2 legs under platform
+      pxRect(c, FK_OX + 2 * PX * S, platY + PX, PX, PX * 3, '#3a3a4a')
+      pxRect(c, FK_OX + 9 * PX * S, platY + PX, PX, PX * 3, '#3a3a4a')
+      // Feet
+      pxRect(c, FK_OX + 1 * PX * S, platY + PX * 4, PX * 2, PX, '#333344')
+      pxRect(c, FK_OX + 8.5 * PX * S, platY + PX * 4, PX * 2, PX, '#333344')
 
       // ═══ U-ROHR — TRANSPARENT TUBES ═══════════════════════
       const drawTubeV = (x: number, y1: number, y2: number) => {
@@ -248,9 +254,17 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       drawTubeV(UL_X, FK_OY - PX, UTOP)
       drawTubeH(UL_X, UR_X + TW, UTOP)
       drawTubeV(UR_X, UTOP + TW, UBOT_R)
-      // Corner joins
-      pxRect(c, UL_X, UTOP, TW, TW, '#555566'); pxRect(c, UL_X + TWALL, UTOP + TWALL, TW - TWALL * 2, TW - TWALL * 2, '#0a0a14')
-      pxRect(c, UR_X, UTOP, TW, TW, '#555566'); pxRect(c, UR_X + TWALL, UTOP + TWALL, TW - TWALL * 2, TW - TWALL * 2, '#0a0a14')
+      // Rounded corner joins (arc pixels)
+      // Left corner: tube goes up then right
+      pxRect(c, UL_X, UTOP, TW, TW, '#0a0a14') // clear
+      pxRect(c, UL_X, UTOP, TWALL, TW, '#555566') // left wall continues
+      pxRect(c, UL_X, UTOP, TW, TWALL, '#555566') // top wall
+      pxRect(c, UL_X + TWALL, UTOP + TWALL, PX, PX, '#0a0a14') // inner round
+      // Right corner: tube goes right then down
+      pxRect(c, UR_X, UTOP, TW, TW, '#0a0a14')
+      pxRect(c, UR_X + TW - TWALL, UTOP, TWALL, TW, '#444455') // right wall
+      pxRect(c, UR_X, UTOP, TW, TWALL, '#555566') // top wall
+      pxRect(c, UR_X + TW - TWALL - PX, UTOP + TWALL, PX, PX, '#0a0a14')
 
       // Cooling coil — S-curves wrapping around tube (not teeth)
       for (let y = UTOP + TW + PX * 2; y < UBOT_R - PX * 3; y += PX * 4) {
@@ -360,15 +374,19 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             const b = Math.floor(51 + 50 * t)
             p.color = `rgb(${r},${g},${b})`
             // Reached left end → fall into pipe → flask
-            if (p.x <= B2L + PX * 4) {
-              p.vx = 0; p.vy = 0.3; p.x = pipeX
+            if (p.x <= B2L + PX * 5) {
+              p.vx = 0; p.vy = 0.4; p.x = pipeX
             }
           }
-          // Below flask neck → absorb
-          if (p.vy > 0 && p.y > FK_OY + 2 * PX * S && p.x > FK_OX && p.x < FK_OX + FK_W * S) {
-            p.life -= 0.02
+          // Inside pipe → funnel to center of flask
+          if (p.vy > 0 && p.y > pipeBot - PX * 2) {
+            p.x += ((FK_OX + 6 * PX * S) - p.x) * 0.05
           }
-          if (p.y > FK_OY + FK_H * S || p.life <= 0) continue
+          // Below flask neck → absorb into liquid
+          if (p.vy > 0 && p.y > FK_OY + 4 * PX * S && Math.abs(p.x - (FK_OX + 6 * PX * S)) < FK_W * S * 0.5) {
+            p.life -= 0.025
+          }
+          if (p.y > FK_OY + FK_H * S + PX * 2 || p.life <= 0) continue
           pxRect(c, p.x, p.y, p.size, p.size, p.color)
 
         } else if (p.type === 'spark') {
