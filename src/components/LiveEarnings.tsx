@@ -144,84 +144,120 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
     ctx.clearRect(0, 0, W, h)
 
-    // ─── BACKGROUND — space / starfield ────────────────────────────
-    ctx.fillStyle = '#020210'
+    // ─── BACKGROUND — 3D space station interior ──────────────────
+    ctx.fillStyle = '#08080f'
     ctx.fillRect(0, 0, W, h)
 
-    // Stars (deterministic from seed, drawn each frame for simplicity)
-    for (let i = 0; i < 25; i++) {
-      const sx = ((i * 47 + 13) % (W - 8)) + 4
-      const sy = ((i * 73 + 29) % (h - 8)) + 4
-      const sr = i % 6 === 0 ? 0.9 : 0.4
-      const sa = 0.12 + (i % 4) * 0.06 + Math.sin(now * 0.001 + i) * 0.04
-      ctx.beginPath()
-      ctx.arc(sx, sy, sr, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(255,255,255,${sa})`
-      ctx.fill()
-    }
-
-    // Subtle nebula tint
-    const nebula = ctx.createRadialGradient(W / 2, h * 0.4, 0, W / 2, h * 0.4, h * 0.5)
-    nebula.addColorStop(0, 'rgba(180,77,255,0.03)')
-    nebula.addColorStop(1, 'transparent')
-    ctx.fillStyle = nebula
-    ctx.fillRect(0, 0, W, h)
-
-    // ─── METAL FRAME ─────────────────────────────────────────────
-    // Side rails
     const railW = 4
-    const grad = ctx.createLinearGradient(0, 0, 0, h)
-    grad.addColorStop(0, '#3a3a4a')
-    grad.addColorStop(0.5, '#2a2a3a')
-    grad.addColorStop(1, '#3a3a4a')
-    ctx.fillStyle = grad
-    ctx.fillRect(0, 0, railW, h)
-    ctx.fillRect(W - railW, 0, railW, h)
-
-    // Pre-calculate collection dimensions (used by particles too)
     const collectionH = h - processEnd - 7
 
-    // Rail inner highlight
-    ctx.fillStyle = 'rgba(180,77,255,0.08)'
-    ctx.fillRect(railW, 0, 1, h)
-    ctx.fillRect(W - railW - 1, 0, 1, h)
+    // Perspective walls — converging lines create depth
+    const cx = W / 2
+    const vanishY = h * 0.45 // vanishing point
 
-    // Zone separator bands
-    for (const y of [intakeEnd, processEnd]) {
-      ctx.fillStyle = COL.metalLight
-      ctx.fillRect(0, y - 3, W, 6)
-      ctx.fillStyle = COL.metal
-      ctx.fillRect(0, y - 2, W, 4)
-      // bolts
-      for (const bx of [6, W - 10]) {
+    // Wall panels (left + right) with perspective gradient
+    const wallGradL = ctx.createLinearGradient(0, 0, railW + 15, 0)
+    wallGradL.addColorStop(0, '#1a1a2a')
+    wallGradL.addColorStop(1, '#0c0c18')
+    ctx.fillStyle = wallGradL
+    ctx.fillRect(0, 0, railW + 15, h)
+
+    const wallGradR = ctx.createLinearGradient(W, 0, W - railW - 15, 0)
+    wallGradR.addColorStop(0, '#1a1a2a')
+    wallGradR.addColorStop(1, '#0c0c18')
+    ctx.fillStyle = wallGradR
+    ctx.fillRect(W - railW - 15, 0, railW + 15, h)
+
+    // Horizontal panel lines on walls (perspective spacing)
+    ctx.strokeStyle = 'rgba(180,77,255,0.06)'
+    ctx.lineWidth = 0.5
+    for (let i = 0; i < 20; i++) {
+      const y = i * (h / 19)
+      // Left wall panel line
+      ctx.beginPath()
+      ctx.moveTo(0, y)
+      ctx.lineTo(railW + 12, y)
+      ctx.stroke()
+      // Right wall panel line
+      ctx.beginPath()
+      ctx.moveTo(W - railW - 12, y)
+      ctx.lineTo(W, y)
+      ctx.stroke()
+    }
+
+    // Vertical ribs on walls
+    ctx.strokeStyle = 'rgba(180,77,255,0.04)'
+    for (const x of [5, 10, W - 9, W - 14]) {
+      ctx.beginPath()
+      ctx.moveTo(x, 0)
+      ctx.lineTo(x, h)
+      ctx.stroke()
+    }
+
+    // Floor/ceiling perspective lines converging to center
+    ctx.strokeStyle = 'rgba(180,77,255,0.03)'
+    ctx.lineWidth = 0.5
+    for (const startX of [0, W]) {
+      for (let i = 1; i <= 4; i++) {
+        const targetX = cx + (startX > cx ? 1 : -1) * (15 - i * 3)
         ctx.beginPath()
-        ctx.arc(bx + 2, y, 2.5, 0, Math.PI * 2)
-        ctx.fillStyle = '#1e1e2e'
+        ctx.moveTo(startX, 0)
+        ctx.lineTo(targetX, vanishY)
+        ctx.lineTo(startX, h)
+        ctx.stroke()
+      }
+    }
+
+    // Ambient light strip along walls (top)
+    const stripGrad = ctx.createLinearGradient(0, 0, 0, 8)
+    stripGrad.addColorStop(0, 'rgba(180,77,255,0.1)')
+    stripGrad.addColorStop(1, 'transparent')
+    ctx.fillStyle = stripGrad
+    ctx.fillRect(0, 0, railW + 12, 8)
+    ctx.fillRect(W - railW - 12, 0, railW + 12, 8)
+
+    // Side rail highlights (neon trim)
+    ctx.fillStyle = 'rgba(180,77,255,0.08)'
+    ctx.fillRect(railW + 14, 0, 1, h)
+    ctx.fillRect(W - railW - 15, 0, 1, h)
+
+    // Zone separator bands — bulkhead doors
+    for (const y of [intakeEnd, processEnd]) {
+      // Bulkhead frame
+      ctx.fillStyle = '#1e1e30'
+      ctx.fillRect(0, y - 3, W, 6)
+      ctx.fillStyle = '#161625'
+      ctx.fillRect(0, y - 2, W, 4)
+      // Neon trim on bulkhead
+      ctx.fillStyle = 'rgba(180,77,255,0.12)'
+      ctx.fillRect(0, y - 3, W, 1)
+      ctx.fillRect(0, y + 2, W, 1)
+      // Bolts
+      for (const bx of [8, W - 12]) {
+        ctx.beginPath()
+        ctx.arc(bx, y, 2.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#12121f'
         ctx.fill()
-        ctx.strokeStyle = 'rgba(180,77,255,0.15)'
+        ctx.strokeStyle = 'rgba(180,77,255,0.12)'
         ctx.lineWidth = 0.5
         ctx.stroke()
       }
     }
 
-    // ─── INTAKE ZONE (top) ───────────────────────────────────────
-    // Hatch opening
-    ctx.fillStyle = '#1a1a2a'
-    ctx.fillRect(railW + 8, 0, W - railW * 2 - 16, 4)
-    ctx.strokeStyle = 'rgba(180,77,255,0.25)'
+    // Hatch opening at top
+    ctx.fillStyle = '#0a0a15'
+    ctx.fillRect(railW + 16, 0, W - railW * 2 - 32, 3)
+    ctx.strokeStyle = 'rgba(180,77,255,0.15)'
     ctx.lineWidth = 0.5
-    ctx.strokeRect(railW + 8, 0, W - railW * 2 - 16, 4)
+    ctx.strokeRect(railW + 16, 0, W - railW * 2 - 32, 3)
 
-    // ─── PROCESS ZONE (middle) ───────────────────────────────────
-    // Heat glow background
+    // Processing zone — subtle heat glow
     const heatGrad = ctx.createLinearGradient(0, intakeEnd, 0, processEnd)
-    heatGrad.addColorStop(0, 'rgba(255,107,53,0.02)')
-    heatGrad.addColorStop(0.5, `rgba(255,107,53,${0.04 + Math.sin(now * 0.003) * 0.02})`)
-    heatGrad.addColorStop(1, 'rgba(0,255,136,0.03)')
+    heatGrad.addColorStop(0, 'rgba(180,77,255,0.01)')
+    heatGrad.addColorStop(0.5, `rgba(180,77,255,${0.03 + Math.sin(now * 0.003) * 0.015})`)
+    heatGrad.addColorStop(1, 'rgba(0,255,136,0.02)')
     ctx.fillStyle = heatGrad
-    ctx.fillRect(railW, intakeEnd + 3, W - railW * 2, processEnd - intakeEnd - 6)
-
-    // (LEDs removed)
+    ctx.fillRect(railW + 15, intakeEnd + 3, W - railW * 2 - 30, processEnd - intakeEnd - 6)
 
     // ─── ROBOT WITH DUAL LIGHTSABERS ──────────────────────────────
     const swingCycle = 2000
