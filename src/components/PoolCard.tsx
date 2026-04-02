@@ -55,32 +55,18 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         </div>
       )}
 
-      {/* 1. Header: Pool Name + Mine Drift */}
+      {/* 1. Header: Pool Name + Status Badge */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{poolName}</h2>
-        {(() => {
-          if (!pool.inRange) {
-            return (
-              <span className="text-xs px-2.5 py-1 rounded-full font-medium mono"
-                style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--accent-red)' }}>
-                MINE LOST
-              </span>
-            )
-          }
-          const mid = (pool.priceLower + pool.priceUpper) / 2
-          const halfRange = (pool.priceUpper - pool.priceLower) / 2
-          const drift = halfRange > 0 ? ((pool.currentPrice - mid) / halfRange) * 100 : 0
-          const absDrift = Math.abs(drift)
-          const driftColor = absDrift > 70 ? 'var(--accent-red)' : absDrift > 40 ? '#ff8c00' : 'var(--accent-green)'
-          const bgColor = absDrift > 70 ? 'rgba(239,68,68,0.15)' : absDrift > 40 ? 'rgba(255,140,0,0.15)' : 'rgba(34,197,94,0.15)'
-          const sign = drift >= 0 ? '+' : ''
-          return (
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium mono ${absDrift < 40 ? 'pulse-badge' : ''}`}
-              style={{ background: bgColor, color: driftColor }}>
-              {sign}{drift.toFixed(0)}% TO MINE
-            </span>
-          )
-        })()}
+        <span
+          className={`text-xs px-2.5 py-1 rounded-full font-medium ${pool.inRange ? 'pulse-badge' : ''}`}
+          style={{
+            background: pool.inRange ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+            color: pool.inRange ? 'var(--accent-green)' : 'var(--accent-red)',
+          }}
+        >
+          {pool.inRange ? 'DRILLING' : 'MINE LOST'}
+        </span>
       </div>
 
       {/* 2. Token Price + 24h Change */}
@@ -228,9 +214,18 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
     <div className="overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', borderRadius: 6 }}>
       {/* HUD overlay */}
       <div className="flex justify-between items-center px-3 pt-2">
-        <span className="hud-label" style={{ color: inRange ? 'var(--neon-green)' : 'var(--neon-pink)' }}>
-          {inRange ? 'IN RANGE' : 'WARNING'}
-        </span>
+        {(() => {
+          const mid = (priceLower + priceUpper) / 2
+          const halfRange = (priceUpper - priceLower) / 2
+          const drift = halfRange > 0 ? ((currentPrice - mid) / halfRange) * 100 : 0
+          const sign = drift >= 0 ? '+' : ''
+          const col = !inRange ? 'var(--neon-pink)' : Math.abs(drift) > 70 ? 'var(--neon-pink)' : Math.abs(drift) > 40 ? '#ff8c00' : 'var(--neon-green)'
+          return (
+            <span className="hud-label mono" style={{ color: col }}>
+              {inRange ? `${sign}${drift.toFixed(0)}% TO MINE` : 'MINE LOST'}
+            </span>
+          )
+        })()}
         <span className="hud-label" style={{ color: 'var(--lavender)' }}>
           ±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x CE
         </span>
