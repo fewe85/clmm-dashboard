@@ -145,8 +145,8 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 4. Vertical Range Thermometer */}
       <VerticalRange pool={pool} rangeWidth={pm.rangeWidth} ceMultiplier={pm.ceMultiplier} />
 
-      {/* 5. P&L Breakdown */}
-      <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
+      {/* 5. P&L Breakdown (collapsible) */}
+      <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} pm={pm} />
 
       {/* 7. Rebalance Heartbeat */}
       <RebalanceHeartbeat
@@ -411,9 +411,10 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
 /* ── P&L Breakdown ───────────────────────────────────────────────────────── */
 
-function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
-  pool: PoolData; totalHarvested: number; feeBps: number; tokenAPrice: number; aptPrice: number
+function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }: {
+  pool: PoolData; totalHarvested: number; feeBps: number; tokenAPrice: number; aptPrice: number; pm: PoolMetrics
 }) {
+  const [showDetails, setShowDetails] = useState(false)
   const botState = pool.botState
   const positionValue = pool.amountA * tokenAPrice + pool.amountB
   const feesUsd = pool.feesA * tokenAPrice + pool.feesB
@@ -453,49 +454,18 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
 
   return (
     <div className="space-y-0">
-      {rows.map((r, i) => {
-        const pos = r.value >= 0
-        return (
-          <div
-            key={i}
-            className="flex justify-between text-xs px-2 py-1"
-            style={{
-              borderBottom: '1px solid #1a1a2a',
-              background: pos
-                ? 'linear-gradient(to left, rgba(0,255,136,0.03), transparent)'
-                : `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,42,109,0.02) 6px, rgba(255,42,109,0.02) 12px)`,
-              transition: 'background 0.2s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = pos
-              ? 'linear-gradient(to left, rgba(0,255,136,0.06), rgba(255,255,255,0.02))'
-              : 'rgba(255,255,255,0.02)'}
-            onMouseLeave={e => e.currentTarget.style.background = pos
-              ? 'linear-gradient(to left, rgba(0,255,136,0.03), transparent)'
-              : `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,42,109,0.02) 6px, rgba(255,42,109,0.02) 12px)`}
-          >
-            <span className="mono" style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>{r.label}</span>
-            <span
-              className="mono font-medium"
-              style={{
-                color: pos ? '#00ff88' : '#ff2a6d',
-                textShadow: pos ? '0 0 6px rgba(0,255,136,0.25)' : undefined,
-              }}
-            >
-              {pos ? '▲ ' : '▼ '}{fmtSign(r.value)}
-            </span>
-          </div>
-        )
-      })}
-
-      {/* MISSION PROFIT */}
+      {/* MISSION PROFIT — always visible, clickable to expand details */}
       <div
-        className="flex justify-between px-2 py-1.5 mt-1"
+        className="flex justify-between px-2 py-1.5 cursor-pointer"
         style={{
           borderTop: '2px double #2a2a3a',
           background: 'rgba(255,255,255,0.03)',
         }}
+        onClick={() => setShowDetails(!showDetails)}
       >
-        <span className="mono font-bold" style={{ color: '#b0b8cc', fontSize: '11px' }}>MISSION PROFIT (Net)</span>
+        <span className="mono font-bold" style={{ color: '#b0b8cc', fontSize: '11px' }}>
+          MISSION PROFIT (Net) <span style={{ color: '#555', fontSize: '9px' }}>{showDetails ? '▾' : '▸'}</span>
+        </span>
         <span
           className={`mono font-bold ${netPnl >= 0 ? 'pnl-glow-green' : ''}`}
           style={{
@@ -506,6 +476,38 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
           {netPnl >= 0 ? '▲ ' : '▼ '}{fmtSign(netPnl)}
         </span>
       </div>
+
+      {/* Detail rows — collapsible */}
+      {showDetails && (
+        <div>
+          {rows.map((r, i) => {
+            const pos = r.value >= 0
+            return (
+              <div
+                key={i}
+                className="flex justify-between text-xs px-2 py-1"
+                style={{
+                  borderBottom: '1px solid #1a1a2a',
+                  background: pos
+                    ? 'linear-gradient(to left, rgba(0,255,136,0.03), transparent)'
+                    : `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,42,109,0.02) 6px, rgba(255,42,109,0.02) 12px)`,
+                }}
+              >
+                <span className="mono" style={{ color: '#888', fontSize: '10px' }}>{r.label}</span>
+                <span
+                  className="mono font-medium"
+                  style={{
+                    color: pos ? '#00ff88' : '#ff2a6d',
+                    textShadow: pos ? '0 0 6px rgba(0,255,136,0.25)' : undefined,
+                  }}
+                >
+                  {pos ? '▲ ' : '▼ '}{fmtSign(r.value)}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* NAV ADVANTAGE */}
       <ClmmVsHodl pool={pool} botState={botState} tokenAPrice={tokenAPrice} aptPrice={aptPrice} />
