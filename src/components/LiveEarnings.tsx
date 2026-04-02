@@ -85,7 +85,7 @@ function drawLaser(c: CanvasRenderingContext2D, x: number, y: number, now: numbe
 }
 
 function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: number, now: number) {
-  const nW = 12, nH = 18, bR = 32, bCY = topY + nH + bR * 0.6
+  const nW = 14, nH = 20, bR = 40, bCY = topY + nH + bR * 0.55
   // Neck
   const ng = c.createLinearGradient(cx - nW / 2, 0, cx + nW / 2, 0)
   ng.addColorStop(0, 'rgba(140,160,200,0.14)'); ng.addColorStop(0.5, 'rgba(200,220,255,0.06)'); ng.addColorStop(1, 'rgba(100,120,160,0.1)')
@@ -125,14 +125,22 @@ function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: 
     c.fillStyle = '#3a3a4a'; c.fillRect(cx + lx, tY + 2, 2, 8)
     c.fillStyle = '#333344'; c.fillRect(cx + lx - 1, tY + 9, 4, 2)
   }
-  // Flame
-  for (let i = 0; i < 4; i++) {
-    const fx = cx - 8 + i * 5, fh = 4 + Math.sin(now * 0.011 + i * 1.5) * 2
-    c.globalAlpha = 0.4 + Math.sin(now * 0.013 + i) * 0.2
-    c.fillStyle = '#ff6b35'
-    c.beginPath(); c.moveTo(fx - 2, tY); c.lineTo(fx, tY - fh); c.lineTo(fx + 2, tY); c.fill()
-    c.fillStyle = '#ffaa44'
-    c.beginPath(); c.moveTo(fx - 1, tY); c.lineTo(fx, tY - fh * 0.5); c.lineTo(fx + 1, tY); c.fill()
+  // Flame — purple core, green tips, bigger
+  // Glow halo
+  c.beginPath(); c.arc(cx, tY - 6, 16, 0, Math.PI * 2)
+  c.fillStyle = `rgba(180,77,255,${0.03 + Math.sin(now * 0.004) * 0.015})`; c.fill()
+  for (let i = 0; i < 5; i++) {
+    const fx = cx - 12 + i * 6, fh = 7 + Math.sin(now * 0.011 + i * 1.3) * 3
+    c.globalAlpha = 0.45 + Math.sin(now * 0.013 + i) * 0.2
+    // Outer flame — green tips
+    c.fillStyle = '#00ff88'
+    c.beginPath(); c.moveTo(fx - 3, tY); c.lineTo(fx, tY - fh); c.lineTo(fx + 3, tY); c.fill()
+    // Inner flame — purple core
+    c.fillStyle = '#b44dff'
+    c.beginPath(); c.moveTo(fx - 1.5, tY); c.lineTo(fx, tY - fh * 0.6); c.lineTo(fx + 1.5, tY); c.fill()
+    // Bright center
+    c.fillStyle = '#d494ff'
+    c.beginPath(); c.moveTo(fx - 0.8, tY); c.lineTo(fx, tY - fh * 0.3); c.lineTo(fx + 0.8, tY); c.fill()
   }
   c.globalAlpha = 1
   return { bCY, bR, topY }
@@ -154,13 +162,39 @@ function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: nu
       c.fillStyle = 'rgba(100,120,160,0.12)'; c.fillRect(minX, y1 + tw + 1, w, 1)
     }
   }
-  glass(lx, startY, lx, topY, true)
-  glass(lx, topY, rx + tw + 2, topY, false)
-  glass(rx, topY + tw + 2, rx, botY, true)
-  // Corner interiors
-  c.fillStyle = 'rgba(10,10,20,0.7)'; c.fillRect(lx + 1, topY + 1, tw, tw); c.fillRect(rx + 1, topY + 1, tw, tw)
-  // Metal joints
-  for (const [jx, jy] of [[lx, startY], [lx, topY], [rx, topY], [rx, botY]] as [number, number][]) {
+  // Left vertical (up to near top)
+  const arcR = 10 // bend radius
+  glass(lx, startY, lx, topY + arcR, true)
+  // Right vertical (down from near top)
+  glass(rx, topY + arcR, rx, botY, true)
+  // Horizontal middle (between arcs)
+  glass(lx + arcR, topY, rx - arcR + tw + 2, topY, false)
+
+  // Rounded bend — LEFT corner (going from up→right)
+  c.strokeStyle = 'rgba(140,160,200,0.18)'; c.lineWidth = 1
+  // Outer arc
+  c.beginPath(); c.arc(lx + arcR, topY + arcR, arcR, Math.PI, Math.PI * 1.5); c.stroke()
+  // Inner arc
+  c.strokeStyle = 'rgba(100,120,160,0.12)'
+  c.beginPath(); c.arc(lx + arcR, topY + arcR, arcR - tw, Math.PI, Math.PI * 1.5); c.stroke()
+  // Fill bend interior
+  c.fillStyle = 'rgba(10,10,20,0.7)'
+  c.beginPath(); c.arc(lx + arcR, topY + arcR, arcR - 1, Math.PI, Math.PI * 1.5)
+  c.arc(lx + arcR, topY + arcR, arcR - tw + 1, Math.PI * 1.5, Math.PI, true)
+  c.closePath(); c.fill()
+
+  // Rounded bend — RIGHT corner (going from right→down)
+  c.strokeStyle = 'rgba(140,160,200,0.18)'; c.lineWidth = 1
+  c.beginPath(); c.arc(rx + tw + 2 - arcR, topY + arcR, arcR, Math.PI * 1.5, Math.PI * 2); c.stroke()
+  c.strokeStyle = 'rgba(100,120,160,0.12)'
+  c.beginPath(); c.arc(rx + tw + 2 - arcR, topY + arcR, arcR - tw, Math.PI * 1.5, Math.PI * 2); c.stroke()
+  c.fillStyle = 'rgba(10,10,20,0.7)'
+  c.beginPath(); c.arc(rx + tw + 2 - arcR, topY + arcR, arcR - 1, Math.PI * 1.5, Math.PI * 2)
+  c.arc(rx + tw + 2 - arcR, topY + arcR, arcR - tw + 1, Math.PI * 2, Math.PI * 1.5, true)
+  c.closePath(); c.fill()
+
+  // Metal joints at start and end
+  for (const [jx, jy] of [[lx, startY], [rx, botY]] as [number, number][]) {
     c.fillStyle = '#3a3a4a'; c.fillRect(jx - 1, jy - 1, tw + 4, 3)
   }
   // Cooling coil — continuous S-wave wrapping the right tube
@@ -288,7 +322,22 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       c.strokeStyle = '#1a1a2a'; c.lineWidth = 2
       c.beginPath(); c.moveTo(FUNNEL_X, FUNNEL_Y + 11); c.lineTo(FK_CX, FK_TOP + 1); c.stroke()
 
+      // Wall shelf / platform for flask
       const flask = drawFlask(c, FK_CX, FK_TOP, Math.min(1, fillRef.current * 2.5), now)
+      const shelfY = flask.bCY + flask.bR + 24 // below tripod feet
+      const shelfW = W * 0.55
+      // Shelf surface
+      const sg = c.createLinearGradient(0, shelfY, 0, shelfY + 4)
+      sg.addColorStop(0, '#4a4a5a'); sg.addColorStop(1, '#333344')
+      c.fillStyle = sg; c.fillRect(0, shelfY, shelfW, 4)
+      c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(2, shelfY, shelfW - 4, 1)
+      // Shadow under shelf
+      c.fillStyle = 'rgba(0,0,0,0.15)'; c.fillRect(2, shelfY + 4, shelfW - 4, 2)
+      // Wall brackets (2 angled supports)
+      for (const bx of [6, shelfW - 10]) {
+        c.fillStyle = '#3a3a4a'
+        c.beginPath(); c.moveTo(bx, shelfY + 4); c.lineTo(bx, shelfY + 12); c.lineTo(0, shelfY + 12); c.lineTo(0, shelfY + 10); c.lineTo(bx - 3, shelfY + 4); c.closePath(); c.fill()
+      }
 
       // Connection: flask right side → U-tube left start (short horizontal)
       c.fillStyle = '#3a3a4a'; c.fillRect(FK_CX + flask.bR - 2, UT_START - 2, UT_LX - FK_CX - flask.bR + 4, 4)
