@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 
 interface Snapshot {
   t: string
@@ -15,6 +15,38 @@ interface LiveEarningsProps {
   harvestThreshold: number
 }
 
+// ─── Config ───────────────────────────────────────────────────────────────
+const FILL_TARGET = 200 // $200 = 100% fill
+const W = 120 // canvas width
+const ZONE_INTAKE = 0.18  // top 18%
+const ZONE_PROCESS = 0.37 // middle 37%
+// bottom 45% = collection
+
+// ─── Color palette ────────────────────────────────────────────────────────
+const COL = {
+  bg: '#0a0a1a',
+  metal: '#2a2a3a',
+  metalLight: '#3a3a4a',
+  metalBorder: 'rgba(180,77,255,0.2)',
+  neonGreen: '#00ff88',
+  neonPurple: '#b44dff',
+  warn: '#ff6b35',
+  asteroid: ['#5a4a3a', '#6b5540', '#4a3a2e', '#7a5545', '#3d3028'],
+  glow: 'rgba(0,255,136,0.15)',
+  processGlow: 'rgba(255,107,53,0.08)',
+}
+
+// ─── Asteroid particle type ───────────────────────────────────────────────
+interface Particle {
+  x: number; y: number; vx: number; vy: number
+  size: number; rotation: number; rotSpeed: number
+  phase: 'intake' | 'process' | 'done'
+  color: string; opacity: number
+  // shape vertices (irregular polygon)
+  shape: number[][]
+  fragments?: { x: number; y: number; vx: number; vy: number; size: number; glow: number }[]
+}
+
 function calcRate(snapshots: Snapshot[]): { feesPerHour: number; rewardsPerHour: number } {
   if (snapshots.length < 3) return { feesPerHour: 0, rewardsPerHour: 0 }
   const recent = snapshots.slice(-6)
@@ -28,30 +60,48 @@ function calcRate(snapshots: Snapshot[]): { feesPerHour: number; rewardsPerHour:
   }
 }
 
-export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold }: LiveEarningsProps) {
+function makeShape(size: number): number[][] {
+  const pts = 5 + Math.floor(Math.random() * 3)
+  const verts: number[][] = []
+  for (let i = 0; i < pts; i++) {
+    const angle = (i / pts) * Math.PI * 2
+    const r = size * (0.5 + Math.random() * 0.5)
+    verts.push([Math.cos(angle) * r, Math.sin(angle) * r])
+  }
+  return verts
+}
+
+function makeParticle(_h: number): Particle {
+  const size = 5 + Math.random() * 10
+  return {
+    x: 15 + Math.random() * (W - 30),
+    y: -size,
+    vx: (Math.random() - 0.5) * 0.3,
+    vy: 0.4 + Math.random() * 0.6,
+    size,
+    rotation: Math.random() * Math.PI * 2,
+    rotSpeed: (Math.random() - 0.5) * 0.03,
+    phase: 'intake',
+    color: COL.asteroid[Math.floor(Math.random() * COL.asteroid.length)],
+    opacity: 0.8 + Math.random() * 0.2,
+    shape: makeShape(size),
+  }
+}
+
+export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt }: LiveEarningsProps) {
   const { feesPerHour, rewardsPerHour } = useMemo(() => calcRate(snapshots), [snapshots])
   const totalPerHour = feesPerHour + rewardsPerHour
   const totalPerSecond = totalPerHour / 3600
 
+  // Smooth animated counter
   const [displayTotal, setDisplayTotal] = useState(pendingFees + pendingRewards)
   const baseRef = useRef({ value: pendingFees + pendingRewards, time: Date.now() })
-  const rafRef = useRef<number>(0)
 
   useEffect(() => {
     baseRef.current = { value: pendingFees + pendingRewards, time: Date.now() }
   }, [pendingFees, pendingRewards])
 
-  useEffect(() => {
-    if (totalPerSecond <= 0) return
-    const tick = () => {
-      const elapsed = (Date.now() - baseRef.current.time) / 1000
-      setDisplayTotal(baseRef.current.value + elapsed * totalPerSecond)
-      rafRef.current = requestAnimationFrame(tick)
-    }
-    rafRef.current = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(rafRef.current)
-  }, [totalPerSecond])
-
+  // Harvest countdown
   const [harvestSec, setHarvestSec] = useState<number | null>(null)
   useEffect(() => {
     if (!nextHarvestAt) return
@@ -64,170 +114,315 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     return () => clearInterval(t)
   }, [nextHarvestAt])
 
-  const fillPct = harvestThreshold > 0
-    ? Math.min((displayTotal / harvestThreshold) * 100, 100)
-    : 0
-  const feesRatio = totalPerHour > 0 ? feesPerHour / totalPerHour : 0
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const particlesRef = useRef<Particle[]>([])
+  const lastSpawnRef = useRef(0)
+  const fillRef = useRef(0)
+
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const h = canvas.height
+    const now = Date.now()
+
+    // Update display total
+    const elapsed = (now - baseRef.current.time) / 1000
+    const currentTotal = baseRef.current.value + elapsed * totalPerSecond
+    setDisplayTotal(currentTotal)
+
+    // Fill level
+    const targetFill = Math.min(currentTotal / FILL_TARGET, 1)
+    fillRef.current += (targetFill - fillRef.current) * 0.02
+
+    // Zone boundaries
+    const intakeEnd = h * ZONE_INTAKE
+    const processEnd = h * (ZONE_INTAKE + ZONE_PROCESS)
+
+    ctx.clearRect(0, 0, W, h)
+
+    // ─── BACKGROUND ──────────────────────────────────────────────
+    ctx.fillStyle = COL.bg
+    ctx.fillRect(0, 0, W, h)
+
+    // ─── METAL FRAME ─────────────────────────────────────────────
+    // Side rails
+    const railW = 4
+    const grad = ctx.createLinearGradient(0, 0, 0, h)
+    grad.addColorStop(0, '#3a3a4a')
+    grad.addColorStop(0.5, '#2a2a3a')
+    grad.addColorStop(1, '#3a3a4a')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, railW, h)
+    ctx.fillRect(W - railW, 0, railW, h)
+
+    // Rail inner highlight
+    ctx.fillStyle = 'rgba(180,77,255,0.08)'
+    ctx.fillRect(railW, 0, 1, h)
+    ctx.fillRect(W - railW - 1, 0, 1, h)
+
+    // Zone separator bands
+    for (const y of [intakeEnd, processEnd]) {
+      ctx.fillStyle = COL.metalLight
+      ctx.fillRect(0, y - 3, W, 6)
+      ctx.fillStyle = COL.metal
+      ctx.fillRect(0, y - 2, W, 4)
+      // bolts
+      for (const bx of [6, W - 10]) {
+        ctx.beginPath()
+        ctx.arc(bx + 2, y, 2.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#1e1e2e'
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(180,77,255,0.15)'
+        ctx.lineWidth = 0.5
+        ctx.stroke()
+      }
+    }
+
+    // ─── INTAKE ZONE (top) ───────────────────────────────────────
+    // Hatch opening
+    ctx.fillStyle = '#1a1a2a'
+    ctx.fillRect(railW + 8, 0, W - railW * 2 - 16, 4)
+    ctx.strokeStyle = 'rgba(180,77,255,0.25)'
+    ctx.lineWidth = 0.5
+    ctx.strokeRect(railW + 8, 0, W - railW * 2 - 16, 4)
+
+    // ─── PROCESS ZONE (middle) ───────────────────────────────────
+    // Heat glow background
+    const heatGrad = ctx.createLinearGradient(0, intakeEnd, 0, processEnd)
+    heatGrad.addColorStop(0, 'rgba(255,107,53,0.02)')
+    heatGrad.addColorStop(0.5, `rgba(255,107,53,${0.04 + Math.sin(now * 0.003) * 0.02})`)
+    heatGrad.addColorStop(1, 'rgba(0,255,136,0.03)')
+    ctx.fillStyle = heatGrad
+    ctx.fillRect(railW, intakeEnd + 3, W - railW * 2, processEnd - intakeEnd - 6)
+
+    // LED indicators
+    const ledY = intakeEnd + (processEnd - intakeEnd) * 0.5
+    for (const [lx, col, phase] of [[8, COL.neonGreen, 0], [8, COL.warn, 1.5], [W - 12, COL.neonGreen, 0.7]] as [number, string, number][]) {
+      const brightness = 0.3 + Math.sin(now * 0.004 + phase) * 0.3
+      ctx.beginPath()
+      ctx.arc(lx, ledY + (phase * 12 - 10), 2, 0, Math.PI * 2)
+      ctx.fillStyle = col
+      ctx.globalAlpha = brightness
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
+
+    // ─── COLLECTION ZONE (bottom) ────────────────────────────────
+    const collectionTop = processEnd + 3
+    const collectionH = h - collectionTop - 4
+    const fillH = collectionH * fillRef.current
+    const surfaceY = h - 4 - fillH
+
+    if (fillH > 2) {
+      // Liquid fill
+      const liqGrad = ctx.createLinearGradient(0, surfaceY, 0, h)
+      liqGrad.addColorStop(0, 'rgba(0,255,136,0.25)')
+      liqGrad.addColorStop(0.3, 'rgba(0,255,136,0.15)')
+      liqGrad.addColorStop(1, 'rgba(0,255,136,0.35)')
+      ctx.fillStyle = liqGrad
+      ctx.fillRect(railW, surfaceY, W - railW * 2, fillH + 4)
+
+      // Surface wave
+      ctx.beginPath()
+      ctx.moveTo(railW, surfaceY)
+      for (let x = railW; x < W - railW; x += 2) {
+        const wave = Math.sin(x * 0.08 + now * 0.002) * 1.5 + Math.sin(x * 0.15 + now * 0.003) * 0.8
+        ctx.lineTo(x, surfaceY + wave)
+      }
+      ctx.lineTo(W - railW, surfaceY)
+      ctx.strokeStyle = 'rgba(0,255,136,0.5)'
+      ctx.lineWidth = 1
+      ctx.stroke()
+
+      // Surface glow upward
+      const glowGrad = ctx.createLinearGradient(0, surfaceY - 15, 0, surfaceY)
+      glowGrad.addColorStop(0, 'transparent')
+      glowGrad.addColorStop(1, 'rgba(0,255,136,0.08)')
+      ctx.fillStyle = glowGrad
+      ctx.fillRect(railW, surfaceY - 15, W - railW * 2, 15)
+    }
+
+    // ─── PARTICLES ───────────────────────────────────────────────
+    // Spawn
+    if (now - lastSpawnRef.current > 2000 + Math.random() * 3000) {
+      if (particlesRef.current.length < 8) {
+        particlesRef.current.push(makeParticle(h))
+        lastSpawnRef.current = now
+      }
+    }
+
+    // Update & draw
+    const alive: Particle[] = []
+    for (const p of particlesRef.current) {
+      p.x += p.vx
+      p.y += p.vy
+      p.rotation += p.rotSpeed
+
+      // Phase transitions
+      if (p.phase === 'intake' && p.y > intakeEnd) {
+        p.phase = 'process'
+        p.vy *= 0.4
+        // Create fragments
+        const fragCount = 3 + Math.floor(Math.random() * 4)
+        p.fragments = Array.from({ length: fragCount }, () => ({
+          x: p.x + (Math.random() - 0.5) * p.size,
+          y: p.y,
+          vx: (Math.random() - 0.5) * 1.5,
+          vy: 0.3 + Math.random() * 0.5,
+          size: 2 + Math.random() * 3,
+          glow: 0,
+        }))
+      }
+
+      if (p.phase === 'process') {
+        // Shrink original
+        p.size *= 0.97
+        p.opacity *= 0.98
+
+        // Update fragments
+        if (p.fragments) {
+          for (const f of p.fragments) {
+            f.x += f.vx
+            f.y += f.vy
+            f.vx *= 0.98
+            f.glow = Math.min(1, f.glow + 0.02)
+          }
+        }
+
+        if (p.y > processEnd || p.size < 1) {
+          p.phase = 'done'
+        }
+      }
+
+      if (p.phase as string === 'done') continue
+
+      // Draw asteroid
+      if (p.phase === 'intake' || (p.phase === 'process' && p.size > 1.5)) {
+        ctx.save()
+        ctx.translate(p.x, p.y)
+        ctx.rotate(p.rotation)
+        ctx.beginPath()
+        const s = p.shape
+        ctx.moveTo(s[0][0], s[0][1])
+        for (let i = 1; i < s.length; i++) ctx.lineTo(s[i][0], s[i][1])
+        ctx.closePath()
+
+        // Color transition in process zone
+        if (p.phase === 'process') {
+          const t = Math.min(1, (p.y - intakeEnd) / (processEnd - intakeEnd))
+          const r = Math.floor(90 + t * 165)
+          const g = Math.floor(70 + t * 40)
+          const b = Math.floor(46 - t * 20)
+          ctx.fillStyle = `rgba(${r},${g},${b},${p.opacity})`
+        } else {
+          ctx.fillStyle = p.color
+          ctx.globalAlpha = p.opacity
+        }
+        ctx.fill()
+        ctx.globalAlpha = 1
+        ctx.restore()
+      }
+
+      // Draw fragments
+      if (p.fragments) {
+        for (const f of p.fragments) {
+          if (f.y > processEnd + 10) continue
+          const t = f.glow
+          // Grey → orange → green
+          const r = Math.floor(90 * (1 - t) + 0 * t)
+          const g = Math.floor(80 * (1 - t) + 255 * t)
+          const b = Math.floor(60 * (1 - t) + 136 * t)
+          ctx.beginPath()
+          ctx.arc(f.x, f.y, f.size * (1 - t * 0.5), 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${r},${g},${b},${0.6 + t * 0.4})`
+          ctx.fill()
+          // Glow
+          if (t > 0.5) {
+            ctx.beginPath()
+            ctx.arc(f.x, f.y, f.size * 2, 0, Math.PI * 2)
+            ctx.fillStyle = `rgba(0,255,136,${(t - 0.5) * 0.15})`
+            ctx.fill()
+          }
+        }
+      }
+
+      if (p.phase !== 'done') alive.push(p)
+    }
+    particlesRef.current = alive
+
+    // ─── OUTER GLOW ──────────────────────────────────────────────
+    ctx.strokeStyle = 'rgba(180,77,255,0.12)'
+    ctx.lineWidth = 1
+    ctx.strokeRect(0.5, 0.5, W - 1, h - 1)
+  }, [totalPerSecond])
+
+  // Animation loop
+  useEffect(() => {
+    if (totalPerHour <= 0) return
+    let running = true
+    const loop = () => {
+      if (!running) return
+      draw()
+      requestAnimationFrame(loop)
+    }
+    loop()
+    return () => { running = false }
+  }, [draw, totalPerHour])
+
+  // Resize canvas to container
+  const containerRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = containerRef.current
+    const canvas = canvasRef.current
+    if (!el || !canvas) return
+    const obs = new ResizeObserver(entries => {
+      for (const e of entries) {
+        canvas.height = Math.floor(e.contentRect.height)
+        canvas.width = W
+      }
+    })
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [])
 
   if (totalPerHour <= 0) return null
 
-  const ores = useMemo(() =>
-    Array.from({ length: 10 }, (_, i) => ({
-      left: 15 + (i * 27 + 11) % 70,
-      delay: (i * 0.8) % 4.5,
-      duration: 2.2 + (i % 3) * 0.6,
-      shape: i % 3,
-      isReward: i > Math.floor(10 * feesRatio),
-    })),
-  [feesRatio])
-
-  const shaftStars = useMemo(() =>
-    Array.from({ length: 15 }, (_, i) => ({
-      x: 10 + (i * 41 + 7) % 80,
-      y: 3 + (i * 37 + 11) % 94,
-      r: i % 5 === 0 ? 0.8 : 0.4,
-      twinkle: i % 6 === 0,
-    })),
-  [])
+  const dailyRate = totalPerHour * 24
 
   return (
-    <div className="flex flex-col items-center justify-between relative" style={{ width: 120, minHeight: '100%' }}>
+    <div className="flex flex-col items-center justify-between relative" style={{ width: W, minHeight: '100%' }}>
 
-      {/* Top: collector funnel + value */}
-      <div className="text-center z-10 flex-shrink-0 w-full">
-        <svg viewBox="0 0 120 38" className="w-full" style={{ height: 38 }}>
-          <line x1="60" y1="2" x2="60" y2="14" stroke="#c77dff" strokeWidth="1" opacity="0.5" />
-          <circle cx="60" cy="2" r="2" fill="#c77dff" opacity="0.8">
-            <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
-          </circle>
-          <path d="M 30 18 Q 60 10 90 18" fill="none" stroke="#c77dff" strokeWidth="1.5" opacity="0.5" />
-          <line x1="42" y1="18" x2="55" y2="26" stroke="#666" strokeWidth="0.6" opacity="0.4" />
-          <line x1="78" y1="18" x2="65" y2="26" stroke="#666" strokeWidth="0.6" opacity="0.4" />
-          <text x="60" y="34" textAnchor="middle" fill="#c77dff" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="bold">
-            ${displayTotal.toFixed(4)}
-          </text>
-        </svg>
-        <div className="hud-label" style={{ fontSize: '7px', color: '#c77dff', opacity: 0.6, marginTop: -2 }}>COLLECTED</div>
-      </div>
-
-      {/* Middle: containment tube — flex-1 fills remaining height */}
-      <div className="relative flex-1 w-full" style={{ minHeight: 200 }}>
-        <div
-          className="absolute inset-x-2 top-0 bottom-0 overflow-hidden"
-          style={{
-            border: '1px solid rgba(199,125,255,0.15)',
-            background: '#020208',
-            borderRadius: 8,
-          }}
-        >
-          {/* Stars */}
-          {shaftStars.map((s, i) => (
-            <div key={i} className="absolute rounded-full" style={{
-              left: `${s.x}%`, top: `${s.y}%`,
-              width: s.r * 2, height: s.r * 2,
-              background: 'white',
-              opacity: 0.1 + (i % 3) * 0.07,
-              animation: s.twinkle ? 'earning-pulse 3s ease-in-out infinite' : undefined,
-            }} />
-          ))}
-
-          {/* Metal frame edges */}
-          <div className="absolute top-0 bottom-0 left-0" style={{ width: 3, background: 'linear-gradient(to bottom, rgba(199,125,255,0.2), rgba(199,125,255,0.04), rgba(199,125,255,0.2))' }} />
-          <div className="absolute top-0 bottom-0 right-0" style={{ width: 3, background: 'linear-gradient(to bottom, rgba(199,125,255,0.2), rgba(199,125,255,0.04), rgba(199,125,255,0.2))' }} />
-
-          {/* Metal bands with bolts */}
-          {[12, 30, 50, 70, 88].map(pct => (
-            <div key={pct} className="absolute left-0 right-0 flex items-center justify-between" style={{ top: `${pct}%` }}>
-              <div style={{ width: '100%', height: 3, background: '#1a1a3e', border: '0.5px solid rgba(199,125,255,0.15)', borderRadius: 1 }} />
-              <div className="absolute left-0" style={{ width: 5, height: 5, borderRadius: '50%', background: '#1a1a3e', border: '0.5px solid rgba(199,125,255,0.2)' }} />
-              <div className="absolute right-0" style={{ width: 5, height: 5, borderRadius: '50%', background: '#1a1a3e', border: '0.5px solid rgba(199,125,255,0.2)' }} />
-            </div>
-          ))}
-
-          {/* Viewing port */}
-          <div className="absolute" style={{
-            left: '50%', top: '28%', transform: 'translate(-50%, -50%)',
-            width: 36, height: 44, borderRadius: '50%',
-            border: '1px solid rgba(199,125,255,0.2)',
-            boxShadow: 'inset 0 0 8px rgba(199,125,255,0.05)',
-          }}>
-            <div className="absolute" style={{
-              top: 4, left: 6, width: 10, height: 14, borderRadius: '50%',
-              background: 'rgba(255,255,255,0.015)',
-            }} />
-          </div>
-
-          {/* Fill level */}
-          <div
-            className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
-            style={{
-              height: `${fillPct}%`,
-              background: 'linear-gradient(to top, rgba(199,125,255,0.4), rgba(168,85,247,0.2) 40%, rgba(199,125,255,0.05))',
-              borderTop: fillPct > 2 ? '1px solid rgba(199,125,255,0.5)' : 'none',
-            }}
-          >
-            {fillPct > 8 && (
-              <svg className="absolute bottom-0 left-0 right-0" viewBox="0 0 100 14" preserveAspectRatio="none" style={{ height: 14, opacity: 0.35 }}>
-                <polygon points="0,14 8,8 16,12 24,5 32,10 40,4 50,9 58,3 66,11 74,6 82,10 90,4 100,14" fill="#c77dff" />
-              </svg>
-            )}
-            {fillPct > 5 && <div className="surface-shimmer" />}
-          </div>
-
-          {/* Falling ores */}
-          {ores.map((o, i) => (
-            <svg
-              key={i}
-              className="ore-fall"
-              style={{
-                left: `${o.left}%`,
-                animationDelay: `${o.delay}s`,
-                animationDuration: `${o.duration}s`,
-                color: o.isReward ? '#c77dff' : '#a855f7',
-                width: o.shape === 0 ? 8 : 7,
-                height: o.shape === 0 ? 10 : 8,
-              }}
-              viewBox="0 0 10 12"
-            >
-              {o.shape === 0 ? (
-                <polygon points="5,0 10,5 5,12 0,5" fill="currentColor" opacity="0.9" />
-              ) : o.shape === 1 ? (
-                <polygon points="3,0 7,0 9,5 7,12 3,12 1,5" fill="currentColor" opacity="0.8" />
-              ) : (
-                <polygon points="2,2 8,0 10,4 8,8 2,10 0,6" fill="currentColor" opacity="0.8" />
-              )}
-              <circle cx="5" cy="4" r="1" fill="white" opacity="0.4" />
-            </svg>
-          ))}
-        </div>
-      </div>
-
-      {/* Bottom: base + stats */}
-      <div className="text-center z-10 flex-shrink-0 mt-1 space-y-0.5">
-        {/* Base stand SVG */}
-        <svg viewBox="0 0 120 18" className="w-full" style={{ height: 16 }}>
-          <path d="M 22 0 L 18 6 L 102 6 L 98 0 Z" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.5" opacity="0.5" />
-          <rect x="16" y="6" width="88" height="4" rx="1" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.4" opacity="0.4" />
-          <circle cx="35" cy="10" r="1.5" fill="#39ff14" opacity="0.5">
-            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" />
-          </circle>
-          <circle cx="85" cy="10" r="1.5" fill="#c77dff" opacity="0.5">
-            <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" begin="1s" />
-          </circle>
-          <rect x="30" y="10" width="3" height="8" rx="1" fill="#1a1a3e" opacity="0.3" />
-          <rect x="87" y="10" width="3" height="8" rx="1" fill="#1a1a3e" opacity="0.3" />
-          <rect x="57" y="10" width="6" height="8" rx="1" fill="#1a1a3e" opacity="0.3" />
-        </svg>
-        <div className="hud-label" style={{ fontSize: '7px' }}>
-          <span style={{ color: '#a855f7' }}>fees</span>
-          {' + '}
-          <span style={{ color: '#c77dff' }}>rewards</span>
-        </div>
+      {/* Top: live accumulation counter */}
+      <div className="text-center z-10 flex-shrink-0 w-full py-1">
+        <div className="earning-pulse mx-auto mb-1" />
         <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
-          ${(totalPerHour * 24).toFixed(2)}/d
+          ${displayTotal.toFixed(4)}
+        </div>
+        <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
+      </div>
+
+      {/* Refinery column — canvas fills all remaining height */}
+      <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 250 }}>
+        <canvas
+          ref={canvasRef}
+          width={W}
+          height={400}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%' }}
+        />
+      </div>
+
+      {/* Bottom stats */}
+      <div className="text-center z-10 flex-shrink-0 py-1 space-y-0.5">
+        <div className="hud-label" style={{ fontSize: '7px', color: '#00ff88' }}>REFINING RATE</div>
+        <div className="mono text-xs font-bold" style={{ color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>
+          ${dailyRate.toFixed(2)}/d
         </div>
         {harvestSec !== null && harvestSec > 0 && (
-          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '9px' }}>
+          <div className="mono" style={{ color: harvestSec < 300 ? '#00ff88' : 'var(--text-muted)', fontSize: '9px' }}>
             {Math.floor(harvestSec / 60)}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
           </div>
         )}
