@@ -3,7 +3,7 @@ export const CHAIN = 'Aptos'
 export const DEX = 'Thala Finance'
 export const BOT_WALLET = '0x89cd5907e16439a90c3661a72891667c3634ae6341820767490bbc7dc7b0752b'
 export const PETRA_WALLET = '0x469f005fa97b1dd229ace5a677955611a11e24d88a178770d5f9948b8c2eb211'
-export const REFRESH_INTERVAL = 120_000 // 2 min
+export const REFRESH_INTERVAL = 30_000 // 30 sec — fast refresh for live APR
 
 // ─── ELON/USDC Pool (single pool since 2026-04-02 migration) ────────────────
 // APT/USDC pool closed, all capital migrated to ELON/USDC
