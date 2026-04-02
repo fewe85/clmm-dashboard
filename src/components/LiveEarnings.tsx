@@ -272,6 +272,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const partsRef = useRef<P[]>([])
   const spawnRef = useRef({ last: 0, delay: 2500 })
   const fillRef = useRef(0)
+  const dripRef = useRef({ size: 0, growing: true }) // for drop formation
+  const flashRef = useRef<{ t: number; x: number; y: number }[]>([])
 
   useEffect(() => {
     const el = containerRef.current, cv = canvasRef.current
@@ -521,6 +523,82 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         alive.push(p)
       }
       partsRef.current = alive
+
+      // ═══ EFFECT 1: Steam wisps from flask into U-tube ═════
+      for (let i = 0; i < 3; i++) {
+        const steamAge = ((now * 0.0008 + i * 1.2) % 3) / 3 // 0→1 cycle
+        const sx = FK_CX + flask.bR - 4 + steamAge * 6
+        const sy = UT_START - steamAge * 15
+        const sa = (1 - steamAge) * 0.25
+        if (sa > 0.02) {
+          c.beginPath(); c.arc(sx, sy, 3 + steamAge * 3, 0, Math.PI * 2)
+          c.fillStyle = `rgba(180,160,220,${sa})`; c.fill()
+        }
+      }
+
+      // ═══ EFFECT 2: Glow pulse on flask synced with flame ══
+      const flamePulse = 0.5 + Math.sin(now * 0.002) * 0.3
+      c.beginPath(); c.arc(FK_CX, flask.bCY, flask.bR + 3, 0, Math.PI * 2)
+      c.fillStyle = `rgba(180,77,255,${0.01 + flamePulse * 0.02})`; c.fill()
+
+      // ═══ EFFECT 3: Condensation flash at U-tube peak ══════
+      flashRef.current = flashRef.current.filter(f => {
+        const age = (now - f.t) / 1000
+        if (age > 0.3) return false
+        const fa = (1 - age / 0.3) * 0.4
+        c.beginPath(); c.arc(f.x, f.y, 4 + age * 6, 0, Math.PI * 2)
+        c.fillStyle = `rgba(180,255,255,${fa})`; c.fill()
+        return true
+      })
+      // Flash triggers when steam crosses the midpoint
+      for (const p of partsRef.current) {
+        if (p.type === 'steam' && p.phase === 1) {
+          const midX = (UT_LX + UT_RX) / 2
+          if (Math.abs(p.x - midX) < 2 && flashRef.current.length < 3) {
+            flashRef.current.push({ t: now, x: p.x, y: UT_TOP - 2 })
+          }
+        }
+      }
+
+      // ═══ EFFECT 4: Drop formation at U-tube nozzle ════════
+      const drip = dripRef.current
+      drip.size += 0.02
+      if (drip.size > 4.5) {
+        // Release drop
+        partsRef.current.push({
+          x: UT_RX + 4, y: UT_BOT + 6, vx: 0, vy: 0.3,
+          size: 3, type: 'drop', color: '#00ff88', life: 1, phase: 0,
+        })
+        drip.size = 0
+      }
+      // Draw growing drop
+      if (drip.size > 0.5) {
+        c.beginPath(); c.arc(UT_RX + 4, UT_BOT + 4, drip.size, 0, Math.PI * 2)
+        c.fillStyle = `rgba(0,255,136,${0.4 + drip.size * 0.1})`; c.fill()
+        c.beginPath(); c.arc(UT_RX + 4, UT_BOT + 4, drip.size + 2, 0, Math.PI * 2)
+        c.fillStyle = 'rgba(0,255,136,0.04)'; c.fill()
+      }
+
+      // ═══ EFFECT 5: Laser sparks (already in stone collision) — enhance glow
+      // Extra glow at laser position when stones are near
+      for (const p of partsRef.current) {
+        if (p.type === 'stone' && p.x > W - 40) {
+          const prox = 1 - (W - 30 - p.x) / 10
+          if (prox > 0) {
+            c.beginPath(); c.arc(W - 26, LASER_Y, 6, 0, Math.PI * 2)
+            c.fillStyle = `rgba(255,51,102,${prox * 0.08})`; c.fill()
+          }
+        }
+      }
+
+      // ═══ EFFECT 6: Tank surface light reflection ══════════
+      if (fillRef.current > 0.05) {
+        const reflX = 12 + ((Math.sin(now * 0.001) + 1) / 2) * (W - 34)
+        const reflW = (W - 24) * 0.55
+        c.fillStyle = 'rgba(255,255,255,0.04)'
+        c.fillRect(reflX - reflW / 2, tank.surfY + 1, reflW, 2)
+      }
+
       requestAnimationFrame(loop)
     }
     loop(); return () => { run = false }
