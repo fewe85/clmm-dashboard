@@ -138,7 +138,7 @@ function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: 
   return { bCY, bR, topY }
 }
 
-function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: number, startY: number, botY: number, now: number) {
+function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: number, startY: number, botY: number, _now: number) {
   const tw = 6 // tube inner width
   const glass = (x1: number, y1: number, x2: number, y2: number, vert: boolean) => {
     if (vert) {
