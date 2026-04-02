@@ -37,7 +37,7 @@ function AppContent() {
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-lg font-bold glitch-text neon-value" style={{ color: 'var(--lavender)' }}>SPACE STATION</h1>
-          <p className="text-xs hud-label">SECTOR THALA/APT</p>
+          <p className="text-xs hud-label" style={{ color: '#c77dff' }}>SECTOR THALA/APT</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{countdown}s</span>
