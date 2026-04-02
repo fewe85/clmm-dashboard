@@ -77,7 +77,7 @@ function makeParticle(_h: number): Particle {
     x: 15 + Math.random() * (W - 30),
     y: -size,
     vx: (Math.random() - 0.5) * 0.3,
-    vy: 0.4 + Math.random() * 0.6,
+    vy: 0.6 + Math.random() * 0.8,
     size,
     rotation: Math.random() * Math.PI * 2,
     rotSpeed: (Math.random() - 0.5) * 0.03,
@@ -434,7 +434,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           const dist = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)
           if (dist < p.size + 5) { hit = true; break }
         }
-        if (hit && p.y > intakeEnd + 5) {
+        if (hit && p.y > intakeEnd + (processEnd - intakeEnd) * 0.35) {
           p.phase = 'process'
           // Spawn small dot particles
           const dotCount = 6 + Math.floor(Math.random() * 5)
