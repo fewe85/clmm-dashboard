@@ -440,8 +440,10 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           c.fillStyle = 'rgba(255,255,255,0.15)'
           c.beginPath(); c.arc(p.x - s * 0.3, p.y - s * 0.3, s * 0.35, 0, Math.PI * 2); c.fill()
           // Glow
-          c.fillStyle = oreCol.replace(')', ',0.08)').replace('rgb', 'rgba')
+          c.globalAlpha = 0.08
+          c.fillStyle = oreCol
           c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2); c.fill()
+          c.globalAlpha = 1
 
         } else if (p.type === 'frag') {
           // Path B→C: fall to band 2, ride left, fall to flask
