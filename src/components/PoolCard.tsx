@@ -65,7 +65,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
             color: pool.inRange ? 'var(--accent-green)' : 'var(--accent-red)',
           }}
         >
-          {pool.inRange ? 'In Range' : 'Out of Range'}
+          {pool.inRange ? 'DRILLING' : 'MINE LOST'}
         </span>
       </div>
 
