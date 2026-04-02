@@ -133,7 +133,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       const furnaceLeft = 16
       const furnaceRight = W - 20
       const dropX = W - 26
-      const dropStart = furnaceY + 12
+      const _dropStart = furnaceY + 12
       const basinTop = h * 0.55
 
       // ─── BACKGROUND ────────────────────────────────────────────
