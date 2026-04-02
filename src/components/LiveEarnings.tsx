@@ -117,6 +117,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
   const lastSpawnRef = useRef(0)
+  const nextSpawnDelay = useRef(1500)
   const fillRef = useRef(0)
 
   const draw = useCallback(() => {
@@ -220,17 +221,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillStyle = heatGrad
     ctx.fillRect(railW, intakeEnd + 3, W - railW * 2, processEnd - intakeEnd - 6)
 
-    // LED indicators
-    const ledY = intakeEnd + (processEnd - intakeEnd) * 0.5
-    for (const [lx, col, phase] of [[8, COL.neonGreen, 0], [8, COL.warn, 1.5], [W - 12, COL.neonGreen, 0.7]] as [number, string, number][]) {
-      const brightness = 0.3 + Math.sin(now * 0.004 + phase) * 0.3
-      ctx.beginPath()
-      ctx.arc(lx, ledY + (phase * 12 - 10), 2, 0, Math.PI * 2)
-      ctx.fillStyle = col
-      ctx.globalAlpha = brightness
-      ctx.fill()
-      ctx.globalAlpha = 1
-    }
+    // (LEDs removed)
 
     // ─── ROBOT WITH DUAL LIGHTSABERS ──────────────────────────────
     const swingCycle = 2000
@@ -406,10 +397,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
     // ─── PARTICLES ───────────────────────────────────────────────
     // Spawn asteroids
-    if (now - lastSpawnRef.current > 1200 + Math.random() * 1500) {
+    if (now - lastSpawnRef.current > nextSpawnDelay.current) {
       if (particlesRef.current.length < 12) {
         particlesRef.current.push(makeParticle(h))
         lastSpawnRef.current = now
+        nextSpawnDelay.current = 1000 + Math.random() * 1500
       }
     }
 
