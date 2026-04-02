@@ -31,7 +31,7 @@ const COL = {
   neonGreen: '#00ff88',
   neonPurple: '#b44dff',
   warn: '#ff6b35',
-  asteroid: ['#888888', '#999999', '#777777', '#aaaaaa', '#707070'],
+  asteroid: ['#c77dff', '#b44dff', '#d494ff', '#a855f7', '#c06cff'],
   glow: 'rgba(0,255,136,0.15)',
   processGlow: 'rgba(255,107,53,0.08)',
 }
@@ -624,7 +624,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       {/* Bottom stats */}
       <div className="text-center z-10 flex-shrink-0 py-1 space-y-0.5">
         {harvestThreshold > 0 && (
-          <div className="mono font-bold neon-value" style={{ fontSize: '10px', color: displayTotal >= harvestThreshold ? '#00ff88' : '#c77dff' }}>
+          <div className="mono font-bold" style={{ fontSize: '10px', color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>
             ${displayTotal.toFixed(2)} / ${harvestThreshold.toFixed(2)}
           </div>
         )}
