@@ -443,40 +443,71 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
   const netPnl = feesUsd + rewardsUsd + totalHarvested + il - swapCosts - gasUsd
 
   const rows = [
-    { label: 'Fees', value: feesUsd },
-    { label: 'Rewards', value: rewardsUsd },
-    { label: 'Harvested', value: totalHarvested },
-    { label: 'IL', value: il },
-    { label: `Swap Costs (${hasMeasured ? 'meas.' : 'est.'})`, value: -swapCosts },
-    ...(hasGasMeasured ? [{ label: 'Gas Costs', value: -gasUsd }] : []),
+    { label: 'ORE YIELD (Fees)', value: feesUsd },
+    { label: 'MINING BONUS (Rewards)', value: rewardsUsd },
+    { label: 'EXTRACTED (Harvested)', value: totalHarvested },
+    { label: 'RADIATION LOSS (IL)', value: il },
+    { label: `FUEL COSTS (${hasMeasured ? 'meas.' : 'est.'})`, value: -swapCosts },
+    ...(hasGasMeasured ? [{ label: 'THRUSTER COSTS (Gas)', value: -gasUsd }] : []),
   ]
 
   return (
-    <div className="space-y-1">
-      {rows.map((r, i) => (
-        <div key={i} className="flex justify-between text-xs">
-          <span style={{ color: 'var(--text-muted)' }}>{r.label}</span>
-          <span
-            className="mono font-medium"
-            style={{ color: r.value >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}
+    <div className="space-y-0">
+      {rows.map((r, i) => {
+        const pos = r.value >= 0
+        return (
+          <div
+            key={i}
+            className="flex justify-between text-xs px-2 py-1"
+            style={{
+              borderBottom: '1px solid #1a1a2a',
+              background: pos
+                ? 'linear-gradient(to left, rgba(0,255,136,0.03), transparent)'
+                : `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,42,109,0.02) 6px, rgba(255,42,109,0.02) 12px)`,
+              transition: 'background 0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = pos
+              ? 'linear-gradient(to left, rgba(0,255,136,0.06), rgba(255,255,255,0.02))'
+              : 'rgba(255,255,255,0.02)'}
+            onMouseLeave={e => e.currentTarget.style.background = pos
+              ? 'linear-gradient(to left, rgba(0,255,136,0.03), transparent)'
+              : `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,42,109,0.02) 6px, rgba(255,42,109,0.02) 12px)`}
           >
-            {fmtSign(r.value)}
-          </span>
-        </div>
-      ))}
+            <span className="mono" style={{ color: '#888', fontSize: '10px', textTransform: 'uppercase' }}>{r.label}</span>
+            <span
+              className="mono font-medium"
+              style={{
+                color: pos ? '#00ff88' : '#ff2a6d',
+                textShadow: pos ? '0 0 6px rgba(0,255,136,0.25)' : undefined,
+              }}
+            >
+              {pos ? '▲ ' : '▼ '}{fmtSign(r.value)}
+            </span>
+          </div>
+        )
+      })}
 
-      {/* Net P&L total */}
-      <div className="flex justify-between text-xs pt-1.5 mt-1.5" style={{ borderTop: '1px solid var(--border)' }}>
-        <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Net P&L</span>
+      {/* MISSION PROFIT */}
+      <div
+        className="flex justify-between px-2 py-1.5 mt-1"
+        style={{
+          borderTop: '2px double #2a2a3a',
+          background: 'rgba(255,255,255,0.03)',
+        }}
+      >
+        <span className="mono font-bold" style={{ color: '#b0b8cc', fontSize: '11px' }}>MISSION PROFIT (Net)</span>
         <span
-          className="mono font-semibold"
-          style={{ color: netPnl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}
+          className={`mono font-bold ${netPnl >= 0 ? 'pnl-glow-green' : ''}`}
+          style={{
+            color: netPnl >= 0 ? '#00ff88' : '#ff2a6d',
+            fontSize: '11px',
+          }}
         >
-          {fmtSign(netPnl)}
+          {netPnl >= 0 ? '▲ ' : '▼ '}{fmtSign(netPnl)}
         </span>
       </div>
 
-      {/* CLMM vs HODL */}
+      {/* NAV ADVANTAGE */}
       <ClmmVsHodl pool={pool} botState={botState} tokenAPrice={tokenAPrice} aptPrice={aptPrice} />
     </div>
   )
@@ -504,10 +535,22 @@ function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
   const clmmAdv = pool.netProfit - gasUsd - hodlReturn
 
   return (
-    <div className="flex justify-between text-xs pt-1.5 mt-1" style={{ borderTop: '1px solid var(--border)' }}>
-      <span style={{ color: 'var(--text-muted)' }}>CLMM vs HODL</span>
-      <span className="mono font-medium" style={{ color: clmmAdv >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-        {fmtSign(clmmAdv)}
+    <div
+      className="flex justify-between px-2 py-1.5"
+      style={{
+        borderTop: '2px double #2a2a3a',
+        background: 'rgba(255,255,255,0.03)',
+      }}
+    >
+      <span className="mono font-bold" style={{ color: '#b0b8cc', fontSize: '11px' }}>NAV ADVANTAGE (CLMM/HODL)</span>
+      <span
+        className={`mono font-bold ${clmmAdv >= 0 ? 'pnl-glow-green' : ''}`}
+        style={{
+          color: clmmAdv >= 0 ? '#00ff88' : '#ff2a6d',
+          fontSize: '11px',
+        }}
+      >
+        {clmmAdv >= 0 ? '▲ ' : '▼ '}{fmtSign(clmmAdv)}
       </span>
     </div>
   )

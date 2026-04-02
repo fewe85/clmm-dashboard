@@ -61,10 +61,13 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
   }
 
   return (
-    <div className="rounded-xl overflow-hidden" style={{ background: '#050510', border: '1px solid var(--border)' }}>
+    <div className="rounded-xl overflow-hidden" style={{
+      background: `radial-gradient(circle at 50% 50%, rgba(0,255,136,0.03) 0%, transparent 30%, rgba(0,255,136,0.02) 50%, transparent 70%, rgba(0,255,136,0.01) 90%), #050510`,
+      border: '1px solid var(--border)',
+    }}>
       {/* Oscilloscope label */}
       <div className="flex justify-between items-center px-3 pt-2">
-        <span className="hud-label" style={{ color: 'var(--lavender)', opacity: 0.6 }}>Rebalance Activity</span>
+        <span className="hud-label" style={{ color: 'var(--lavender)', opacity: 0.6 }}>Course Corrections</span>
         <span className="hud-label" style={{ opacity: 0.4 }}>7d</span>
       </div>
 
@@ -123,8 +126,8 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
 
       {/* Stats row */}
       <div className="flex justify-between px-3 pb-2">
-        <span className="mono hud-label">{totalRebalances} rebalances · last {lastAgo}</span>
-        <span className="mono hud-label">~${swapCostTotal.toFixed(2)} swap costs</span>
+        <span className="mono hud-label"><span className="earning-pulse" style={{ width: 4, height: 4, display: 'inline-block', verticalAlign: 'middle', marginRight: 4 }} />{totalRebalances} corrections · last {lastAgo}</span>
+        <span className="mono hud-label">~${swapCostTotal.toFixed(2)} fuel spent</span>
       </div>
     </div>
   )

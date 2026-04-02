@@ -259,6 +259,16 @@ body::after {
   50% { opacity: 0.6; }
 }
 
+/* P&L glow pulse on positive totals */
+@keyframes pnl-pulse {
+  0%, 100% { text-shadow: 0 0 4px rgba(0,255,136,0.3); }
+  50% { text-shadow: 0 0 10px rgba(0,255,136,0.6), 0 0 4px rgba(0,255,136,0.3); }
+}
+
+.pnl-glow-green {
+  animation: pnl-pulse 3s ease-in-out infinite;
+}
+
 .range-danger-pulse {
   animation: danger-edge 1.5s ease-in-out infinite;
 }
