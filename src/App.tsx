@@ -58,19 +58,19 @@ function AppContent() {
           className="flex flex-wrap gap-x-6 gap-y-1 text-xs mb-5 px-4 py-2.5 rounded-xl"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
         >
-          <SummaryItem label="Portfolio" value={formatUsd(totalPositionValue)} />
+          <SummaryItem label="STATION VALUE" value={formatUsd(totalPositionValue)} />
           <SummaryItem
             label="NAV ADVANTAGE"
             value={`${totalClmmVsHodl >= 0 ? '+' : ''}${formatUsd(totalClmmVsHodl)}`}
             color={totalClmmVsHodl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
           />
           <SummaryItem
-            label="Total Earned"
+            label="TOTAL MINED"
             value={formatUsd(totalEarned)}
             color="var(--accent-green)"
           />
           <SummaryItem
-            label="Est. Daily"
+            label="DAILY OUTPUT"
             value={totalDailyEst > 0 ? formatUsd(totalDailyEst) : '—'}
           />
           <NextHarvestTimer elon={elon} />

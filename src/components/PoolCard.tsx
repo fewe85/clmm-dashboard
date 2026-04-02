@@ -163,7 +163,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
           className="text-xs font-medium cursor-pointer w-full text-left py-1"
           style={{ color: 'var(--text-muted)', background: 'none', border: 'none' }}
         >
-          Range Optimization {showOpt ? '▾' : '▸'}
+          DRILL CALIBRATION {showOpt ? '▾' : '▸'}
         </button>
         {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
       </div>
