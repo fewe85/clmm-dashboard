@@ -243,35 +243,173 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       drawBelt(ctx, belt2X, belt2Y, beltW, -1, now)
       drawBelt(ctx, belt3X, belt3Y, beltW, 1, now)
 
-      // Supports / machine details between belts
-      for (const by of [belt1Y + 14, belt2Y + 14]) {
-        // Vertical struts
-        ctx.fillStyle = '#2a2a3a'
-        ctx.fillRect(pad + 10, by, 3, 16); ctx.fillRect(W - pad - 13, by, 3, 16)
-        // Gear
-        const gearSpin = (now * 0.003) % (Math.PI * 2)
-        for (const gx of [pad + 11.5, W - pad - 11.5]) {
-          ctx.save(); ctx.translate(gx, by + 8); ctx.rotate(gearSpin)
-          for (let i = 0; i < 4; i++) {
-            const a = (i / 4) * Math.PI * 2
-            ctx.fillStyle = '#555566'; ctx.fillRect(Math.cos(a) * 4 - 1, Math.sin(a) * 4 - 1, 2, 2)
-          }
-          ctx.beginPath(); ctx.arc(0, 0, 2, 0, Math.PI * 2); ctx.fillStyle = '#3a3a4a'; ctx.fill()
-          ctx.restore()
+      // ─── CRUSHER ROLLERS (between belt 1 → 2) ─────────────
+      const crush1Y = (belt1Y + 10 + belt2Y) / 2
+      const crushRollerR = 8
+      const crushSpin = (now * 0.004) % (Math.PI * 2)
+      // Machine housing
+      ctx.fillStyle = '#2a2a3a'
+      ctx.fillRect(pad + 6, crush1Y - 12, innerW - 12, 24)
+      ctx.fillStyle = '#333344'
+      ctx.fillRect(pad + 8, crush1Y - 10, innerW - 16, 20)
+      // Two counter-rotating toothed rollers
+      for (const side of [-1, 1]) {
+        const ry = crush1Y + side * 5
+        ctx.save(); ctx.translate(cx, ry); ctx.rotate(crushSpin * side)
+        // Teeth
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * Math.PI * 2
+          ctx.fillStyle = '#6a6a7a'
+          ctx.fillRect(Math.cos(a) * crushRollerR - 2, Math.sin(a) * crushRollerR - 1.5, 4, 3)
+        }
+        // Hub
+        ctx.beginPath(); ctx.arc(0, 0, crushRollerR - 2, 0, Math.PI * 2)
+        ctx.fillStyle = '#4a4a5a'; ctx.fill()
+        ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2)
+        ctx.fillStyle = '#555566'; ctx.fill()
+        ctx.restore()
+      }
+      // Crusher bolts
+      for (const bx of [pad + 9, W - pad - 11]) {
+        for (const by of [crush1Y - 9, crush1Y + 8]) {
+          ctx.beginPath(); ctx.arc(bx, by, 1.5, 0, Math.PI * 2); ctx.fillStyle = '#1a1a2a'; ctx.fill()
+        }
+      }
+      // Crusher sparks
+      if (Math.sin(now * 0.008) > 0.3) {
+        for (let i = 0; i < 2; i++) {
+          const sx = cx + (Math.random() - 0.5) * 20
+          const sy = crush1Y + (Math.random() - 0.5) * 6
+          ctx.fillStyle = `rgba(255,170,0,${0.3 + Math.random() * 0.4})`
+          ctx.beginPath(); ctx.arc(sx, sy, 1 + Math.random(), 0, Math.PI * 2); ctx.fill()
+        }
+      }
+      // Crusher LED
+      ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.3 + Math.sin(now * 0.003) * 0.3
+      ctx.beginPath(); ctx.arc(pad + 10, crush1Y - 10, 1.5, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1
+
+      // ─── LASER SMELTER (between belt 2 → 3) ───────────────
+      const laser1Y = (belt2Y + 10 + belt3Y) / 2
+      // Machine box
+      ctx.fillStyle = '#2a2a3a'
+      ctx.fillRect(pad + 6, laser1Y - 8, innerW - 12, 16)
+      ctx.fillStyle = '#333344'
+      ctx.fillRect(pad + 8, laser1Y - 6, innerW - 16, 12)
+      // Laser beam — horizontal, pulsing
+      const laserAlpha = 0.6 + Math.sin(now * 0.006) * 0.3
+      ctx.globalAlpha = laserAlpha
+      // Glow
+      ctx.fillStyle = 'rgba(0,255,136,0.08)'
+      ctx.fillRect(pad + 14, laser1Y - 4, innerW - 28, 8)
+      // Beam
+      ctx.strokeStyle = '#00ff88'; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(pad + 14, laser1Y); ctx.lineTo(W - pad - 14, laser1Y); ctx.stroke()
+      // Bright core
+      ctx.strokeStyle = '#aaffcc'; ctx.lineWidth = 0.8
+      ctx.beginPath(); ctx.moveTo(pad + 14, laser1Y); ctx.lineTo(W - pad - 14, laser1Y); ctx.stroke()
+      ctx.globalAlpha = 1
+      // Emitter boxes (left + right)
+      ctx.fillStyle = '#444455'
+      ctx.fillRect(pad + 8, laser1Y - 4, 6, 8); ctx.fillRect(W - pad - 14, laser1Y - 4, 6, 8)
+      // Emitter LEDs
+      ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.5 + Math.sin(now * 0.005) * 0.3
+      ctx.beginPath(); ctx.arc(pad + 11, laser1Y, 1.5, 0, Math.PI * 2); ctx.fill()
+      ctx.beginPath(); ctx.arc(W - pad - 11, laser1Y, 1.5, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1
+      // Smelter bolts
+      for (const bx of [pad + 9, W - pad - 11]) {
+        ctx.beginPath(); ctx.arc(bx, laser1Y - 6, 1.2, 0, Math.PI * 2); ctx.fillStyle = '#1a1a2a'; ctx.fill()
+        ctx.beginPath(); ctx.arc(bx, laser1Y + 5, 1.2, 0, Math.PI * 2); ctx.fill()
+      }
+
+      // ─── SIDE MACHINERY (pipes, gears, details) ────────────
+      const gearSpin = (now * 0.003) % (Math.PI * 2)
+      // Left side gears (3 sizes)
+      for (const [gy, gr, spd] of [[belt1Y + 6, 5, 1], [crush1Y + 2, 4, -1.5], [laser1Y + 6, 3, 2]] as [number, number, number][]) {
+        ctx.save(); ctx.translate(pad + 3, gy); ctx.rotate(gearSpin * spd)
+        for (let i = 0; i < (gr > 4 ? 6 : 4); i++) {
+          const a = (i / (gr > 4 ? 6 : 4)) * Math.PI * 2
+          ctx.fillStyle = '#555566'; ctx.fillRect(Math.cos(a) * gr - 1, Math.sin(a) * gr - 1, 2, 2)
+        }
+        ctx.beginPath(); ctx.arc(0, 0, gr * 0.4, 0, Math.PI * 2); ctx.fillStyle = '#3a3a4a'; ctx.fill()
+        ctx.restore()
+      }
+      // Right side gears
+      for (const [gy, gr, spd] of [[belt2Y + 6, 4, -1], [laser1Y - 4, 5, 1.5], [belt3Y + 6, 3, -2]] as [number, number, number][]) {
+        ctx.save(); ctx.translate(W - pad - 3, gy); ctx.rotate(gearSpin * spd)
+        for (let i = 0; i < (gr > 4 ? 6 : 4); i++) {
+          const a = (i / (gr > 4 ? 6 : 4)) * Math.PI * 2
+          ctx.fillStyle = '#555566'; ctx.fillRect(Math.cos(a) * gr - 1, Math.sin(a) * gr - 1, 2, 2)
+        }
+        ctx.beginPath(); ctx.arc(0, 0, gr * 0.4, 0, Math.PI * 2); ctx.fillStyle = '#3a3a4a'; ctx.fill()
+        ctx.restore()
+      }
+      // Connecting pipes (vertical, left side)
+      ctx.strokeStyle = 'rgba(199,125,255,0.08)'; ctx.lineWidth = 2
+      ctx.beginPath(); ctx.moveTo(pad + 3, belt1Y + 12); ctx.lineTo(pad + 3, belt3Y + 10); ctx.stroke()
+      // Right pipe
+      ctx.beginPath(); ctx.moveTo(W - pad - 3, belt1Y + 12); ctx.lineTo(W - pad - 3, belt3Y + 10); ctx.stroke()
+      // Pipe glow
+      ctx.strokeStyle = 'rgba(199,125,255,0.03)'; ctx.lineWidth = 5
+      ctx.beginPath(); ctx.moveTo(pad + 3, belt1Y + 12); ctx.lineTo(pad + 3, belt3Y + 10); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(W - pad - 3, belt1Y + 12); ctx.lineTo(W - pad - 3, belt3Y + 10); ctx.stroke()
+
+      // ─── STEAM VENTS (periodic puffs) ──────────────────────
+      const steamPhase = (now * 0.001) % 5
+      if (steamPhase < 0.8) {
+        const steamAlpha = (0.8 - steamPhase) * 0.08
+        for (let i = 0; i < 3; i++) {
+          const sy = crush1Y - 14 - steamPhase * 15 - i * 5
+          const sx = pad + 20 + i * 3
+          ctx.fillStyle = `rgba(200,200,220,${steamAlpha * (1 - i * 0.3)})`
+          ctx.beginPath(); ctx.arc(sx, sy, 3 + steamPhase * 2, 0, Math.PI * 2); ctx.fill()
+        }
+      }
+      const steamPhase2 = ((now * 0.001) + 2.5) % 5
+      if (steamPhase2 < 0.8) {
+        const sa = (0.8 - steamPhase2) * 0.08
+        for (let i = 0; i < 3; i++) {
+          const sy = laser1Y - 10 - steamPhase2 * 15 - i * 5
+          const sx = W - pad - 20 - i * 3
+          ctx.fillStyle = `rgba(200,200,220,${sa * (1 - i * 0.3)})`
+          ctx.beginPath(); ctx.arc(sx, sy, 3 + steamPhase2 * 2, 0, Math.PI * 2); ctx.fill()
         }
       }
 
-      // Belt-end spark zones (where rocks fall to next belt)
-      for (const sy of [belt1Y + 10, belt2Y + 10]) {
-        const sparkX = (sy === belt1Y + 10) ? belt1X + beltW - 4 : belt2X + 4
-        if (Math.sin(now * 0.007 + sy) > 0.5) {
-          ctx.fillStyle = 'rgba(255,170,0,0.3)'
-          ctx.beginPath(); ctx.arc(sparkX, sy + 4, 2 + Math.random(), 0, Math.PI * 2); ctx.fill()
-        }
+      // ─── BELT SUPPORT STRUTS ───────────────────────────────
+      ctx.fillStyle = '#2a2a3a'
+      for (const by of [belt1Y + 10, belt2Y + 10, belt3Y + 10]) {
+        ctx.fillRect(pad + 12, by, 2, 4); ctx.fillRect(W - pad - 14, by, 2, 4)
       }
 
-      // ─── MELT ZONE ─────────────────────────────────────────
-      // Heat haze
+      // ─── BACKGROUND GRID (factory wall) ────────────────────
+      ctx.strokeStyle = 'rgba(199,125,255,0.015)'; ctx.lineWidth = 0.5
+      for (let gy = 0; gy < h; gy += 20) { ctx.beginPath(); ctx.moveTo(pad, gy); ctx.lineTo(W - pad, gy); ctx.stroke() }
+      for (let gx = pad; gx < W - pad; gx += 20) { ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, h); ctx.stroke() }
+
+      // ─── RANDOM AMBIENT SPARKS ─────────────────────────────
+      if (Math.random() < 0.03) {
+        const rx = pad + 10 + Math.random() * (innerW - 20)
+        const ry = beltZoneTop + Math.random() * beltZoneH
+        ctx.fillStyle = 'rgba(255,200,0,0.3)'
+        ctx.beginPath(); ctx.arc(rx, ry, 1 + Math.random(), 0, Math.PI * 2); ctx.fill()
+      }
+
+      // ─── COLLECT FUNNEL (between belt 3 and basin) ─────────
+      ctx.fillStyle = '#3a3a4a'
+      ctx.beginPath()
+      ctx.moveTo(cx - 25, belt3Y + 12); ctx.lineTo(cx - 8, meltZoneTop + meltZoneH - 2)
+      ctx.lineTo(cx + 8, meltZoneTop + meltZoneH - 2); ctx.lineTo(cx + 25, belt3Y + 12)
+      ctx.closePath(); ctx.fill()
+      // Funnel inner
+      ctx.fillStyle = '#1a1a2a'
+      ctx.beginPath()
+      ctx.moveTo(cx - 21, belt3Y + 14); ctx.lineTo(cx - 6, meltZoneTop + meltZoneH - 3)
+      ctx.lineTo(cx + 6, meltZoneTop + meltZoneH - 3); ctx.lineTo(cx + 21, belt3Y + 14)
+      ctx.closePath(); ctx.fill()
+
+      // ─── MELT ZONE heat haze ───────────────────────────────
       const meltPulse = 0.4 + Math.sin(now * 0.003) * 0.2
       ctx.fillStyle = `rgba(0,255,136,${0.02 * meltPulse})`
       ctx.fillRect(pad, meltZoneTop, innerW, meltZoneH)
