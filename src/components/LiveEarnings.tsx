@@ -146,163 +146,139 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       c.clearRect(0, 0, W, H)
 
-      // ═══ LAYOUT ═══════════════════════════════════════════
-      const B1Y = H * 0.06                    // Band 1 top
+      // ═══ LAYOUT (tighter, fills column evenly) ═══════════
+      const B1Y = H * 0.06
       const B1L = 6, B1R = W - 6
-      const LASER_HY = H * 0.14              // Horizontal laser BETWEEN bands
-      const B2Y = H * 0.20                    // Band 2 top
+      const LASER_HY = H * 0.13               // Laser between bands
+      const B2Y = H * 0.18
       const B2L = 6, B2R = W - 6
-      const FUNNEL_Y = H * 0.30              // Funnel from band 2 to flask
-      const FK_OX = 6, FK_OY = H * 0.42      // Flask origin — bigger, lower
-      const FK_W = 12 * PX, FK_H = 12 * PX
-      const FK_SCALE = 1.3                    // Scale flask up
-      // U-Rohr (transparent tubes)
-      const UTOP = H * 0.32
-      const TUBE_W = PX * 3                   // Wider tubes (3px = 9 canvas px)
-      const UL_X = FK_OX + 5 * PX * FK_SCALE // Left tube X
-      const UR_X = W - 22                     // Right tube X
-      const UBOT_R = H * 0.60
-      const BASIN_TOP = H * 0.70
+      const FK_SCALE = 1.3
+      const FK_OX = 6, FK_OY = H * 0.32       // Flask lower + closer
+      const FK_H = 12 * PX
+      const FK_W = 12 * PX
+      const S = FK_SCALE
+      // U-Rohr
+      const TW = PX * 3
+      const TWALL = PX
+      const UTOP = H * 0.26                    // U-top closer to flask
+      const UL_X = FK_OX + 5 * PX * S
+      const UR_X = W - 22
+      const UBOT_R = H * 0.62                  // Longer descent
+      const BASIN_TOP = H * 0.72
       const BASIN_H = H - BASIN_TOP - 3
 
       // ═══ BACKGROUND ═══════════════════════════════════════
       c.fillStyle = '#08080f'; c.fillRect(0, 0, W, H)
-      // Scanlines
       c.fillStyle = 'rgba(199,125,255,0.006)'
       for (let y = 0; y < H; y += PX) c.fillRect(0, y, W, 1)
 
       // ═══ BAND 1 (→ right) ════════════════════════════════
       pxBelt(c, B1L, B1Y, B1R - B1L, 1, now)
 
-      // ═══ HORIZONTAL LASER (between band 1 and 2) ═════════
+      // ═══ SHORT LASER (only where stones fall) ═════════════
       const laserPulse = 0.6 + Math.sin(now * 0.005) * 0.35
+      const laserCX = B1R - PX * 6 // centered where stones drop off
+      const laserHW = PX * 5 // half-width of laser
       c.globalAlpha = laserPulse
-      // Glow
-      pxRect(c, B1L + PX * 2, LASER_HY - PX * 2, B1R - B1L - PX * 4, PX * 4, 'rgba(255,51,102,0.04)')
-      // Beam (horizontal line)
-      for (let x = B1L + PX * 2; x < B1R - PX * 2; x += PX) {
+      pxRect(c, laserCX - laserHW, LASER_HY - PX, laserHW * 2, PX * 3, 'rgba(255,51,102,0.06)')
+      for (let x = laserCX - laserHW; x < laserCX + laserHW; x += PX) {
         pxRect(c, x, LASER_HY, PX, PX, '#ff3366')
       }
-      // Bright core (every other pixel)
-      for (let x = B1L + PX * 3; x < B1R - PX * 3; x += PX * 2) {
+      for (let x = laserCX - laserHW + PX; x < laserCX + laserHW; x += PX * 2) {
         pxRect(c, x, LASER_HY, PX, PX, '#ff8899')
       }
-      // Emitters on sides
-      pxRect(c, B1L + PX, LASER_HY - PX, PX * 2, PX * 3, '#cc2244')
-      pxRect(c, B1R - PX * 3, LASER_HY - PX, PX * 2, PX * 3, '#cc2244')
+      // Small emitters
+      pxRect(c, laserCX - laserHW - PX, LASER_HY - PX, PX * 2, PX * 3, '#cc2244')
+      pxRect(c, laserCX + laserHW, LASER_HY - PX, PX * 2, PX * 3, '#cc2244')
       c.globalAlpha = 1
 
-      // ═══ BAND 2 (← left) ═════════════════════════════════
+      // ═══ BAND 2 (← left, same style as band 1) ═══════════
       pxBelt(c, B2L, B2Y, B2R - B2L, -1, now)
 
-      // ═══ FUNNEL: Band 2 left end → Flask ══════════════════
-      // Pixel V-trichter from band 2 to flask neck
-      const funnelX = B2L + PX * 2
-      c.fillStyle = '#444455'
-      for (let i = 0; i < 4; i++) {
-        pxRect(c, funnelX - (3 - i) * PX, FUNNEL_Y + i * PX, PX, PX, '#444455')
-        pxRect(c, funnelX + (3 - i) * PX, FUNNEL_Y + i * PX, PX, PX, '#444455')
-      }
-      // Neck pipe down to flask
-      pxRect(c, funnelX - PX, FUNNEL_Y + 4 * PX, PX * 3, FK_OY - FUNNEL_Y - 4 * PX + PX, '#3a3a4a')
-      pxRect(c, funnelX, FUNNEL_Y + 4 * PX, PX, FK_OY - FUNNEL_Y - 4 * PX + PX, '#1a1a2a') // inner dark
+      // ═══ PIPE: Band 2 left end → Flask opening ════════════
+      const pipeX = B2L + PX * 3
+      const pipeTop = B2Y + PX * 2 + 2
+      const pipeBot = FK_OY + PX * S
+      // Outer pipe
+      pxRect(c, pipeX - PX, pipeTop, PX * 3, pipeBot - pipeTop, '#3a3a4a')
+      // Inner dark
+      pxRect(c, pipeX, pipeTop + PX, PX, pipeBot - pipeTop - PX, '#1a1a2a')
+      // Small funnel mouth at top
+      pxRect(c, pipeX - PX * 2, pipeTop - PX, PX * 5, PX, '#444455')
 
-      // ═══ FLASK (pixel art, scaled up) ═════════════════════
-      c.save()
-      c.translate(FK_OX, FK_OY)
-      c.scale(FK_SCALE, FK_SCALE)
-      drawFlask(c, 0, 0)
-      c.restore()
-      // Liquid fill (scaled)
+      // ═══ FLASK (pixel art, scaled) ════════════════════════
+      c.save(); c.translate(FK_OX, FK_OY); c.scale(S, S); drawFlask(c, 0, 0); c.restore()
+      // Liquid fill
       const flkFill = Math.min(1, fillRef.current * 2.5)
       if (flkFill > 0.05) {
-        const S = FK_SCALE
         const fillRows = Math.floor(7 * flkFill)
         for (let fi = 0; fi < fillRows; fi++) {
           const row = 11 - fi
           const [l, r] = flaskInnerWidth(row)
           if (r > l) {
             const t = fi / Math.max(1, fillRows - 1)
-            const cr = Math.floor(200 * (1 - t))
-            const cg = Math.floor(120 * (1 - t) + 255 * t)
-            const cb = Math.floor(50 * (1 - t) + 136 * t)
+            const cr = Math.floor(200 * (1 - t)), cg = Math.floor(120 * (1 - t) + 255 * t), cb = Math.floor(50 * (1 - t) + 136 * t)
             pxRect(c, FK_OX + l * PX * S, FK_OY + row * PX * S, (r - l) * PX * S, PX * S, `rgba(${cr},${cg},${cb},0.35)`)
           }
         }
       }
-      // Flame (pixel, 3-frame)
+      // Tripod stand (3 legs under flask)
+      const tripodY = FK_OY + FK_H * S
+      pxRect(c, FK_OX + 2 * PX * S, tripodY, PX, PX * 3, '#3a3a4a') // left leg
+      pxRect(c, FK_OX + 6 * PX * S, tripodY, PX, PX * 3, '#3a3a4a') // center leg
+      pxRect(c, FK_OX + 10 * PX * S, tripodY, PX, PX * 3, '#3a3a4a') // right leg
+      // Cross bar
+      pxRect(c, FK_OX + 2 * PX * S, tripodY + PX, 8 * PX * S, PX, '#444455')
+      // Flame under tripod
       const ff = Math.floor((now / 180) % 3)
-      const fOX = FK_OX + 2 * PX * FK_SCALE, fOY = FK_OY + FK_H * FK_SCALE + PX
-      const flamePatterns = [
-        [[1,0],[3,0],[5,0],[1,-1],[3,-2],[5,-1]],
-        [[0,0],[2,0],[4,0],[2,-1],[4,-2]],
-        [[1,0],[4,0],[2,-2],[3,-1],[5,-1]],
-      ]
-      for (const [dx, dy] of flamePatterns[ff]) {
-        pxRect(c, fOX + dx * PX, fOY + dy * PX, PX, PX, dy < -1 ? '#ffaa00' : '#ff6b35')
-      }
-      pxRect(c, FK_OX + PX, fOY + PX, 8 * PX * FK_SCALE, PX, '#2a2a3a') // base plate
+      const fOX = FK_OX + 3 * PX * S, fOY = tripodY + PX * 3
+      const flames = [[[1,0],[3,0],[5,0],[1,-1],[3,-2],[5,-1]],[[0,0],[2,0],[4,0],[2,-1],[4,-2]],[[1,0],[4,0],[2,-2],[3,-1],[5,-1]]]
+      for (const [dx, dy] of flames[ff]) pxRect(c, fOX + dx * PX, fOY + dy * PX, PX, PX, dy < -1 ? '#ffaa00' : '#ff6b35')
 
-      // ═══ U-ROHR — TRANSPARENT TUBES (see-through!) ════════
-      const TW = TUBE_W // tube width
-      const TWALL = PX  // wall thickness
-
-      // Helper: draw transparent tube section (outline only, dark fill inside)
+      // ═══ U-ROHR — TRANSPARENT TUBES ═══════════════════════
       const drawTubeV = (x: number, y1: number, y2: number) => {
         pxRect(c, x + TWALL, Math.min(y1, y2), TW - TWALL * 2, Math.abs(y2 - y1), '#0a0a14')
-        for (let y = Math.min(y1, y2); y < Math.max(y1, y2); y += PX) pxRect(c, x, y, TWALL, PX, '#555566')
-        for (let y = Math.min(y1, y2); y < Math.max(y1, y2); y += PX) pxRect(c, x + TW - TWALL, y, TWALL, PX, '#444455')
+        for (let y = Math.min(y1, y2); y < Math.max(y1, y2); y += PX) { pxRect(c, x, y, TWALL, PX, '#555566'); pxRect(c, x + TW - TWALL, y, TWALL, PX, '#444455') }
       }
       const drawTubeH = (x1: number, x2: number, y: number) => {
         pxRect(c, Math.min(x1, x2), y + TWALL, Math.abs(x2 - x1), TW - TWALL * 2, '#0a0a14')
-        for (let x = Math.min(x1, x2); x < Math.max(x1, x2); x += PX) pxRect(c, x, y, PX, TWALL, '#555566')
-        for (let x = Math.min(x1, x2); x < Math.max(x1, x2); x += PX) pxRect(c, x, y + TW - TWALL, PX, TWALL, '#444455')
+        for (let x = Math.min(x1, x2); x < Math.max(x1, x2); x += PX) { pxRect(c, x, y, PX, TWALL, '#555566'); pxRect(c, x, y + TW - TWALL, PX, TWALL, '#444455') }
       }
 
-      // Left vertical tube (rising from flask)
       drawTubeV(UL_X, FK_OY - PX, UTOP)
-      // Horizontal top tube
       drawTubeH(UL_X, UR_X + TW, UTOP)
-      // Right vertical tube (descending)
       drawTubeV(UR_X, UTOP + TW, UBOT_R)
-
       // Corner joins
-      pxRect(c, UL_X, UTOP, TW, TW, '#555566')
-      pxRect(c, UL_X + TWALL, UTOP + TWALL, TW - TWALL * 2, TW - TWALL * 2, '#0a0a14')
-      pxRect(c, UR_X, UTOP, TW, TW, '#555566')
-      pxRect(c, UR_X + TWALL, UTOP + TWALL, TW - TWALL * 2, TW - TWALL * 2, '#0a0a14')
+      pxRect(c, UL_X, UTOP, TW, TW, '#555566'); pxRect(c, UL_X + TWALL, UTOP + TWALL, TW - TWALL * 2, TW - TWALL * 2, '#0a0a14')
+      pxRect(c, UR_X, UTOP, TW, TW, '#555566'); pxRect(c, UR_X + TWALL, UTOP + TWALL, TW - TWALL * 2, TW - TWALL * 2, '#0a0a14')
 
-      // Cooling coil ON the right tube (zigzag pattern on outside)
-      for (let y = UTOP + TW + PX * 3; y < UBOT_R - PX * 2; y += PX * 3) {
-        const side = Math.floor(y / (PX * 3)) % 2 === 0 ? -1 : 1
-        const cx2 = side < 0 ? UR_X - PX : UR_X + TW
-        pxRect(c, cx2, y, PX, PX * 2, '#334466')
-        pxRect(c, cx2, y + PX, PX * (side < 0 ? -1 : 1) + (side < 0 ? 0 : PX), PX, '#334466') // horizontal bit
+      // Cooling coil — S-curves wrapping around tube (not teeth)
+      for (let y = UTOP + TW + PX * 2; y < UBOT_R - PX * 3; y += PX * 4) {
+        const phase = Math.sin(y * 0.15) * PX * 1.5
+        // Left side arc
+        pxRect(c, UR_X - PX + phase * 0.3, y, PX, PX * 2, '#334466')
+        // Right side arc
+        pxRect(c, UR_X + TW + phase * 0.3, y + PX * 2, PX, PX * 2, '#334466')
+        // Connecting across front
+        pxRect(c, UR_X + TWALL, y + PX, TW - TWALL * 2, PX, 'rgba(51,68,102,0.15)')
       }
 
       // Drip nozzle
       pxRect(c, UR_X, UBOT_R, TW, PX, '#444455')
       pxRect(c, UR_X + TWALL, UBOT_R + PX, TW - TWALL * 2, PX, '#333344')
 
-      // ═══ BASIN (pixel art) ════════════════════════════════
+      // ═══ BASIN ════════════════════════════════════════════
       const fillH = BASIN_H * fillRef.current, surfY = H - 3 - fillH
-      // Walls
-      for (let y = BASIN_TOP; y < H - 2; y += PX) {
-        pxRect(c, 8, y, PX, PX, '#2a2a3a')
-        pxRect(c, W - 8 - PX, y, PX, PX, '#2a2a3a')
-      }
-      pxRect(c, 8, H - 3, W - 16, PX, '#2a2a3a') // bottom
-      pxRect(c, 6, BASIN_TOP - PX, W - 12, PX, '#444455') // rim
-      // Liquid
+      for (let y = BASIN_TOP; y < H - 2; y += PX) { pxRect(c, 8, y, PX, PX, '#2a2a3a'); pxRect(c, W - 8 - PX, y, PX, PX, '#2a2a3a') }
+      pxRect(c, 8, H - 3, W - 16, PX, '#2a2a3a')
+      pxRect(c, 6, BASIN_TOP - PX, W - 12, PX, '#444455')
       if (fillH > 2) {
         c.fillStyle = `rgba(0,255,136,${0.15 + fillRef.current * 0.2})`
         c.fillRect(8 + PX, surfY, W - 16 - PX * 2, fillH + 2)
-        // Pixel wave
         for (let x = 8 + PX; x < W - 8 - PX; x += PX * 2) {
-          const up = Math.sin(x * 0.06 + now * 0.002) > 0
-          pxRect(c, x, surfY + (up ? -PX : 0), PX * 2, PX, 'rgba(0,255,136,0.35)')
+          pxRect(c, x, surfY + (Math.sin(x * 0.06 + now * 0.002) > 0 ? -PX : 0), PX * 2, PX, 'rgba(0,255,136,0.35)')
         }
-        pxRect(c, 8 + PX, surfY - PX * 2, W - 16 - PX * 2, PX * 2, 'rgba(0,255,136,0.02)') // glow
+        pxRect(c, 8 + PX, surfY - PX * 2, W - 16 - PX * 2, PX * 2, 'rgba(0,255,136,0.02)')
       }
 
       // ═══ PARTICLES ════════════════════════════════════════
@@ -318,18 +294,18 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         }
       }
       // Spawn bubbles in flask
-      if (Math.random() < 0.02 && partsRef.current.filter(p => p.type === 'bubble').length < 4) {
+      if (Math.random() < 0.025 && partsRef.current.filter(p => p.type === 'bubble').length < 5) {
         partsRef.current.push({
-          x: FK_OX + (3 + Math.random() * 5) * PX * FK_SCALE, y: FK_OY + 10 * PX * FK_SCALE,
+          x: FK_OX + (3 + Math.random() * 5) * PX * S, y: FK_OY + 10 * PX * S,
           vx: 0, vy: -0.12 - Math.random() * 0.15, size: PX,
           type: 'bubble', color: '#00ff88', life: 1,
         })
       }
-      // Spawn steam in left U-tube
-      if (Math.random() < 0.015 && partsRef.current.filter(p => p.type === 'steam').length < 6) {
+      // Spawn steam in left U-tube — MORE (5-8 visible)
+      if (Math.random() < 0.04 && partsRef.current.filter(p => p.type === 'steam').length < 10) {
         partsRef.current.push({
-          x: UL_X + PX * 0.5, y: FK_OY - PX,
-          vx: 0, vy: -0.2 - Math.random() * 0.2, size: PX,
+          x: UL_X + TWALL + Math.random() * (TW - TWALL * 2), y: FK_OY - PX,
+          vx: 0, vy: -0.25 - Math.random() * 0.2, size: PX,
           type: 'steam', color: '#b44dff', life: 1,
         })
       }
@@ -344,11 +320,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           } else {
             p.y += p.vy; p.vy += 0.01
           }
-          // Hit horizontal laser between bands?
-          if (p.vy > 0 && Math.abs(p.y - LASER_HY) < PX * 2) {
-            // Flash
-            pxRect(c, p.x - PX * 2, LASER_HY - PX, PX * 6, PX * 3, 'rgba(255,100,100,0.35)')
-            // Sparks fly sideways
+          // Hit short laser between bands?
+          if (p.vy > 0 && Math.abs(p.y - LASER_HY) < PX * 2 && p.x > laserCX - laserHW - PX * 2 && p.x < laserCX + laserHW + PX * 2) {
+            pxRect(c, p.x - PX * 2, LASER_HY - PX, PX * 5, PX * 3, 'rgba(255,100,100,0.4)')
             for (let i = 0; i < 4; i++) {
               partsRef.current.push({
                 x: p.x, y: LASER_HY,
@@ -356,7 +330,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
                 size: PX, type: 'spark', color: '#ffaa00', life: 0.4,
               })
             }
-            // Fragments continue falling to band 2
             for (let i = 0; i < 3; i++) {
               partsRef.current.push({
                 x: p.x + (Math.random() - 0.5) * PX * 3, y: LASER_HY + PX * 2,
@@ -367,7 +340,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             }
             continue
           }
-          if (p.y > B2Y + PX * 3) continue // fell too far
+          if (p.y > B2Y + PX * 4) continue
           // Draw pixel stone
           pxRect(c, p.x, p.y, p.size, p.size, '#b44dff')
           pxRect(c, p.x, p.y, PX, PX, '#d494ff')
@@ -386,16 +359,16 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             const g = Math.floor(102 * (1 - t * 0.3) + 150 * t)
             const b = Math.floor(51 + 50 * t)
             p.color = `rgb(${r},${g},${b})`
-            // Reached left end → fall into funnel → flask
-            if (p.x <= B2L + PX * 3) {
-              p.vx = 0; p.vy = 0.3; p.x = B2L + PX * 2 // funnel X
+            // Reached left end → fall into pipe → flask
+            if (p.x <= B2L + PX * 4) {
+              p.vx = 0; p.vy = 0.3; p.x = pipeX
             }
           }
           // Below flask neck → absorb
-          if (p.vy > 0 && p.y > FK_OY + 2 * PX * FK_SCALE && p.x > FK_OX && p.x < FK_OX + FK_W * FK_SCALE) {
+          if (p.vy > 0 && p.y > FK_OY + 2 * PX * S && p.x > FK_OX && p.x < FK_OX + FK_W * S) {
             p.life -= 0.02
           }
-          if (p.y > FK_OY + FK_H * FK_SCALE || p.life <= 0) continue
+          if (p.y > FK_OY + FK_H * S || p.life <= 0) continue
           pxRect(c, p.x, p.y, p.size, p.size, p.color)
 
         } else if (p.type === 'spark') {
@@ -407,36 +380,48 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
         } else if (p.type === 'bubble') {
           p.y += p.vy; p.x += Math.sin(now * 0.005 + p.x) * 0.06; p.life -= 0.004
-          if (p.life <= 0 || p.y < FK_OY + 2 * PX * FK_SCALE) continue
+          if (p.life <= 0 || p.y < FK_OY + 2 * PX * S) continue
           pxRect(c, p.x, p.y, PX, PX, `rgba(0,255,136,${p.life * 0.3})`)
 
         } else if (p.type === 'steam') {
-          p.y += p.vy; p.x += Math.sin(now * 0.003 + p.y) * 0.05
-          // Rising in left tube
-          if (p.y <= UTOP + PX * 2) {
-            // Switch to horizontal, move right
-            p.vy = 0; p.vx = 0.25
+          // Phase 1: rise in left tube
+          if (p.vx === 0 && p.vy < 0) {
+            p.y += p.vy; p.x = UL_X + TWALL + Math.sin(now * 0.003 + p.y) * (TW * 0.15)
+            if (p.y <= UTOP + TW) { p.vy = 0; p.vx = 0.3 } // switch to horizontal
           }
-          if (p.vx > 0) {
+          // Phase 2: move right across top
+          else if (p.vx > 0 && p.vy === 0) {
             p.x += p.vx
-            // Reached right tube → become drop
-            if (p.x >= UR_X) {
-              // Condense into green drop
+            p.y = UTOP + TWALL + Math.sin(now * 0.004 + p.x) * (TW * 0.1)
+            if (p.x >= UR_X + TWALL) { p.vx = 0; p.vy = 0.35 } // switch to descend
+          }
+          // Phase 3: descend in right tube (now as green condensed liquid)
+          else if (p.vy > 0) {
+            p.y += p.vy; p.vy += 0.005
+            p.x = UR_X + TWALL + Math.sin(now * 0.003 + p.y) * (TW * 0.1)
+            // Reached bottom → become free-falling drop
+            if (p.y >= UBOT_R) {
               partsRef.current.push({
-                x: UR_X + PX * 0.5, y: UBOT_R + PX * 2,
-                vx: 0, vy: 0.3, size: PX,
+                x: UR_X + TW / 2, y: UBOT_R + PX * 2,
+                vx: 0, vy: 0.3 + Math.random() * 0.2, size: PX,
                 type: 'drop', color: '#00ff88', life: 1,
               })
               continue
             }
           }
-          // Color transition: purple → green as it moves right
-          const progress = p.vx > 0 ? Math.min(1, (p.x - UL_X) / (UR_X - UL_X)) : 0
+          // Color: purple (left) → transition at top → green (right)
+          let progress = 0
+          if (p.vx > 0) progress = Math.min(1, (p.x - UL_X) / (UR_X - UL_X))
+          else if (p.vy > 0) progress = 1 // fully green in right tube
           const sr = Math.floor(180 * (1 - progress))
           const sg = Math.floor(77 * (1 - progress) + 255 * progress)
           const sb = Math.floor(255 * (1 - progress) + 136 * progress)
-          c.globalAlpha = 0.5
+          c.globalAlpha = 0.6
           pxRect(c, p.x, p.y, PX, PX, `rgb(${sr},${sg},${sb})`)
+          // Glow at transition point (top of U)
+          if (progress > 0.3 && progress < 0.7) {
+            pxRect(c, p.x - PX, p.y - PX, PX * 3, PX * 3, `rgba(0,255,136,0.06)`)
+          }
           c.globalAlpha = 1
 
         } else if (p.type === 'drop') {
