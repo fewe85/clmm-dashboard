@@ -234,8 +234,8 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
       {/* Price labels */}
       <div className="flex justify-between text-xs px-3 mt-1">
-        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</span>
-        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</span>
+        <span className="mono" style={{ color: '#b0b8cc' }}>[${priceLower.toFixed(4)}]</span>
+        <span className="mono" style={{ color: '#b0b8cc' }}>[${priceUpper.toFixed(4)}]</span>
       </div>
 
       {/* Space scene SVG */}
