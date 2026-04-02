@@ -85,7 +85,7 @@ function drawLaser(c: CanvasRenderingContext2D, x: number, y: number, now: numbe
 }
 
 function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: number, now: number) {
-  const nW = 8, nH = 14, bR = 20, bCY = topY + nH + bR * 0.65
+  const nW = 12, nH = 18, bR = 32, bCY = topY + nH + bR * 0.6
   // Neck
   const ng = c.createLinearGradient(cx - nW / 2, 0, cx + nW / 2, 0)
   ng.addColorStop(0, 'rgba(140,160,200,0.14)'); ng.addColorStop(0.5, 'rgba(200,220,255,0.06)'); ng.addColorStop(1, 'rgba(100,120,160,0.1)')
@@ -163,18 +163,16 @@ function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: nu
   for (const [jx, jy] of [[lx, startY], [lx, topY], [rx, topY], [rx, botY]] as [number, number][]) {
     c.fillStyle = '#3a3a4a'; c.fillRect(jx - 1, jy - 1, tw + 4, 3)
   }
-  // Cooling coil — S-curves wrapping the right descent
-  c.strokeStyle = 'rgba(0,200,255,0.1)'; c.lineWidth = 1
-  for (let y = topY + tw + 8; y < botY - 6; y += 8) {
-    c.beginPath()
-    c.moveTo(rx - 1, y)
-    c.bezierCurveTo(rx + tw / 2, y - 2, rx + tw / 2, y + 4, rx + tw + 2, y + 3)
-    c.stroke()
-    c.beginPath()
-    c.moveTo(rx + tw + 2, y + 3)
-    c.bezierCurveTo(rx + tw / 2, y + 5, rx + tw / 2, y + 9, rx - 1, y + 8)
-    c.stroke()
+  // Cooling coil — continuous S-wave wrapping the right tube
+  c.strokeStyle = 'rgba(0,204,255,0.15)'; c.lineWidth = 1.2
+  c.beginPath()
+  let first = true
+  for (let y = topY + tw + 6; y < botY - 4; y += 5) {
+    const xOff = Math.sin(y * 0.3) * 4 // oscillates left-right of tube
+    const px = rx + tw / 2 + 1 + xOff
+    if (first) { c.moveTo(px, y); first = false } else c.lineTo(px, y)
   }
+  c.stroke()
   // Nozzle
   c.fillStyle = '#3a3a4a'; c.fillRect(rx + 1, botY, tw, 3)
   c.fillStyle = 'rgba(0,255,136,0.08)'; c.fillRect(rx + 2, botY + 2, tw - 2, 2)
@@ -254,21 +252,22 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       c.clearRect(0, 0, W, H)
 
       // ═══ FIXED Y POSITIONS ════════════════════════════════
-      const B1Y = H * 0.10          // Band 1
+      const B1Y = H * 0.08          // Band 1
       const LASER_RX = W - 18       // Laser emitter X
-      const LASER_Y = H * 0.18      // Laser Y
-      const B2Y = H * 0.22          // Band 2
+      const LASER_Y = H * 0.15      // Laser Y
+      const B2Y = H * 0.19          // Band 2
       const FUNNEL_X = 18           // Funnel X (left end of band 2)
-      const FUNNEL_Y = H * 0.30     // Funnel Y
-      const FK_CX = 32              // Flask center X
-      const FK_TOP = H * 0.44       // Flask neck top
-      const UT_LX = 42              // U-tube left X
-      const UT_RX = W - 26          // U-tube right X
-      const UT_TOP = H * 0.35       // U-tube top (above flask!)
-      const UT_START = H * 0.48     // U-tube starts at flask side
-      const UT_BOT = H * 0.67       // U-tube bottom
-      const TANK_Y = H * 0.75       // Tank top
-      const TANK_H = H * 0.22       // Tank height
+      const FUNNEL_Y = H * 0.27     // Funnel Y
+      const FK_CX = 30              // Flask center X (left side)
+      const FK_TOP = H * 0.40       // Flask neck top
+      // U-tube ∩ shape: starts from right side of flask, goes UP, across, DOWN
+      const UT_LX = FK_CX + 22      // Left tube X (right side of flask)
+      const UT_RX = W - 22          // Right tube X
+      const UT_TOP = H * 0.30       // Top of ∩ (ABOVE flask)
+      const UT_START = H * 0.48     // Where tube exits flask (right side, mid-bulb)
+      const UT_BOT = H * 0.64       // Bottom of right descent
+      const TANK_Y = H * 0.72       // Tank top
+      const TANK_H = H * 0.24       // Tank height
 
       // ═══ BACKGROUND ═══════════════════════════════════════
       c.fillStyle = '#08080f'; c.fillRect(0, 0, W, H)
@@ -278,20 +277,22 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       drawLaser(c, LASER_RX, LASER_Y, now) // Laser emitter
       drawBelt(c, B2Y, -1, now)        // Band 2 ← left
 
-      // Funnel
+      // Funnel (catches fragments from band 2 left end)
       c.fillStyle = '#3a3a4a'
       c.beginPath(); c.moveTo(FUNNEL_X - 10, FUNNEL_Y); c.lineTo(FUNNEL_X, FUNNEL_Y + 10); c.lineTo(FUNNEL_X + 10, FUNNEL_Y); c.fill()
       c.fillStyle = '#1a1a2a'
       c.beginPath(); c.moveTo(FUNNEL_X - 7, FUNNEL_Y + 1); c.lineTo(FUNNEL_X, FUNNEL_Y + 8); c.lineTo(FUNNEL_X + 7, FUNNEL_Y + 1); c.fill()
-      // Pipe from funnel to flask
-      c.fillStyle = '#3a3a4a'; c.fillRect(FUNNEL_X - 2, FUNNEL_Y + 10, 4, FK_TOP - FUNNEL_Y - 10)
-      c.fillStyle = '#1a1a2a'; c.fillRect(FUNNEL_X - 1, FUNNEL_Y + 11, 2, FK_TOP - FUNNEL_Y - 12)
+      // DIAGONAL pipe from funnel → flask neck (goes left-down to flask)
+      c.strokeStyle = '#3a3a4a'; c.lineWidth = 4
+      c.beginPath(); c.moveTo(FUNNEL_X, FUNNEL_Y + 10); c.lineTo(FK_CX, FK_TOP); c.stroke()
+      c.strokeStyle = '#1a1a2a'; c.lineWidth = 2
+      c.beginPath(); c.moveTo(FUNNEL_X, FUNNEL_Y + 11); c.lineTo(FK_CX, FK_TOP + 1); c.stroke()
 
       const flask = drawFlask(c, FK_CX, FK_TOP, Math.min(1, fillRef.current * 2.5), now)
 
-      // Connection: flask → U-tube
-      c.strokeStyle = 'rgba(140,160,200,0.1)'; c.lineWidth = 1
-      c.beginPath(); c.moveTo(FK_CX + 10, flask.bCY - 8); c.lineTo(UT_LX + 3, UT_START); c.stroke()
+      // Connection: flask right side → U-tube left start (short horizontal)
+      c.fillStyle = '#3a3a4a'; c.fillRect(FK_CX + flask.bR - 2, UT_START - 2, UT_LX - FK_CX - flask.bR + 4, 4)
+      c.fillStyle = '#1a1a2a'; c.fillRect(FK_CX + flask.bR, UT_START - 1, UT_LX - FK_CX - flask.bR + 2, 2)
 
       drawUTube(c, UT_LX, UT_RX, UT_TOP, UT_START, UT_BOT, now)
       const tank = drawTank(c, TANK_Y, TANK_H, fillRef.current, now)
@@ -357,11 +358,13 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             if (p.y >= B2Y - 2) { p.phase = 1; p.vy = 0; p.vx = -0.4; p.y = B2Y - 3 }
           } else if (p.phase === 1) {
             p.x += p.vx
-            if (p.x <= FUNNEL_X + 4) { p.phase = 2; p.vx = 0; p.vy = 0.4 }
+            if (p.x <= FUNNEL_X + 2) { p.phase = 2; p.vx = 0; p.vy = 0.5; p.x = FUNNEL_X }
           } else {
-            // Path D: fall through funnel into flask
+            // Path D: fall diagonally through pipe into flask
             p.y += p.vy; p.vy += 0.008
-            p.x += (FK_CX - p.x) * 0.03
+            // Follow diagonal pipe toward flask center
+            const pipeProgress = Math.min(1, (p.y - FUNNEL_Y) / (FK_TOP - FUNNEL_Y))
+            p.x = FUNNEL_X + (FK_CX - FUNNEL_X) * pipeProgress
             const dist = Math.sqrt((p.x - FK_CX) ** 2 + (p.y - flask.bCY) ** 2)
             if (dist < flask.bR) p.life -= 0.02
           }
