@@ -89,10 +89,41 @@ function makeParticle(_h: number): Particle {
   }
 }
 
-/** Ore Density meter — blink frequency = earning velocity, shows live APR */
-function OreDensityMeter({ ratePerHour, positionValue }: { ratePerHour: number; positionValue: number }) {
-  // Live APR estimate from short-term rate
-  const liveApr = positionValue > 0 ? (ratePerHour * 24 * 365 / positionValue) * 100 : 0
+/** Ore Density meter — live APR from fastest available data */
+function OreDensityMeter({ ratePerHour, positionValue, pendingTotal, snapshots }: {
+  ratePerHour: number; positionValue: number; pendingTotal: number; snapshots: Snapshot[]
+}) {
+  // Track pending changes between refreshes for real-time rate
+  const prevPendingRef = useRef({ value: pendingTotal, time: Date.now() })
+  const liveRateRef = useRef(ratePerHour)
+
+  useEffect(() => {
+    const prev = prevPendingRef.current
+    const now = Date.now()
+    const dt = (now - prev.time) / 3_600_000 // hours
+    const dv = pendingTotal - prev.value
+
+    if (dt > 0.01 && dv > 0) { // at least ~30s and positive change
+      // Blend: 70% new measurement, 30% old to smooth noise
+      liveRateRef.current = liveRateRef.current * 0.3 + (dv / dt) * 0.7
+    }
+    prevPendingRef.current = { value: pendingTotal, time: now }
+  }, [pendingTotal])
+
+  // Also check last 2 snapshots for fast reaction after rebalance
+  const shortRate = useMemo(() => {
+    if (snapshots.length < 2) return 0
+    const last = snapshots[snapshots.length - 1]
+    const prev = snapshots[snapshots.length - 2]
+    const dt = (new Date(last.t).getTime() - new Date(prev.t).getTime()) / 3_600_000
+    if (dt < 0.3) return 0 // too close, unreliable
+    const dEarn = (last.feesUsd - prev.feesUsd) + (last.rewardsUsd - prev.rewardsUsd)
+    return dEarn > 0 ? dEarn / dt : 0
+  }, [snapshots])
+
+  // Use the most responsive rate: max of live-pending, short-snapshot, and hourly average
+  const bestRate = Math.max(liveRateRef.current, shortRate, ratePerHour)
+  const liveApr = positionValue > 0 ? (bestRate * 24 * 365 / positionValue) * 100 : 0
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // Track recent "clicks" for visual decay
   const clicksRef = useRef<{ x: number; t: number; size: number }[]>([])
@@ -110,7 +141,7 @@ function OreDensityMeter({ ratePerHour, positionValue }: { ratePerHour: number; 
 
     // Click interval: high rate = fast clicks, low = slow
     // Map: $0.5/h → 1 click/2s, $5/h → 5 clicks/s, $50/h → 20 clicks/s
-    const clicksPerSec = Math.max(0.3, Math.min(25, ratePerHour * 1.2))
+    const clicksPerSec = Math.max(0.3, Math.min(25, bestRate * 1.2))
     const avgIntervalMs = 1000 / clicksPerSec
 
     let animId = 0
@@ -147,8 +178,8 @@ function OreDensityMeter({ ratePerHour, positionValue }: { ratePerHour: number; 
 
         // Color based on intensity: green normal, yellow high, red spike
         let color: string
-        if (ratePerHour > 20) color = `rgba(255,42,109,${alpha * 0.9})`      // spike — pink
-        else if (ratePerHour > 5) color = `rgba(255,200,0,${alpha * 0.8})`    // high — yellow
+        if (bestRate > 20) color = `rgba(255,42,109,${alpha * 0.9})`      // spike — pink
+        else if (bestRate > 5) color = `rgba(255,200,0,${alpha * 0.8})`    // high — yellow
         else color = `rgba(0,255,136,${alpha * 0.7})`                          // normal — green
 
         ctx.fillStyle = color
@@ -169,8 +200,8 @@ function OreDensityMeter({ ratePerHour, positionValue }: { ratePerHour: number; 
       ctx.fillRect(0, ch - 3, cw, 3)
 
       // Activity level bar
-      const level = Math.min(1, ratePerHour / 15)
-      const barColor = ratePerHour > 20 ? '#ff2a6d' : ratePerHour > 5 ? '#ffcc00' : '#00ff88'
+      const level = Math.min(1, bestRate / 15)
+      const barColor = bestRate > 20 ? '#ff2a6d' : bestRate > 5 ? '#ffcc00' : '#00ff88'
       ctx.fillStyle = barColor
       ctx.globalAlpha = 0.3
       ctx.fillRect(0, ch - 3, cw * level, 3)
@@ -836,7 +867,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       </div>
 
       {/* Ore density meter — earning velocity + live APR */}
-      <OreDensityMeter ratePerHour={totalPerHour} positionValue={positionValue} />
+      <OreDensityMeter ratePerHour={totalPerHour} positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} snapshots={snapshots} />
 
       {/* Refinery column — canvas fills all remaining height */}
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 250 }}>
