@@ -317,11 +317,20 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
           {/* UFO */}
           <g filter="url(#ufo-glow)">
+            {/* Hover bob */}
             <animateTransform
               attributeName="transform" type="translate"
-              values={`0 0; 0 -2.5; 0 0`}
-              dur={danger ? '0.5s' : '3s'}
+              values="0 0; 0 -3; 0 1; 0 -2; 0 0"
+              dur={danger ? '0.6s' : '4s'}
               repeatCount="indefinite"
+            />
+            {/* Tilt/wank */}
+            <animateTransform
+              attributeName="transform" type="rotate"
+              values={`0 ${ufoX} 33; -2 ${ufoX} 33; 0 ${ufoX} 33; 3 ${ufoX} 33; -1 ${ufoX} 33; 0 ${ufoX} 33`}
+              dur={danger ? '0.8s' : '5s'}
+              repeatCount="indefinite"
+              additive="sum"
             />
 
             {/* Saucer rim — metallic with purple tint */}
