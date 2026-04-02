@@ -214,101 +214,106 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
 
     // ─── ROBOT WITH LIGHTSABER ─────────────────────────────────────
-    const laserCycle = 4000
-    const laserT = (now % laserCycle) / laserCycle
-    const swingRange = processEnd - intakeEnd - 20
-    const laserY = intakeEnd + 10 + Math.sin(laserT * Math.PI) * swingRange
-    const laser2Y = laserY
+    // Robot stands on the zone 2/3 separator, swings blade left↔right
+    const swingCycle = 3000
+    const swingT = (now % swingCycle) / swingCycle
+    // Swing angle: 0 = right, PI = left, smooth sine
+    const swingAngle = Math.sin(swingT * Math.PI * 2) // -1 to 1
 
-    // Robot position — rides left rail
-    const robotX = railW + 2
-    const robotY = laserY
+    const robotX = W / 2
+    const robotY = processEnd - 8 // stands on the separator line
+    const bladeLen = W / 2 - railW - 6
+    const bladeAlpha = 0.7 + Math.sin(now * 0.01) * 0.2
+
+    // Blade tip position (swings horizontally)
+    const bladeTipX = robotX + swingAngle * bladeLen
+    const bladeTipY = robotY - 4 - Math.abs(swingAngle) * 8 // slight arc upward at extremes
+
+    // Blade Y for collision detection (approximate — horizontal band)
+    const laserY = (robotY - 4 + bladeTipY) / 2
+    const laser2Y = laserY
 
     ctx.save()
 
-    // Robot body (pixel art style)
-    // Legs
-    ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(robotX, robotY + 5, 2, 4)
-    ctx.fillRect(robotX + 4, robotY + 5, 2, 4)
-
-    // Body
-    ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX - 1, robotY - 2, 8, 8)
-    // Body highlight
-    ctx.fillStyle = '#5a5a6a'
-    ctx.fillRect(robotX, robotY - 1, 6, 2)
-
-    // Chest light
-    ctx.fillStyle = '#b44dff'
-    ctx.fillRect(robotX + 2, robotY + 1, 2, 2)
-    ctx.globalAlpha = 0.3 + Math.sin(now * 0.005) * 0.2
-    ctx.fillStyle = 'rgba(180,77,255,0.4)'
-    ctx.fillRect(robotX + 1, robotY, 4, 4)
-    ctx.globalAlpha = 1
-
-    // Head
-    ctx.fillStyle = '#5a5a6a'
-    ctx.fillRect(robotX, robotY - 6, 6, 5)
-    // Eye
-    ctx.fillStyle = '#ff4444'
-    ctx.fillRect(robotX + 3, robotY - 5, 2, 2)
-    // Eye glow
-    ctx.fillStyle = 'rgba(255,68,68,0.3)'
-    ctx.fillRect(robotX + 2, robotY - 6, 4, 4)
-    // Antenna
-    ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX + 2, robotY - 9, 1, 3)
-    ctx.fillStyle = '#b44dff'
-    ctx.fillRect(robotX + 1, robotY - 10, 3, 2)
-
-    // Arm holding saber (extends right)
-    ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX + 6, robotY - 1, 4, 2)
-
-    // Lightsaber handle
-    ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX + 9, robotY - 2, 3, 4)
-    ctx.fillStyle = '#8a8a9a'
-    ctx.fillRect(robotX + 10, robotY - 2, 1, 4)
-
-    // Lightsaber blade — neon violet
-    const bladeStart = robotX + 12
-    const bladeEnd = W - railW - 2
-    const bladeAlpha = 0.7 + Math.sin(now * 0.01) * 0.2
-
-    // Blade glow (wide)
-    const bladeGlow = ctx.createLinearGradient(bladeStart, laserY - 6, bladeStart, laserY + 6)
-    bladeGlow.addColorStop(0, 'transparent')
-    bladeGlow.addColorStop(0.5, `rgba(180,77,255,${0.12 * bladeAlpha})`)
-    bladeGlow.addColorStop(1, 'transparent')
-    ctx.fillStyle = bladeGlow
-    ctx.fillRect(bladeStart, laserY - 6, bladeEnd - bladeStart, 12)
+    // ── Lightsaber blade (drawn behind robot) ──
+    // Glow
+    ctx.beginPath()
+    ctx.moveTo(robotX + 4 * Math.sign(swingAngle), robotY - 4)
+    ctx.lineTo(bladeTipX, bladeTipY)
+    ctx.strokeStyle = 'rgba(180,77,255,0.12)'
+    ctx.lineWidth = 10
+    ctx.stroke()
 
     // Blade core
     ctx.globalAlpha = bladeAlpha
-    ctx.strokeStyle = '#d494ff'
-    ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.moveTo(bladeStart, laserY)
-    ctx.lineTo(bladeEnd, laserY)
+    ctx.moveTo(robotX + 3 * Math.sign(swingAngle), robotY - 4)
+    ctx.lineTo(bladeTipX, bladeTipY)
+    ctx.strokeStyle = '#d494ff'
+    ctx.lineWidth = 2.5
+    ctx.lineCap = 'round'
     ctx.stroke()
 
     // Blade bright center
     ctx.strokeStyle = '#e8c0ff'
-    ctx.lineWidth = 0.8
+    ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(bladeStart, laserY)
-    ctx.lineTo(bladeEnd, laserY)
+    ctx.moveTo(robotX + 3 * Math.sign(swingAngle), robotY - 4)
+    ctx.lineTo(bladeTipX, bladeTipY)
     ctx.stroke()
+    ctx.lineCap = 'butt'
 
     // Blade tip glow
     ctx.beginPath()
-    ctx.arc(bladeEnd, laserY, 3, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(180,77,255,0.2)'
+    ctx.arc(bladeTipX, bladeTipY, 3, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(180,77,255,0.25)'
     ctx.fill()
 
     ctx.globalAlpha = 1
+
+    // ── Robot body (pixel art, centered on separator) ──
+    // Legs (standing on separator)
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(robotX - 4, robotY + 1, 2, 4)
+    ctx.fillRect(robotX + 2, robotY + 1, 2, 4)
+
+    // Body
+    ctx.fillStyle = '#4a4a5a'
+    ctx.fillRect(robotX - 5, robotY - 6, 10, 8)
+    ctx.fillStyle = '#5a5a6a'
+    ctx.fillRect(robotX - 4, robotY - 5, 8, 2)
+
+    // Chest light
+    ctx.fillStyle = '#b44dff'
+    ctx.fillRect(robotX - 1, robotY - 3, 2, 2)
+    ctx.globalAlpha = 0.3 + Math.sin(now * 0.005) * 0.2
+    ctx.fillStyle = 'rgba(180,77,255,0.4)'
+    ctx.fillRect(robotX - 2, robotY - 4, 4, 4)
+    ctx.globalAlpha = 1
+
+    // Head
+    ctx.fillStyle = '#5a5a6a'
+    ctx.fillRect(robotX - 3, robotY - 11, 6, 5)
+    // Eyes (looks in swing direction)
+    const eyeOff = swingAngle > 0 ? 1 : -2
+    ctx.fillStyle = '#ff4444'
+    ctx.fillRect(robotX + eyeOff, robotY - 10, 2, 2)
+    ctx.fillStyle = 'rgba(255,68,68,0.3)'
+    ctx.fillRect(robotX + eyeOff - 1, robotY - 11, 4, 4)
+    // Antenna
+    ctx.fillStyle = '#6a6a7a'
+    ctx.fillRect(robotX, robotY - 14, 1, 3)
+    ctx.fillStyle = '#b44dff'
+    ctx.fillRect(robotX - 1, robotY - 15, 3, 2)
+
+    // Arm (points in blade direction)
+    ctx.fillStyle = '#4a4a5a'
+    const armDir = Math.sign(swingAngle) || 1
+    ctx.fillRect(robotX + armDir * 4, robotY - 5, armDir * 4, 2)
+    // Handle
+    ctx.fillStyle = '#6a6a7a'
+    ctx.fillRect(robotX + armDir * 7, robotY - 6, 3, 4)
+
     ctx.restore()
 
     // ─── COLLECTION ZONE (bottom) ────────────────────────────────
@@ -363,10 +368,14 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       p.y += p.vy
       p.rotation += p.rotSpeed
 
-      // Asteroid hits laser → shatter into dots
+      // Asteroid hits lightsaber blade → shatter into dots
       if (p.phase === 'intake') {
-        const hitLaser = Math.abs(p.y - laserY) < 4 || Math.abs(p.y - laser2Y) < 3
-        if (hitLaser && p.y > intakeEnd + 10) {
+        // Check if asteroid is near the blade's Y position and within the swing arc
+        const bladeMinX = Math.min(robotX, bladeTipX) - 4
+        const bladeMaxX = Math.max(robotX, bladeTipX) + 4
+        const nearBladeY = Math.abs(p.y - laserY) < 6
+        const inBladeX = p.x > bladeMinX && p.x < bladeMaxX
+        if (nearBladeY && inBladeX && p.y > intakeEnd + 10) {
           p.phase = 'process'
           // Spawn small dot particles
           const dotCount = 6 + Math.floor(Math.random() * 5)
