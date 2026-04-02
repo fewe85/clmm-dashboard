@@ -608,11 +608,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           ${displayTotal.toFixed(4)}
         </div>
         <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
-        {harvestThreshold > 0 && (
-          <div className="mono font-bold neon-value" style={{ fontSize: '10px', color: displayTotal >= harvestThreshold ? '#00ff88' : '#c77dff', marginTop: 2 }}>
-            ${displayTotal.toFixed(2)} / ${harvestThreshold.toFixed(2)}
-          </div>
-        )}
       </div>
 
       {/* Refinery column — canvas fills all remaining height */}
@@ -628,6 +623,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       {/* Bottom stats */}
       <div className="text-center z-10 flex-shrink-0 py-1 space-y-0.5">
+        {harvestThreshold > 0 && (
+          <div className="mono font-bold neon-value" style={{ fontSize: '10px', color: displayTotal >= harvestThreshold ? '#00ff88' : '#c77dff' }}>
+            ${displayTotal.toFixed(2)} / ${harvestThreshold.toFixed(2)}
+          </div>
+        )}
         <div className="hud-label" style={{ fontSize: '7px', color: '#00ff88' }}>REFINING RATE</div>
         <div className="mono text-xs font-bold" style={{ color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>
           ${dailyRate.toFixed(2)}/d
