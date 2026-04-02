@@ -235,10 +235,13 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     // ─── ROBOT WITH DUAL LIGHTSABERS ──────────────────────────────
     const swingCycle = 2000
     const swingT = (now % swingCycle) / swingCycle
-    // Each blade: 45° sweep. Left blade: -90° to -45°, Right blade: +45° to +90°
-    const swingPhase = Math.sin(swingT * Math.PI * 2) // -1 to 1
-    const leftAngle = -(55 + swingPhase * 35) * Math.PI / 180  // -90° to -20°
-    const rightAngle = (55 + swingPhase * -35) * Math.PI / 180 // +20° to +90° (mirrored)
+    // Both blades move together: up (closed V) → out to sides (open V)
+    // swingPhase: 0=up, 1=sides, smooth
+    const swingPhase = (Math.sin(swingT * Math.PI * 2) + 1) / 2 // 0 to 1
+    // Up = ~10° from vertical, sides = ~80° from vertical
+    const spreadAngle = (10 + swingPhase * 70) * Math.PI / 180
+    const leftAngle = -spreadAngle   // left blade goes left
+    const rightAngle = spreadAngle   // right blade goes right (mirrored)
 
     const robotX = W / 2
     const robotY = processEnd - 12
