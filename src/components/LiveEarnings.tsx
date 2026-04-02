@@ -268,7 +268,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.restore()
 
     // ─── COLLECTION ZONE (bottom) ────────────────────────────────
-    const _collectionTop = processEnd + 3
+
     const fillH = collectionH * fillRef.current
     const surfaceY = h - 4 - fillH
 
@@ -302,13 +302,15 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
 
     // ─── PARTICLES ───────────────────────────────────────────────
-    // Spawn
-    if (now - lastSpawnRef.current > 2000 + Math.random() * 3000) {
+    // Spawn asteroids
+    if (now - lastSpawnRef.current > 2500 + Math.random() * 3000) {
       if (particlesRef.current.length < 8) {
         particlesRef.current.push(makeParticle(h))
         lastSpawnRef.current = now
       }
     }
+
+    const surfaceLimit = h - 4 - collectionH * fillRef.current
 
     // Update & draw
     const alive: Particle[] = []
@@ -317,53 +319,52 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       p.y += p.vy
       p.rotation += p.rotSpeed
 
-      // Phase transitions
-      if (p.phase === 'intake' && p.y > intakeEnd) {
-        p.phase = 'process'
-        p.vy *= 0.4
-        // Create fragments
-        const fragCount = 3 + Math.floor(Math.random() * 4)
-        p.fragments = Array.from({ length: fragCount }, () => ({
-          x: p.x + (Math.random() - 0.5) * p.size,
-          y: p.y,
-          vx: (Math.random() - 0.5) * 1.5,
-          vy: 0.3 + Math.random() * 0.5,
-          size: 2 + Math.random() * 3,
-          glow: 0,
-        }))
+      // Asteroid hits laser → shatter into dots
+      if (p.phase === 'intake') {
+        const hitLaser = Math.abs(p.y - laserY) < 4 || Math.abs(p.y - laser2Y) < 3
+        if (hitLaser && p.y > intakeEnd + 10) {
+          p.phase = 'process'
+          // Spawn small dot particles
+          const dotCount = 6 + Math.floor(Math.random() * 5)
+          p.fragments = Array.from({ length: dotCount }, () => ({
+            x: p.x + (Math.random() - 0.5) * p.size * 0.8,
+            y: p.y,
+            vx: (Math.random() - 0.5) * 0.8,
+            vy: 0.5 + Math.random() * 0.8,
+            size: 1.5 + Math.random() * 2,
+            glow: 0,
+          }))
+        }
       }
 
       if (p.phase === 'process') {
-        // Shrink original
-        p.size *= 0.96
-        p.opacity *= 0.97
+        // Asteroid fades fast
+        p.size *= 0.88
+        p.opacity *= 0.9
 
-        // Update fragments — they fall all the way to the collection zone
+        // Dots fall down with gravity
         if (p.fragments) {
           for (const f of p.fragments) {
             f.x += f.vx
             f.y += f.vy
-            f.vy += 0.01 // slight gravity
-            f.vx *= 0.97
-            f.glow = Math.min(1, f.glow + 0.015)
-            // Fade out when reaching the liquid surface
-            if (f.y > h - 4 - collectionH * fillRef.current) {
-              f.size *= 0.9
-            }
+            f.vy += 0.015
+            f.vx *= 0.99
+            f.glow = Math.min(1, f.glow + 0.01)
+            // Shrink when hitting liquid
+            if (f.y > surfaceLimit) f.size *= 0.92
           }
-          // Remove tiny fragments
-          p.fragments = p.fragments.filter(f => f.size > 0.3 && f.y < h)
+          p.fragments = p.fragments.filter(f => f.size > 0.4 && f.y < h)
         }
 
-        if (p.y > processEnd || p.size < 1) {
+        if (p.size < 0.5 && (!p.fragments || p.fragments.length === 0)) {
           p.phase = 'done'
         }
       }
 
       if (p.phase as string === 'done') continue
 
-      // Draw asteroid
-      if (p.phase === 'intake' || (p.phase === 'process' && p.size > 1.5)) {
+      // Draw asteroid (intact or shrinking)
+      if (p.size > 1) {
         ctx.save()
         ctx.translate(p.x, p.y)
         ctx.rotate(p.rotation)
@@ -372,40 +373,33 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         ctx.moveTo(s[0][0], s[0][1])
         for (let i = 1; i < s.length; i++) ctx.lineTo(s[i][0], s[i][1])
         ctx.closePath()
-
-        // Color transition in process zone
-        if (p.phase === 'process') {
-          const t = Math.min(1, (p.y - intakeEnd) / (processEnd - intakeEnd))
-          const r = Math.floor(90 + t * 165)
-          const g = Math.floor(70 + t * 40)
-          const b = Math.floor(46 - t * 20)
-          ctx.fillStyle = `rgba(${r},${g},${b},${p.opacity})`
-        } else {
-          ctx.fillStyle = p.color
-          ctx.globalAlpha = p.opacity
-        }
+        ctx.fillStyle = p.color
+        ctx.globalAlpha = p.opacity
         ctx.fill()
         ctx.globalAlpha = 1
         ctx.restore()
       }
 
-      // Draw fragments — fall through all zones
+      // Draw dot fragments
       if (p.fragments) {
         for (const f of p.fragments) {
           const t = f.glow
-          // Grey → orange → green
-          const r = Math.floor(90 * (1 - t) + 0 * t)
-          const g = Math.floor(80 * (1 - t) + 255 * t)
-          const b = Math.floor(60 * (1 - t) + 136 * t)
+          // Start grey/orange, transition to neon green
+          const r = Math.floor(180 * (1 - t))
+          const g = Math.floor(120 * (1 - t) + 255 * t)
+          const b = Math.floor(80 * (1 - t) + 136 * t)
+
+          // Dot
           ctx.beginPath()
-          ctx.arc(f.x, f.y, f.size * (1 - t * 0.5), 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(${r},${g},${b},${0.6 + t * 0.4})`
+          ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${r},${g},${b},${0.7 + t * 0.3})`
           ctx.fill()
-          // Glow
-          if (t > 0.5) {
+
+          // Glow halo when green
+          if (t > 0.4) {
             ctx.beginPath()
-            ctx.arc(f.x, f.y, f.size * 2, 0, Math.PI * 2)
-            ctx.fillStyle = `rgba(0,255,136,${(t - 0.5) * 0.15})`
+            ctx.arc(f.x, f.y, f.size + 2, 0, Math.PI * 2)
+            ctx.fillStyle = `rgba(0,255,136,${(t - 0.4) * 0.12})`
             ctx.fill()
           }
         }
