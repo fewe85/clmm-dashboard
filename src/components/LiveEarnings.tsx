@@ -411,267 +411,95 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillStyle = heatGrad
     ctx.fillRect(railW + 15, intakeEnd + 3, W - railW * 2 - 30, processEnd - intakeEnd - 6)
 
-    // ─── ROBOT WITH EYE LASERS ────────────────────────────────────
-    const robotX = W / 2
-    const robotY = processEnd - 16
+    // ─── CRUSHING GEARS — two interlocking half-visible gears ─────
+    const gearY = (intakeEnd + processEnd) / 2 // centered on zone boundary
+    const gearR = 28 // radius — large, extends beyond walls
+    const gearSpin = (now * 0.001) % (Math.PI * 2)
+    const teeth = 10
+    const toothDepth = 6
 
-    // Gentle idle bob + tilt
-    const bobY = Math.sin(now * 0.0015) * 3 + Math.sin(now * 0.0025) * 1.5
-    const rby = robotY + bobY
-
-    // Eye positions
-    const eyeLX = robotX - 4
-    const eyeRX = robotX + 4
-    const eyeY = rby - 28
-
-    // Find nearest asteroid above robot to target
-    let targetX = robotX
-    let targetY = eyeY - 30
-    let hasTarget = false
-    let nearestDist = Infinity
-    for (const p of particlesRef.current) {
-      if (p.phase !== 'intake') continue
-      const dist = Math.sqrt((p.x - robotX) ** 2 + (p.y - eyeY) ** 2)
-      if (p.y > intakeEnd && p.y < eyeY && dist < nearestDist) {
-        nearestDist = dist
-        targetX = p.x
-        targetY = p.y
-        hasTarget = true
-      }
-    }
-
-    // Collision: any asteroid within laser range of eye-to-target line
-    const blades = hasTarget ? [
-      { ax: eyeLX, ay: eyeY, bx: targetX, by: targetY },
-      { ax: eyeRX, ay: eyeY, bx: targetX, by: targetY },
-    ] : []
+    // Collision: horizontal line across the gear mesh point
+    const blades = [
+      { ax: railW, ay: gearY, bx: W - railW, by: gearY },
+    ]
 
     ctx.save()
 
-    // ── Robot body — Mech Sentinel ──
-    const rx = robotX, ry = rby
+    for (const side of ['left', 'right'] as const) {
+      const gx = side === 'left' ? railW - 4 : W - railW + 4
+      const dir = side === 'left' ? 1 : -1
+      const spin = gearSpin * dir
 
-    // Shadow/ground glow under feet
-    ctx.beginPath()
-    ctx.ellipse(rx, ry + 18, 16, 3, 0, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(180,77,255,0.06)'
-    ctx.fill()
+      ctx.save()
+      ctx.translate(gx, gearY)
+      ctx.rotate(spin)
 
-    // Legs — angled, mechanical
-    ctx.fillStyle = '#3a3a4a'
-    // Left leg: thigh
-    ctx.fillRect(rx - 11, ry + 2, 5, 7)
-    // Left leg: shin (slightly wider)
-    ctx.fillStyle = '#444455'
-    ctx.fillRect(rx - 12, ry + 8, 6, 6)
-    // Left knee joint
-    ctx.beginPath()
-    ctx.arc(rx - 9, ry + 8, 2, 0, Math.PI * 2)
-    ctx.fillStyle = '#b44dff'
-    ctx.globalAlpha = 0.4
-    ctx.fill()
-    ctx.globalAlpha = 1
-    // Left foot
-    ctx.fillStyle = '#2a2a3a'
-    ctx.fillRect(rx - 14, ry + 13, 9, 4)
-    ctx.fillStyle = 'rgba(180,77,255,0.1)'
-    ctx.fillRect(rx - 13, ry + 14, 7, 2)
-
-    // Right leg (mirrored)
-    ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(rx + 6, ry + 2, 5, 7)
-    ctx.fillStyle = '#444455'
-    ctx.fillRect(rx + 6, ry + 8, 6, 6)
-    ctx.beginPath()
-    ctx.arc(rx + 9, ry + 8, 2, 0, Math.PI * 2)
-    ctx.fillStyle = '#b44dff'
-    ctx.globalAlpha = 0.4
-    ctx.fill()
-    ctx.globalAlpha = 1
-    ctx.fillStyle = '#2a2a3a'
-    ctx.fillRect(rx + 5, ry + 13, 9, 4)
-    ctx.fillStyle = 'rgba(180,77,255,0.1)'
-    ctx.fillRect(rx + 6, ry + 14, 7, 2)
-
-    // Torso — layered armor plates
-    ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(rx - 13, ry - 18, 26, 21)
-    // Upper chest plate
-    ctx.fillStyle = '#555566'
-    ctx.fillRect(rx - 11, ry - 17, 22, 8)
-    // Lower abdomen
-    ctx.fillStyle = '#3d3d4e'
-    ctx.fillRect(rx - 10, ry - 5, 20, 7)
-    // Center chest seam
-    ctx.fillStyle = 'rgba(180,77,255,0.06)'
-    ctx.fillRect(rx - 0.5, ry - 17, 1, 20)
-
-    // Reactor core (chest) — pulsing
-    const corePulse = 0.5 + Math.sin(now * 0.004) * 0.3
-    ctx.beginPath()
-    ctx.arc(rx, ry - 8, 4, 0, Math.PI * 2)
-    ctx.fillStyle = `rgba(180,77,255,${corePulse * 0.8})`
-    ctx.fill()
-    ctx.beginPath()
-    ctx.arc(rx, ry - 8, 2, 0, Math.PI * 2)
-    ctx.fillStyle = '#d494ff'
-    ctx.fill()
-    // Reactor glow
-    ctx.beginPath()
-    ctx.arc(rx, ry - 8, 8, 0, Math.PI * 2)
-    ctx.fillStyle = `rgba(180,77,255,${corePulse * 0.08})`
-    ctx.fill()
-
-    // Shoulder armor — angular
-    ctx.fillStyle = '#3a3a4a'
-    // Left shoulder
-    ctx.beginPath()
-    ctx.moveTo(rx - 13, ry - 18)
-    ctx.lineTo(rx - 20, ry - 14)
-    ctx.lineTo(rx - 20, ry - 8)
-    ctx.lineTo(rx - 13, ry - 8)
-    ctx.closePath()
-    ctx.fill()
-    ctx.fillStyle = 'rgba(180,77,255,0.08)'
-    ctx.fillRect(rx - 19, ry - 13, 6, 1)
-    // Right shoulder
-    ctx.fillStyle = '#3a3a4a'
-    ctx.beginPath()
-    ctx.moveTo(rx + 13, ry - 18)
-    ctx.lineTo(rx + 20, ry - 14)
-    ctx.lineTo(rx + 20, ry - 8)
-    ctx.lineTo(rx + 13, ry - 8)
-    ctx.closePath()
-    ctx.fill()
-    ctx.fillStyle = 'rgba(180,77,255,0.08)'
-    ctx.fillRect(rx + 13, ry - 13, 6, 1)
-
-    // Arms — segmented
-    ctx.fillStyle = '#444455'
-    // Left arm
-    ctx.fillRect(rx - 21, ry - 8, 5, 14)
-    ctx.beginPath()
-    ctx.arc(rx - 19, ry - 1, 1.5, 0, Math.PI * 2)
-    ctx.fillStyle = '#b44dff'
-    ctx.globalAlpha = 0.3
-    ctx.fill()
-    ctx.globalAlpha = 1
-    // Left hand/fist
-    ctx.fillStyle = '#555566'
-    ctx.fillRect(rx - 22, ry + 5, 7, 5)
-    // Right arm
-    ctx.fillStyle = '#444455'
-    ctx.fillRect(rx + 16, ry - 8, 5, 14)
-    ctx.beginPath()
-    ctx.arc(rx + 19, ry - 1, 1.5, 0, Math.PI * 2)
-    ctx.fillStyle = '#b44dff'
-    ctx.globalAlpha = 0.3
-    ctx.fill()
-    ctx.globalAlpha = 1
-    ctx.fillStyle = '#555566'
-    ctx.fillRect(rx + 15, ry + 5, 7, 5)
-
-    // Head — angular helmet
-    ctx.fillStyle = '#555566'
-    // Helmet base
-    ctx.beginPath()
-    ctx.moveTo(rx - 10, ry - 20)
-    ctx.lineTo(rx - 8, ry - 35)
-    ctx.lineTo(rx + 8, ry - 35)
-    ctx.lineTo(rx + 10, ry - 20)
-    ctx.closePath()
-    ctx.fill()
-    // Helmet crest
-    ctx.fillStyle = '#4a4a5a'
-    ctx.beginPath()
-    ctx.moveTo(rx - 2, ry - 35)
-    ctx.lineTo(rx, ry - 40)
-    ctx.lineTo(rx + 2, ry - 35)
-    ctx.closePath()
-    ctx.fill()
-
-    // Visor — wide angular slit
-    ctx.fillStyle = '#0a0a1a'
-    ctx.beginPath()
-    ctx.moveTo(rx - 9, ry - 29)
-    ctx.lineTo(rx - 7, ry - 31)
-    ctx.lineTo(rx + 7, ry - 31)
-    ctx.lineTo(rx + 9, ry - 29)
-    ctx.lineTo(rx + 7, ry - 27)
-    ctx.lineTo(rx - 7, ry - 27)
-    ctx.closePath()
-    ctx.fill()
-
-    // Eyes — glow brighter when targeting
-    const eyeGlow = hasTarget ? 1.0 : 0.5
-    ctx.fillStyle = `rgba(255,68,68,${eyeGlow})`
-    ctx.fillRect(eyeLX - 2, eyeY - 1, 4, 3)
-    ctx.fillRect(eyeRX - 2, eyeY - 1, 4, 3)
-    if (hasTarget) {
-      // Visor glow when firing
-      ctx.fillStyle = 'rgba(255,68,68,0.2)'
+      // Gear body
       ctx.beginPath()
-      ctx.moveTo(rx - 9, ry - 29)
-      ctx.lineTo(rx - 7, ry - 31)
-      ctx.lineTo(rx + 7, ry - 31)
-      ctx.lineTo(rx + 9, ry - 29)
-      ctx.lineTo(rx + 7, ry - 27)
-      ctx.lineTo(rx - 7, ry - 27)
+      for (let i = 0; i < teeth; i++) {
+        const a1 = (i / teeth) * Math.PI * 2
+        const a2 = ((i + 0.35) / teeth) * Math.PI * 2
+        const a3 = ((i + 0.5) / teeth) * Math.PI * 2
+        const a4 = ((i + 0.85) / teeth) * Math.PI * 2
+        const ri = gearR - toothDepth
+        const ro = gearR
+
+        if (i === 0) ctx.moveTo(Math.cos(a1) * ri, Math.sin(a1) * ri)
+        ctx.lineTo(Math.cos(a2) * ri, Math.sin(a2) * ri)
+        ctx.lineTo(Math.cos(a2) * ro, Math.sin(a2) * ro)
+        ctx.lineTo(Math.cos(a3) * ro, Math.sin(a3) * ro)
+        ctx.lineTo(Math.cos(a4) * ri, Math.sin(a4) * ri)
+      }
       ctx.closePath()
+      ctx.fillStyle = '#3a3a4a'
       ctx.fill()
-    }
+      ctx.strokeStyle = 'rgba(199,125,255,0.12)'
+      ctx.lineWidth = 0.5
+      ctx.stroke()
 
-    // Antenna — sensor array
-    ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(rx + 5, ry - 40, 1, 5)
-    ctx.fillRect(rx - 6, ry - 38, 1, 3)
-    ctx.beginPath()
-    ctx.arc(rx + 5, ry - 41, 1.5, 0, Math.PI * 2)
-    ctx.fillStyle = '#b44dff'
-    ctx.globalAlpha = 0.5 + Math.sin(now * 0.004) * 0.3
-    ctx.fill()
-    ctx.globalAlpha = 1
-    ctx.globalAlpha = 1
-
-    // ── Eye laser beams (drawn in front of robot) ──
-    if (hasTarget) {
-      // Glow
-      for (const ex of [eyeLX, eyeRX]) {
-        ctx.beginPath()
-        ctx.moveTo(ex, eyeY)
-        ctx.lineTo(targetX, targetY)
-        ctx.strokeStyle = 'rgba(255,68,68,0.06)'
-        ctx.lineWidth = 8
-        ctx.stroke()
-      }
-      // Beam core
-      ctx.globalAlpha = 0.7 + Math.sin(now * 0.02) * 0.3
-      for (const ex of [eyeLX, eyeRX]) {
-        ctx.beginPath()
-        ctx.moveTo(ex, eyeY)
-        ctx.lineTo(targetX, targetY)
-        ctx.strokeStyle = '#ff4444'
-        ctx.lineWidth = 1.5
-        ctx.lineCap = 'round'
-        ctx.stroke()
-      }
-      // Bright center
-      for (const ex of [eyeLX, eyeRX]) {
-        ctx.beginPath()
-        ctx.moveTo(ex, eyeY)
-        ctx.lineTo(targetX, targetY)
-        ctx.strokeStyle = '#ff8888'
-        ctx.lineWidth = 0.6
-        ctx.stroke()
-      }
-      ctx.lineCap = 'butt'
-      // Impact point
+      // Hub
       ctx.beginPath()
-      ctx.arc(targetX, targetY, 5, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(255,68,68,0.15)'
+      ctx.arc(0, 0, 8, 0, Math.PI * 2)
+      ctx.fillStyle = '#2a2a3a'
       ctx.fill()
-      ctx.globalAlpha = 1
+      ctx.strokeStyle = 'rgba(199,125,255,0.15)'
+      ctx.lineWidth = 0.8
+      ctx.stroke()
+
+      // Hub bolts
+      for (let i = 0; i < 4; i++) {
+        const ba = (i / 4) * Math.PI * 2
+        ctx.beginPath()
+        ctx.arc(Math.cos(ba) * 5, Math.sin(ba) * 5, 1.5, 0, Math.PI * 2)
+        ctx.fillStyle = '#1a1a2a'
+        ctx.fill()
+      }
+
+      // Center axle
+      ctx.beginPath()
+      ctx.arc(0, 0, 3, 0, Math.PI * 2)
+      ctx.fillStyle = '#555566'
+      ctx.fill()
+
+      ctx.restore()
     }
+
+    // Sparks at mesh point
+    const sparkIntensity = (Math.sin(now * 0.008) + 1) / 2
+    for (let i = 0; i < 3; i++) {
+      const sx = cx + (Math.random() - 0.5) * 16
+      const sy = gearY + (Math.random() - 0.5) * 6
+      ctx.beginPath()
+      ctx.arc(sx, sy, 1 + Math.random() * 1.5, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(255,170,0,${sparkIntensity * (0.3 + Math.random() * 0.4)})`
+      ctx.fill()
+    }
+
+    // Heat glow at mesh center
+    ctx.beginPath()
+    ctx.arc(cx, gearY, 12, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(255,100,0,${0.03 + sparkIntensity * 0.03})`
+    ctx.fill()
 
     ctx.restore()
 
@@ -737,7 +565,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       if (p.x < 10 + p.size) { p.x = 10 + p.size; p.vx = Math.abs(p.vx) }
       if (p.x > W - 10 - p.size) { p.x = W - 10 - p.size; p.vx = -Math.abs(p.vx) }
 
-      // Asteroid hits either lightsaber blade → shatter into dots
+      // Asteroid hits gear mesh line → crushed into dots
       if (p.phase === 'intake') {
         let hit = false
         for (const blade of blades) {
