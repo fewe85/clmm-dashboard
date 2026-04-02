@@ -60,7 +60,7 @@ function AppContent() {
         >
           <SummaryItem label="Portfolio" value={formatUsd(totalPositionValue)} />
           <SummaryItem
-            label="CLMM vs HODL"
+            label="NAV ADVANTAGE"
             value={`${totalClmmVsHodl >= 0 ? '+' : ''}${formatUsd(totalClmmVsHodl)}`}
             color={totalClmmVsHodl >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
           />
@@ -139,11 +139,11 @@ function NextHarvestTimer({ elon }: { elon: PoolMetrics }) {
 
   return (
     <div className="flex items-baseline gap-1.5">
-      <span style={{ color: 'var(--text-muted)' }}>Harvest</span>
+      <span style={{ color: 'var(--text-muted)' }}>EXTRACTION IN</span>
       {parts.map((p, i) => (
         <span key={p.name} className="mono font-semibold" style={{ color: p.color }}>
           {i > 0 && <span style={{ color: 'var(--text-muted)' }}> · </span>}
-          {p.name} {p.label}
+          {p.label}
         </span>
       ))}
     </div>
