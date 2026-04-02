@@ -104,7 +104,7 @@ function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: 
     const lH = bR * 1.6 * fill, lTop = bCY + bR - lH
     c.save(); c.beginPath(); c.arc(cx, bCY, bR - 1.5, 0, Math.PI * 2); c.clip()
     const lg = c.createLinearGradient(0, lTop, 0, bCY + bR)
-    lg.addColorStop(0, 'rgba(0,255,136,0.18)'); lg.addColorStop(1, 'rgba(0,255,136,0.35)')
+    lg.addColorStop(0, 'rgba(0,255,136,0.3)'); lg.addColorStop(1, 'rgba(0,255,136,0.5)')
     c.fillStyle = lg; c.fillRect(cx - bR, lTop, bR * 2, lH + 4)
     c.beginPath()
     for (let sx = cx - bR + 3; sx < cx + bR - 3; sx += 2) {
@@ -307,6 +307,14 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       c.fillStyle = '#08080f'; c.fillRect(0, 0, W, H)
 
       // ═══ SPRITES ══════════════════════════════════════════
+
+      // Shaft/chute above belt 1 (where stones come from)
+      const shaftX = 6, shaftW = 16
+      c.fillStyle = '#2a2a3a'; c.fillRect(shaftX, 0, shaftW, B1Y)
+      c.fillStyle = '#1a1a2a'; c.fillRect(shaftX + 2, 0, shaftW - 4, B1Y - 2)
+      // Shaft rim
+      c.fillStyle = '#3a3a4a'; c.fillRect(shaftX - 1, B1Y - 3, shaftW + 2, 3)
+
       drawBelt(c, B1Y, 1, now)         // Band 1 → right
       drawLaser(c, LASER_RX, LASER_Y, now) // Laser emitter
       drawBelt(c, B2Y, -1, now)        // Band 2 ← left
@@ -352,7 +360,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       if (now - spawnRef.current.last > spawnRef.current.delay || partsRef.current.filter(p => p.type === 'stone').length === 0) {
         if (partsRef.current.length < 40) {
           partsRef.current.push({
-            x: 14, y: B1Y - 3, vx: 0.4, vy: 0, size: 4 + Math.random() * 4,
+            x: 14, y: B1Y - 5, vx: 0.4, vy: 0, size: 7 + Math.random() * 5,
             type: 'stone', color: '#b44dff', life: 1, phase: 0,
           })
           spawnRef.current = { last: now, delay: 2000 + Math.random() * 2000 }
@@ -418,9 +426,18 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             if (dist < flask.bR) p.life -= 0.02
           }
           if (p.life <= 0 || p.y > flask.bCY + flask.bR + 10) continue
-          const t = 1 - p.life
-          c.beginPath(); c.arc(p.x, p.y, p.size * 0.4, 0, Math.PI * 2)
-          c.fillStyle = `rgba(${Math.floor(200 * (1 - t))},${Math.floor(130 * (1 - t) + 200 * t)},${Math.floor(50 + 80 * t)},${p.life})`; c.fill()
+          // Color: bright orange on band 2, transitions toward green near flask
+          const t = Math.min(1, (1 - p.life) * 2)
+          const fr = Math.floor(255 * (1 - t * 0.8))
+          const fg = Math.floor(140 + 115 * t)
+          const fb = Math.floor(50 + 86 * t)
+          c.beginPath(); c.arc(p.x, p.y, p.size * 0.45, 0, Math.PI * 2)
+          c.fillStyle = `rgba(${fr},${fg},${fb},${Math.max(0.3, p.life)})`; c.fill()
+          // Orange glow
+          if (t < 0.5) {
+            c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+            c.fillStyle = 'rgba(255,140,50,0.04)'; c.fill()
+          }
 
         } else if (p.type === 'spark') {
           p.x += p.vx; p.y += p.vy; p.life -= 0.025
