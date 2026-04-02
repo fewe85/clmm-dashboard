@@ -117,7 +117,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const particlesRef = useRef<Particle[]>([])
   const lastSpawnRef = useRef(0)
-  const nextSpawnDelay = useRef(1500)
+  const nextSpawnDelay = useRef(500) // first spawn fast
   const fillRef = useRef(0)
 
   const draw = useCallback(() => {
@@ -429,7 +429,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           const dist = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)
           if (dist < p.size + 5) { hit = true; break }
         }
-        if (hit && p.y > intakeEnd + (processEnd - intakeEnd) * 0.35) {
+        if (hit && p.y > robotY - 20) {
           p.phase = 'process'
           // Spawn small dot particles
           const dotCount = 6 + Math.floor(Math.random() * 5)
