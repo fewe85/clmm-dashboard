@@ -306,6 +306,105 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.lineWidth = 0.5
     ctx.strokeRect(railW + 16, 0, W - railW * 2 - 32, 3)
 
+    // ─── MINER DROIDS — intake zone ─────────────────────────────
+    const pickSwing = Math.sin(now * 0.004) // -1 to 1, shared swing
+    const minerY = intakeEnd * 0.55
+
+    // Left miner — sits on left wall ledge
+    const lmx = railW + 18
+    // Body
+    ctx.fillStyle = '#4a4a5a'
+    ctx.fillRect(lmx - 5, minerY - 4, 10, 9)
+    // Head
+    ctx.fillStyle = '#555566'
+    ctx.fillRect(lmx - 3, minerY - 8, 6, 5)
+    // Helmet light
+    ctx.fillStyle = '#ffcc00'
+    ctx.fillRect(lmx - 1, minerY - 9, 2, 2)
+    ctx.globalAlpha = 0.2 + Math.sin(now * 0.003) * 0.1
+    ctx.fillStyle = 'rgba(255,204,0,0.3)'
+    ctx.fillRect(lmx - 3, minerY - 10, 6, 4)
+    ctx.globalAlpha = 1
+    // Eye
+    ctx.fillStyle = '#00ff88'
+    ctx.fillRect(lmx + 1, minerY - 7, 2, 1)
+    // Legs
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(lmx - 4, minerY + 5, 3, 4)
+    ctx.fillRect(lmx + 1, minerY + 5, 3, 4)
+    // Pickaxe arm — swings
+    const lpAngle = (-30 + pickSwing * 40) * Math.PI / 180
+    const lpLen = 14
+    const lpEndX = lmx + 6 + Math.sin(lpAngle) * lpLen
+    const lpEndY = minerY - 2 - Math.cos(lpAngle) * lpLen
+    // Handle
+    ctx.strokeStyle = '#6a6a7a'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(lmx + 5, minerY - 2)
+    ctx.lineTo(lpEndX, lpEndY)
+    ctx.stroke()
+    // Pick head
+    ctx.strokeStyle = '#8a8a9a'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(lpEndX - 3, lpEndY - 1)
+    ctx.lineTo(lpEndX + 3, lpEndY + 2)
+    ctx.stroke()
+    // Spark on down-swing
+    if (pickSwing > 0.7) {
+      ctx.fillStyle = 'rgba(255,204,0,0.5)'
+      ctx.beginPath()
+      ctx.arc(lpEndX + 2, lpEndY + 2, 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    // Right miner — mirrored, offset swing
+    const pickSwing2 = Math.sin(now * 0.004 + 1.5)
+    const rmx = W - railW - 18
+    // Body
+    ctx.fillStyle = '#4a4a5a'
+    ctx.fillRect(rmx - 5, minerY - 4, 10, 9)
+    // Head
+    ctx.fillStyle = '#555566'
+    ctx.fillRect(rmx - 3, minerY - 8, 6, 5)
+    // Helmet light
+    ctx.fillStyle = '#ffcc00'
+    ctx.fillRect(rmx - 1, minerY - 9, 2, 2)
+    ctx.globalAlpha = 0.2 + Math.sin(now * 0.003 + 1) * 0.1
+    ctx.fillStyle = 'rgba(255,204,0,0.3)'
+    ctx.fillRect(rmx - 3, minerY - 10, 6, 4)
+    ctx.globalAlpha = 1
+    // Eye
+    ctx.fillStyle = '#00ff88'
+    ctx.fillRect(rmx - 3, minerY - 7, 2, 1)
+    // Legs
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(rmx - 4, minerY + 5, 3, 4)
+    ctx.fillRect(rmx + 1, minerY + 5, 3, 4)
+    // Pickaxe — swings opposite direction
+    const rpAngle = (30 - pickSwing2 * 40) * Math.PI / 180
+    const rpEndX = rmx - 6 + Math.sin(rpAngle) * lpLen
+    const rpEndY = minerY - 2 - Math.cos(rpAngle) * lpLen
+    ctx.strokeStyle = '#6a6a7a'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(rmx - 5, minerY - 2)
+    ctx.lineTo(rpEndX, rpEndY)
+    ctx.stroke()
+    ctx.strokeStyle = '#8a8a9a'
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(rpEndX + 3, rpEndY - 1)
+    ctx.lineTo(rpEndX - 3, rpEndY + 2)
+    ctx.stroke()
+    if (pickSwing2 > 0.7) {
+      ctx.fillStyle = 'rgba(255,204,0,0.5)'
+      ctx.beginPath()
+      ctx.arc(rpEndX - 2, rpEndY + 2, 2, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
     // Processing zone — subtle heat glow
     const heatGrad = ctx.createLinearGradient(0, intakeEnd, 0, processEnd)
     heatGrad.addColorStop(0, 'rgba(180,77,255,0.01)')
