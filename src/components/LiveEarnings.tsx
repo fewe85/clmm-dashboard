@@ -297,66 +297,189 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
     ctx.save()
 
-    // ── Robot body ──
-    // Legs
-    ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(robotX - 10, rby + 3, 6, 12)
-    ctx.fillRect(robotX + 4, rby + 3, 6, 12)
-    ctx.fillStyle = '#2a2a3a'
-    ctx.fillRect(robotX - 12, rby + 13, 9, 4)
-    ctx.fillRect(robotX + 3, rby + 13, 9, 4)
+    // ── Robot body — Mech Sentinel ──
+    const rx = robotX, ry = rby
 
-    // Body
-    ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX - 14, rby - 18, 28, 22)
-    ctx.fillStyle = '#5a5a6a'
-    ctx.fillRect(robotX - 12, rby - 16, 24, 6)
-    // Shoulder plates
-    ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(robotX - 17, rby - 18, 6, 9)
-    ctx.fillRect(robotX + 11, rby - 18, 6, 9)
+    // Shadow/ground glow under feet
+    ctx.beginPath()
+    ctx.ellipse(rx, ry + 18, 16, 3, 0, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(180,77,255,0.06)'
+    ctx.fill()
 
-    // Chest light
+    // Legs — angled, mechanical
+    ctx.fillStyle = '#3a3a4a'
+    // Left leg: thigh
+    ctx.fillRect(rx - 11, ry + 2, 5, 7)
+    // Left leg: shin (slightly wider)
+    ctx.fillStyle = '#444455'
+    ctx.fillRect(rx - 12, ry + 8, 6, 6)
+    // Left knee joint
+    ctx.beginPath()
+    ctx.arc(rx - 9, ry + 8, 2, 0, Math.PI * 2)
     ctx.fillStyle = '#b44dff'
-    ctx.fillRect(robotX - 3, rby - 9, 6, 6)
-    ctx.globalAlpha = 0.3 + Math.sin(now * 0.005) * 0.2
-    ctx.fillStyle = 'rgba(180,77,255,0.4)'
-    ctx.fillRect(robotX - 6, rby - 12, 12, 12)
+    ctx.globalAlpha = 0.4
+    ctx.fill()
     ctx.globalAlpha = 1
+    // Left foot
+    ctx.fillStyle = '#2a2a3a'
+    ctx.fillRect(rx - 14, ry + 13, 9, 4)
+    ctx.fillStyle = 'rgba(180,77,255,0.1)'
+    ctx.fillRect(rx - 13, ry + 14, 7, 2)
 
-    // Arms at sides
+    // Right leg (mirrored)
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(rx + 6, ry + 2, 5, 7)
+    ctx.fillStyle = '#444455'
+    ctx.fillRect(rx + 6, ry + 8, 6, 6)
+    ctx.beginPath()
+    ctx.arc(rx + 9, ry + 8, 2, 0, Math.PI * 2)
+    ctx.fillStyle = '#b44dff'
+    ctx.globalAlpha = 0.4
+    ctx.fill()
+    ctx.globalAlpha = 1
+    ctx.fillStyle = '#2a2a3a'
+    ctx.fillRect(rx + 5, ry + 13, 9, 4)
+    ctx.fillStyle = 'rgba(180,77,255,0.1)'
+    ctx.fillRect(rx + 6, ry + 14, 7, 2)
+
+    // Torso — layered armor plates
     ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX - 19, rby - 16, 6, 12)
-    ctx.fillRect(robotX + 13, rby - 16, 6, 12)
+    ctx.fillRect(rx - 13, ry - 18, 26, 21)
+    // Upper chest plate
+    ctx.fillStyle = '#555566'
+    ctx.fillRect(rx - 11, ry - 17, 22, 8)
+    // Lower abdomen
+    ctx.fillStyle = '#3d3d4e'
+    ctx.fillRect(rx - 10, ry - 5, 20, 7)
+    // Center chest seam
+    ctx.fillStyle = 'rgba(180,77,255,0.06)'
+    ctx.fillRect(rx - 0.5, ry - 17, 1, 20)
 
-    // Head
-    ctx.fillStyle = '#5a5a6a'
-    ctx.fillRect(robotX - 9, rby - 33, 18, 15)
-    // Visor
-    ctx.fillStyle = '#1a1a2a'
-    ctx.fillRect(robotX - 8, rby - 30, 16, 6)
+    // Reactor core (chest) — pulsing
+    const corePulse = 0.5 + Math.sin(now * 0.004) * 0.3
+    ctx.beginPath()
+    ctx.arc(rx, ry - 8, 4, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(180,77,255,${corePulse * 0.8})`
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(rx, ry - 8, 2, 0, Math.PI * 2)
+    ctx.fillStyle = '#d494ff'
+    ctx.fill()
+    // Reactor glow
+    ctx.beginPath()
+    ctx.arc(rx, ry - 8, 8, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(180,77,255,${corePulse * 0.08})`
+    ctx.fill()
+
+    // Shoulder armor — angular
+    ctx.fillStyle = '#3a3a4a'
+    // Left shoulder
+    ctx.beginPath()
+    ctx.moveTo(rx - 13, ry - 18)
+    ctx.lineTo(rx - 20, ry - 14)
+    ctx.lineTo(rx - 20, ry - 8)
+    ctx.lineTo(rx - 13, ry - 8)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillStyle = 'rgba(180,77,255,0.08)'
+    ctx.fillRect(rx - 19, ry - 13, 6, 1)
+    // Right shoulder
+    ctx.fillStyle = '#3a3a4a'
+    ctx.beginPath()
+    ctx.moveTo(rx + 13, ry - 18)
+    ctx.lineTo(rx + 20, ry - 14)
+    ctx.lineTo(rx + 20, ry - 8)
+    ctx.lineTo(rx + 13, ry - 8)
+    ctx.closePath()
+    ctx.fill()
+    ctx.fillStyle = 'rgba(180,77,255,0.08)'
+    ctx.fillRect(rx + 13, ry - 13, 6, 1)
+
+    // Arms — segmented
+    ctx.fillStyle = '#444455'
+    // Left arm
+    ctx.fillRect(rx - 21, ry - 8, 5, 14)
+    ctx.beginPath()
+    ctx.arc(rx - 19, ry - 1, 1.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#b44dff'
+    ctx.globalAlpha = 0.3
+    ctx.fill()
+    ctx.globalAlpha = 1
+    // Left hand/fist
+    ctx.fillStyle = '#555566'
+    ctx.fillRect(rx - 22, ry + 5, 7, 5)
+    // Right arm
+    ctx.fillStyle = '#444455'
+    ctx.fillRect(rx + 16, ry - 8, 5, 14)
+    ctx.beginPath()
+    ctx.arc(rx + 19, ry - 1, 1.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#b44dff'
+    ctx.globalAlpha = 0.3
+    ctx.fill()
+    ctx.globalAlpha = 1
+    ctx.fillStyle = '#555566'
+    ctx.fillRect(rx + 15, ry + 5, 7, 5)
+
+    // Head — angular helmet
+    ctx.fillStyle = '#555566'
+    // Helmet base
+    ctx.beginPath()
+    ctx.moveTo(rx - 10, ry - 20)
+    ctx.lineTo(rx - 8, ry - 35)
+    ctx.lineTo(rx + 8, ry - 35)
+    ctx.lineTo(rx + 10, ry - 20)
+    ctx.closePath()
+    ctx.fill()
+    // Helmet crest
+    ctx.fillStyle = '#4a4a5a'
+    ctx.beginPath()
+    ctx.moveTo(rx - 2, ry - 35)
+    ctx.lineTo(rx, ry - 40)
+    ctx.lineTo(rx + 2, ry - 35)
+    ctx.closePath()
+    ctx.fill()
+
+    // Visor — wide angular slit
+    ctx.fillStyle = '#0a0a1a'
+    ctx.beginPath()
+    ctx.moveTo(rx - 9, ry - 29)
+    ctx.lineTo(rx - 7, ry - 31)
+    ctx.lineTo(rx + 7, ry - 31)
+    ctx.lineTo(rx + 9, ry - 29)
+    ctx.lineTo(rx + 7, ry - 27)
+    ctx.lineTo(rx - 7, ry - 27)
+    ctx.closePath()
+    ctx.fill()
 
     // Eyes — glow brighter when targeting
-    const eyeGlow = hasTarget ? 1.0 : 0.6
+    const eyeGlow = hasTarget ? 1.0 : 0.5
     ctx.fillStyle = `rgba(255,68,68,${eyeGlow})`
     ctx.fillRect(eyeLX - 2, eyeY - 1, 4, 3)
     ctx.fillRect(eyeRX - 2, eyeY - 1, 4, 3)
-    // Eye glow halo
     if (hasTarget) {
-      ctx.fillStyle = 'rgba(255,68,68,0.3)'
-      ctx.fillRect(robotX - 9, rby - 31, 18, 8)
+      // Visor glow when firing
+      ctx.fillStyle = 'rgba(255,68,68,0.2)'
+      ctx.beginPath()
+      ctx.moveTo(rx - 9, ry - 29)
+      ctx.lineTo(rx - 7, ry - 31)
+      ctx.lineTo(rx + 7, ry - 31)
+      ctx.lineTo(rx + 9, ry - 29)
+      ctx.lineTo(rx + 7, ry - 27)
+      ctx.lineTo(rx - 7, ry - 27)
+      ctx.closePath()
+      ctx.fill()
     }
 
-    // Antenna
+    // Antenna — sensor array
     ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX, rby - 40, 2, 7)
-    ctx.fillStyle = '#b44dff'
-    ctx.fillRect(robotX - 1, rby - 43, 4, 4)
+    ctx.fillRect(rx + 5, ry - 40, 1, 5)
+    ctx.fillRect(rx - 6, ry - 38, 1, 3)
     ctx.beginPath()
-    ctx.arc(robotX + 1, rby - 43, 3, 0, Math.PI * 2)
+    ctx.arc(rx + 5, ry - 41, 1.5, 0, Math.PI * 2)
     ctx.fillStyle = '#b44dff'
     ctx.globalAlpha = 0.5 + Math.sin(now * 0.004) * 0.3
     ctx.fill()
+    ctx.globalAlpha = 1
     ctx.globalAlpha = 1
 
     // ── Eye laser beams (drawn in front of robot) ──
