@@ -859,7 +859,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       {/* Top: live accumulation counter */}
       <div className="text-center z-10 flex-shrink-0 w-full py-1">
-        <div className="earning-pulse mx-auto mb-1" />
         <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
           ${displayTotal.toFixed(4)}
         </div>
