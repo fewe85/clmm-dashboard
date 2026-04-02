@@ -306,83 +306,101 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.lineWidth = 0.5
     ctx.strokeRect(railW + 16, 0, W - railW * 2 - 32, 3)
 
-    // ─── DRILLING MACHINES — intake zone ───────────────────────────
-    const drillSpin = (now * 0.008) % (Math.PI * 2)
-    const machineY = intakeEnd * 0.4
-    const machineOutY = intakeEnd * 0.75 // where ore comes out
+    // ─── ORE CRUSHER — central intake machine ─────────────────────
+    const cx = W / 2
+    const crushY = 8
+    const machineOutY = intakeEnd * 0.85
+    const crushPhase = Math.sin(now * 0.005) // jaw open/close
 
-    for (const side of ['left', 'right'] as const) {
-      const mx = side === 'left' ? railW + 6 : W - railW - 6
-      const dir = side === 'left' ? 1 : -1
+    // Feed hopper — wide funnel at top
+    ctx.fillStyle = '#3a3a4a'
+    ctx.beginPath()
+    ctx.moveTo(cx - 30, crushY)
+    ctx.lineTo(cx - 16, crushY + 18)
+    ctx.lineTo(cx + 16, crushY + 18)
+    ctx.lineTo(cx + 30, crushY)
+    ctx.closePath()
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(199,125,255,0.15)'
+    ctx.lineWidth = 0.5
+    ctx.stroke()
+    // Hopper inner dark
+    ctx.fillStyle = '#1a1a2a'
+    ctx.beginPath()
+    ctx.moveTo(cx - 26, crushY + 2)
+    ctx.lineTo(cx - 14, crushY + 16)
+    ctx.lineTo(cx + 14, crushY + 16)
+    ctx.lineTo(cx + 26, crushY + 2)
+    ctx.closePath()
+    ctx.fill()
 
-      // Wall mount bracket
-      ctx.fillStyle = '#2a2a3a'
-      ctx.fillRect(mx - 3 * dir, machineY - 12, 6, 30)
-      // Mount bolts
-      ctx.fillStyle = '#1a1a2a'
-      ctx.beginPath()
-      ctx.arc(mx, machineY - 8, 2, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(mx, machineY + 12, 2, 0, Math.PI * 2)
-      ctx.fill()
+    // Crusher body — machine block below hopper
+    ctx.fillStyle = '#444455'
+    ctx.fillRect(cx - 18, crushY + 18, 36, 22)
+    // Panel detail
+    ctx.fillStyle = '#555566'
+    ctx.fillRect(cx - 16, crushY + 20, 32, 3)
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(cx - 16, crushY + 28, 32, 3)
 
-      // Machine housing
-      ctx.fillStyle = '#444455'
-      ctx.fillRect(mx - 2 + dir * 2, machineY - 8, 18 * dir, 20)
-      ctx.fillStyle = '#555566'
-      ctx.fillRect(mx + dir * 4, machineY - 6, 12 * dir, 4)
+    // Crusher jaws — two teeth that open/close
+    const jawOpen = 3 + crushPhase * 2
+    ctx.fillStyle = '#6a6a7a'
+    // Left jaw
+    ctx.beginPath()
+    ctx.moveTo(cx - 8, crushY + 24)
+    ctx.lineTo(cx - jawOpen, crushY + 32)
+    ctx.lineTo(cx - 12, crushY + 32)
+    ctx.lineTo(cx - 12, crushY + 24)
+    ctx.closePath()
+    ctx.fill()
+    // Right jaw
+    ctx.beginPath()
+    ctx.moveTo(cx + 8, crushY + 24)
+    ctx.lineTo(cx + jawOpen, crushY + 32)
+    ctx.lineTo(cx + 12, crushY + 32)
+    ctx.lineTo(cx + 12, crushY + 24)
+    ctx.closePath()
+    ctx.fill()
 
-      // Drill bit — rotating
-      const drillX = mx + dir * 20
-      const drillR = 6
-      ctx.save()
-      ctx.translate(drillX, machineY + 2)
-      ctx.rotate(drillSpin * (side === 'left' ? 1 : -1))
-      // Drill spiral
-      for (let i = 0; i < 4; i++) {
-        const a = (i / 4) * Math.PI * 2
+    // Sparks from crushing
+    if (crushPhase > 0.5) {
+      for (let i = 0; i < 3; i++) {
+        const sx = cx + (Math.random() - 0.5) * 10
+        const sy = crushY + 30 + Math.random() * 4
+        ctx.fillStyle = `rgba(255,170,0,${0.3 + Math.random() * 0.4})`
         ctx.beginPath()
-        ctx.moveTo(0, 0)
-        ctx.lineTo(Math.cos(a) * drillR, Math.sin(a) * drillR)
-        ctx.strokeStyle = '#8a8a9a'
-        ctx.lineWidth = 1.2
-        ctx.stroke()
+        ctx.arc(sx, sy, 1 + Math.random(), 0, Math.PI * 2)
+        ctx.fill()
       }
-      // Drill center
-      ctx.beginPath()
-      ctx.arc(0, 0, 2.5, 0, Math.PI * 2)
-      ctx.fillStyle = '#6a6a7a'
-      ctx.fill()
-      ctx.restore()
+    }
 
-      // Drill glow
-      ctx.beginPath()
-      ctx.arc(drillX, machineY + 2, drillR + 2, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(255,170,0,${0.04 + Math.sin(now * 0.006) * 0.02})`
-      ctx.fill()
+    // Output pipe — drops down to machineOutY
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(cx - 6, crushY + 38, 12, machineOutY - crushY - 38)
+    // Pipe inner
+    ctx.fillStyle = '#1a1a2a'
+    ctx.fillRect(cx - 4, crushY + 40, 8, machineOutY - crushY - 42)
+    // Pipe opening at bottom
+    ctx.fillStyle = '#2a2a3a'
+    ctx.fillRect(cx - 8, machineOutY - 3, 16, 4)
 
-      // Output chute — angled down toward center
-      const chuteEndX = mx + dir * 14
-      ctx.fillStyle = '#3a3a4a'
-      ctx.beginPath()
-      ctx.moveTo(mx + dir * 6, machineY + 10)
-      ctx.lineTo(chuteEndX, machineOutY)
-      ctx.lineTo(chuteEndX + dir * 5, machineOutY)
-      ctx.lineTo(mx + dir * 10, machineY + 10)
-      ctx.closePath()
-      ctx.fill()
-      ctx.strokeStyle = 'rgba(199,125,255,0.1)'
-      ctx.lineWidth = 0.5
-      ctx.stroke()
+    // Machine status LEDs
+    ctx.fillStyle = '#00ff88'
+    ctx.globalAlpha = 0.4 + Math.sin(now * 0.004) * 0.3
+    ctx.beginPath()
+    ctx.arc(cx - 14, crushY + 22, 1.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = '#b44dff'
+    ctx.beginPath()
+    ctx.arc(cx + 14, crushY + 22, 1.5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.globalAlpha = 1
 
-      // Status LED
-      ctx.fillStyle = '#00ff88'
-      ctx.globalAlpha = 0.4 + Math.sin(now * 0.005 + (side === 'left' ? 0 : 1.5)) * 0.3
-      ctx.beginPath()
-      ctx.arc(mx + dir * 5, machineY - 6, 1.5, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.globalAlpha = 1
+    // Side mount brackets
+    for (const sx of [cx - 18, cx + 14]) {
+      ctx.fillStyle = '#2a2a3a'
+      ctx.fillRect(sx, crushY + 20, 4, 18)
     }
 
     // Processing zone — subtle heat glow
@@ -692,20 +710,17 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
 
     // ─── PARTICLES ───────────────────────────────────────────────
-    // Spawn asteroids from machine chute outputs
+    // Spawn asteroids from crusher pipe output
     if (now - lastSpawnRef.current > nextSpawnDelay.current || particlesRef.current.length === 0) {
       if (particlesRef.current.length < 12) {
         const p = makeParticle(h)
-        // Spawn from left or right machine chute
-        const fromLeft = Math.random() > 0.5
-        const spawnBaseX = fromLeft ? railW + 20 : W - railW - 20
-        p.x = spawnBaseX + (Math.random() - 0.5) * 10
-        p.y = machineOutY + Math.random() * 5
-        p.vy = 0.3 + Math.random() * 0.3
-        p.vx = (fromLeft ? 1 : -1) * (0.1 + Math.random() * 0.2) // drift toward center
+        p.x = W / 2 + (Math.random() - 0.5) * 10
+        p.y = machineOutY + 2
+        p.vy = 0.4 + Math.random() * 0.3
+        p.vx = (Math.random() - 0.5) * 0.3
         particlesRef.current.push(p)
         lastSpawnRef.current = now
-        nextSpawnDelay.current = 1000 + Math.random() * 1500
+        nextSpawnDelay.current = 800 + Math.random() * 1200
       }
     }
 
