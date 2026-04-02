@@ -125,22 +125,24 @@ function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: 
     c.fillStyle = '#3a3a4a'; c.fillRect(cx + lx, tY + 2, 2, 8)
     c.fillStyle = '#333344'; c.fillRect(cx + lx - 1, tY + 9, 4, 2)
   }
-  // Flame — purple core, green tips, bigger
-  // Glow halo
-  c.beginPath(); c.arc(cx, tY - 6, 16, 0, Math.PI * 2)
-  c.fillStyle = `rgba(180,77,255,${0.03 + Math.sin(now * 0.004) * 0.015})`; c.fill()
-  for (let i = 0; i < 5; i++) {
-    const fx = cx - 12 + i * 6, fh = 7 + Math.sin(now * 0.011 + i * 1.3) * 3
-    c.globalAlpha = 0.45 + Math.sin(now * 0.013 + i) * 0.2
+  // Flame — purple core, green tips, 3x bigger, dramatic
+  // Large glow halo
+  c.beginPath(); c.arc(cx, tY - 12, 30, 0, Math.PI * 2)
+  c.fillStyle = `rgba(180,77,255,${0.04 + Math.sin(now * 0.004) * 0.02})`; c.fill()
+  c.beginPath(); c.arc(cx, tY - 8, 20, 0, Math.PI * 2)
+  c.fillStyle = `rgba(0,255,136,${0.02 + Math.sin(now * 0.005) * 0.01})`; c.fill()
+  for (let i = 0; i < 7; i++) {
+    const fx = cx - 18 + i * 6, fh = 16 + Math.sin(now * 0.011 + i * 1.1) * 6
+    c.globalAlpha = 0.5 + Math.sin(now * 0.013 + i) * 0.2
     // Outer flame — green tips
     c.fillStyle = '#00ff88'
-    c.beginPath(); c.moveTo(fx - 3, tY); c.lineTo(fx, tY - fh); c.lineTo(fx + 3, tY); c.fill()
-    // Inner flame — purple core
+    c.beginPath(); c.moveTo(fx - 5, tY); c.lineTo(fx, tY - fh); c.lineTo(fx + 5, tY); c.fill()
+    // Mid flame — purple
     c.fillStyle = '#b44dff'
-    c.beginPath(); c.moveTo(fx - 1.5, tY); c.lineTo(fx, tY - fh * 0.6); c.lineTo(fx + 1.5, tY); c.fill()
-    // Bright center
+    c.beginPath(); c.moveTo(fx - 3, tY); c.lineTo(fx, tY - fh * 0.65); c.lineTo(fx + 3, tY); c.fill()
+    // Inner bright
     c.fillStyle = '#d494ff'
-    c.beginPath(); c.moveTo(fx - 0.8, tY); c.lineTo(fx, tY - fh * 0.3); c.lineTo(fx + 0.8, tY); c.fill()
+    c.beginPath(); c.moveTo(fx - 1.5, tY); c.lineTo(fx, tY - fh * 0.35); c.lineTo(fx + 1.5, tY); c.fill()
   }
   c.globalAlpha = 1
   return { bCY, bR, topY }
@@ -163,7 +165,7 @@ function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: nu
     }
   }
   // Left vertical (up to near top)
-  const arcR = 10 // bend radius
+  const arcR = 18 // large smooth bend radius
   glass(lx, startY, lx, topY + arcR, true)
   // Right vertical (down from near top)
   glass(rx, topY + arcR, rx, botY, true)
@@ -292,7 +294,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       const B2Y = H * 0.19          // Band 2
       const FUNNEL_X = 18           // Funnel X (left end of band 2)
       const FUNNEL_Y = H * 0.27     // Funnel Y
-      const FK_CX = 30              // Flask center X (left side)
+      const FK_CX = 42              // Flask center X (moved right, fully visible)
       const FK_TOP = H * 0.40       // Flask neck top
       // U-tube ∩ shape: starts from right side of flask, goes UP, across, DOWN
       const UT_LX = FK_CX + 22      // Left tube X (right side of flask)
@@ -332,7 +334,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       // Wall shelf / platform for flask
       const flask = drawFlask(c, FK_CX, FK_TOP, Math.min(1, fillRef.current * 2.5), now)
-      const shelfY = flask.bCY + flask.bR + 24 // below tripod feet
+      const shelfY = flask.bCY + flask.bR + 13 // exactly at tripod feet bottom
       const shelfW = W * 0.55
       // Shelf surface
       const sg = c.createLinearGradient(0, shelfY, 0, shelfY + 4)
