@@ -88,6 +88,114 @@ function makeParticle(_h: number): Particle {
   }
 }
 
+/** Geiger counter — blink frequency = earning velocity */
+function RadiationMeter({ ratePerHour }: { ratePerHour: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Track recent "clicks" for visual decay
+  const clicksRef = useRef<{ x: number; t: number; size: number }[]>([])
+  const lastClickRef = useRef(0)
+
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
+    const cw = 130, ch = 22
+    canvas.width = cw
+    canvas.height = ch
+
+    // Click interval: high rate = fast clicks, low = slow
+    // Map: $0.5/h → 1 click/2s, $5/h → 5 clicks/s, $50/h → 20 clicks/s
+    const clicksPerSec = Math.max(0.3, Math.min(25, ratePerHour * 1.2))
+    const avgIntervalMs = 1000 / clicksPerSec
+
+    let animId = 0
+
+    const draw = () => {
+      const now = Date.now()
+      ctx.clearRect(0, 0, cw, ch)
+
+      // Spawn clicks at randomized intervals
+      const timeSinceLast = now - lastClickRef.current
+      const jitter = avgIntervalMs * (0.3 + Math.random() * 1.4)
+      if (timeSinceLast > jitter) {
+        clicksRef.current.push({
+          x: 4 + Math.random() * (cw - 8),
+          t: now,
+          size: 1.5 + Math.random() * 2,
+        })
+        lastClickRef.current = now
+      }
+
+      // Draw + decay
+      const alive: typeof clicksRef.current = []
+      for (const c of clicksRef.current) {
+        const age = (now - c.t) / 1000
+        if (age > 1.2) continue
+        alive.push(c)
+
+        const alpha = Math.max(0, 1 - age / 1.2)
+        const r = c.size * (1 + age * 0.5)
+
+        // Dot
+        ctx.beginPath()
+        ctx.arc(c.x, ch / 2, r, 0, Math.PI * 2)
+
+        // Color based on intensity: green normal, yellow high, red spike
+        let color: string
+        if (ratePerHour > 20) color = `rgba(255,42,109,${alpha * 0.9})`      // spike — pink
+        else if (ratePerHour > 5) color = `rgba(255,200,0,${alpha * 0.8})`    // high — yellow
+        else color = `rgba(0,255,136,${alpha * 0.7})`                          // normal — green
+
+        ctx.fillStyle = color
+        ctx.fill()
+
+        // Glow ring on fresh clicks
+        if (age < 0.3) {
+          ctx.beginPath()
+          ctx.arc(c.x, ch / 2, r + 3, 0, Math.PI * 2)
+          ctx.fillStyle = color.replace(/[\d.]+\)$/, `${alpha * 0.15})`)
+          ctx.fill()
+        }
+      }
+      clicksRef.current = alive
+
+      // Meter bar background
+      ctx.fillStyle = 'rgba(199,125,255,0.04)'
+      ctx.fillRect(0, ch - 3, cw, 3)
+
+      // Activity level bar
+      const level = Math.min(1, ratePerHour / 15)
+      const barColor = ratePerHour > 20 ? '#ff2a6d' : ratePerHour > 5 ? '#ffcc00' : '#00ff88'
+      ctx.fillStyle = barColor
+      ctx.globalAlpha = 0.3
+      ctx.fillRect(0, ch - 3, cw * level, 3)
+      ctx.globalAlpha = 1
+
+      animId = requestAnimationFrame(draw)
+    }
+
+    draw()
+    return () => cancelAnimationFrame(animId)
+  }, [ratePerHour])
+
+  return (
+    <div className="w-full flex-shrink-0 px-1">
+      <div className="flex items-center justify-between mb-0.5">
+        <span className="hud-label" style={{ fontSize: '7px', color: '#9a9ab0' }}>RADIATION</span>
+        <span className="mono" style={{ fontSize: '7px', color: ratePerHour > 20 ? '#ff2a6d' : ratePerHour > 5 ? '#ffcc00' : '#00ff88' }}>
+          {ratePerHour > 20 ? 'SPIKE' : ratePerHour > 5 ? 'HIGH' : 'NORMAL'}
+        </span>
+      </div>
+      <canvas
+        ref={canvasRef}
+        style={{ width: '100%', height: 22, borderRadius: 4, background: '#06060f', border: '1px solid #1a1a2a' }}
+      />
+    </div>
+  )
+}
+
 export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold }: LiveEarningsProps) {
   const { feesPerHour, rewardsPerHour } = useMemo(() => calcRate(snapshots), [snapshots])
   const totalPerHour = feesPerHour + rewardsPerHour
@@ -719,6 +827,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         </div>
         <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
       </div>
+
+      {/* Radiation meter — earning velocity visualizer */}
+      <RadiationMeter ratePerHour={totalPerHour} />
 
       {/* Refinery column — canvas fills all remaining height */}
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 250 }}>
