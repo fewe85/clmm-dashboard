@@ -389,15 +389,22 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         partsRef.current.push({
           x: FK_CX + (Math.random() - 0.5) * flask.bR * 0.8, y: flask.bCY + flask.bR - 6,
           vx: 0, vy: -0.08 - Math.random() * 0.1, size: 1 + Math.random() * 1.5,
-          type: 'bubble', color: '#b44dff', life: 1, phase: 0,
+          type: 'bubble', color: oreCol, life: 1, phase: 0,
         })
       }
       // Path E: Steam in U-tube
       if (Math.random() < 0.05 && partsRef.current.filter(p => p.type === 'steam').length < 12) {
         partsRef.current.push({
           x: UT_LX + 4, y: UT_START, vx: 0, vy: -0.12 - Math.random() * 0.08,
-          size: 2 + Math.random(), type: 'steam', color: '#b44dff', life: 1, phase: 0,
+          size: 2 + Math.random(), type: 'steam', color: oreCol, life: 1, phase: 0,
         })
+      }
+
+      // Update ore-colored particles to current tier color
+      for (const p of partsRef.current) {
+        if (p.type === 'stone' || p.type === 'frag' || p.type === 'bubble' || p.type === 'steam') {
+          p.color = oreCol
+        }
       }
 
       const alive: P[] = []
@@ -432,10 +439,10 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           c.lineTo(p.x + s * 0.1, p.y + s)
           c.lineTo(p.x - s * 0.6, p.y + s * 0.5)
           c.closePath()
-          c.fillStyle = oreCol; c.fill()
+          c.fillStyle = p.color; c.fill()
           // Shadow
           c.fillStyle = 'rgba(0,0,0,0.2)'; c.fill()
-          c.fillStyle = oreCol; c.fill()
+          c.fillStyle = p.color; c.fill()
           // Highlight
           c.fillStyle = 'rgba(255,255,255,0.15)'
           c.beginPath(); c.arc(p.x - s * 0.3, p.y - s * 0.3, s * 0.35, 0, Math.PI * 2); c.fill()
@@ -480,8 +487,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           p.y += p.vy; p.x += Math.sin(now * 0.003 + p.x) * 0.04; p.life -= 0.003
           if (p.life <= 0 || p.y < flask.bCY - flask.bR + 8) continue
           c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          c.strokeStyle = `rgba(200,140,255,${p.life * 0.2})`; c.lineWidth = 0.5; c.stroke()
-          c.fillStyle = `rgba(180,77,255,${p.life * 0.04})`; c.fill()
+          c.globalAlpha = p.life * 0.2; c.strokeStyle = p.color; c.lineWidth = 0.5; c.stroke()
+          c.globalAlpha = p.life * 0.04; c.fillStyle = p.color; c.fill(); c.globalAlpha = 1
 
         } else if (p.type === 'steam') {
           // Path E: 3-phase through U-tube
