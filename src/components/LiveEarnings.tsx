@@ -179,7 +179,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       const LASER_X = BELT_R - 12
       const LASER_END = H * 0.18
       const FLASK_OX = CX - 18, FLASK_OY = H * 0.24
-      const FLASK_W = 12 * PX, FLASK_H = 12 * PX
+      void 0 // FLASK_W/H derived from sprite
       const COND_OX = CX + 2, COND_OY = FLASK_OY + 5 * PX
       const TUBE_Y = H * 0.60
       const BASIN_TOP = H * 0.72
