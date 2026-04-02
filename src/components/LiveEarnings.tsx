@@ -15,6 +15,11 @@ function calcRate(ss: Snapshot[]): number {
   return h < 1 ? 0 : Math.max(0, ((n.feesUsd - o.feesUsd) + (n.rewardsUsd - o.rewardsUsd)) / h)
 }
 
+function getOreColor(positionValue: number, ratePerHour: number): string {
+  const apr = positionValue > 0 ? (ratePerHour * 24 * 365 / positionValue) * 100 : 0
+  return apr > 10000 ? '#b9f2ff' : apr > 5000 ? '#e0e0e0' : apr > 2000 ? '#ffd700' : apr > 500 ? '#c0c0c0' : '#9a9ab0'
+}
+
 function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   positionValue: number; pendingTotal: number; initialRate: number
 }) {
@@ -296,6 +301,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       fillRef.current += (Math.min(curTotal / (harvestThreshold > 0 ? harvestThreshold : 200), 1) - fillRef.current) * 0.02
       c.clearRect(0, 0, W, H)
 
+      // Ore color based on current APR tier
+      const oreCol = getOreColor(positionValue, totalPerHour)
+
       // ═══ FIXED Y POSITIONS ════════════════════════════════
       const B1Y = H * 0.08          // Band 1
       const LASER_RX = W - 18       // Laser emitter X
@@ -371,7 +379,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         if (partsRef.current.length < 40) {
           partsRef.current.push({
             x: 14, y: B1Y - 5, vx: 0.2, vy: 0, size: 7 + Math.random() * 5,
-            type: 'stone', color: '#b44dff', life: 1, phase: 0,
+            type: 'stone', color: oreCol, life: 1, phase: 0,
           })
           spawnRef.current = { last: now, delay: 3000 + Math.random() * 3000 }
         }
@@ -404,7 +412,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
               partsRef.current.push({
                 x: W - 26 + (Math.random() - 0.5) * 6, y: LASER_Y + 4,
                 vx: (Math.random() - 0.5) * 0.3, vy: 0.1 + Math.random() * 0.15,
-                size: 2 + Math.random() * 2, type: 'frag', color: '#b44dff', life: 1, phase: 0,
+                size: 2 + Math.random() * 2, type: 'frag', color: oreCol, life: 1, phase: 0,
               })
             }
             for (let i = 0; i < 3; i++) partsRef.current.push({
@@ -424,15 +432,16 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           c.lineTo(p.x + s * 0.1, p.y + s)
           c.lineTo(p.x - s * 0.6, p.y + s * 0.5)
           c.closePath()
-          c.fillStyle = '#b44dff'; c.fill()
+          c.fillStyle = oreCol; c.fill()
           // Shadow
           c.fillStyle = 'rgba(0,0,0,0.2)'; c.fill()
-          c.fillStyle = '#b44dff'; c.fill()
+          c.fillStyle = oreCol; c.fill()
           // Highlight
-          c.fillStyle = 'rgba(212,148,255,0.15)'
+          c.fillStyle = 'rgba(255,255,255,0.15)'
           c.beginPath(); c.arc(p.x - s * 0.3, p.y - s * 0.3, s * 0.35, 0, Math.PI * 2); c.fill()
           // Glow
-          c.fillStyle = 'rgba(180,77,255,0.05)'; c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2); c.fill()
+          c.fillStyle = oreCol.replace(')', ',0.08)').replace('rgb', 'rgba')
+          c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2); c.fill()
 
         } else if (p.type === 'frag') {
           // Path B→C: fall to band 2, ride left, fall to flask
@@ -454,9 +463,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           if (p.life <= 0 || p.y > flask.bCY + flask.bR + 10) continue
           // Color: purple fragments
           c.beginPath(); c.arc(p.x, p.y, p.size * 0.45, 0, Math.PI * 2)
-          c.fillStyle = `rgba(180,77,255,${Math.max(0.4, p.life)})`; c.fill()
+          c.fillStyle = p.color; c.globalAlpha = Math.max(0.4, p.life); c.fill(); c.globalAlpha = 1
           c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          c.fillStyle = 'rgba(180,77,255,0.04)'; c.fill()
+          c.fillStyle = p.color; c.globalAlpha = 0.06; c.fill(); c.globalAlpha = 1
 
         } else if (p.type === 'spark') {
           p.x += p.vx; p.y += p.vy; p.life -= 0.025
