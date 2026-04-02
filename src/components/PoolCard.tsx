@@ -211,7 +211,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   }))
 
   return (
-    <div className="overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', borderRadius: 6, marginRight: -156, marginLeft: -24 }}>
+    <div className="overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', borderRadius: 6 }}>
       {/* HUD overlay */}
       <div className="flex justify-between items-center px-3 pt-2">
         <span className="hud-label" style={{ color: inRange ? 'var(--neon-green)' : 'var(--neon-pink)' }}>
@@ -231,7 +231,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
       {/* Space scene SVG */}
       <div className="px-2 py-1">
-        <svg viewBox="0 0 300 70" className="w-full" style={{ height: '70px' }}>
+        <svg viewBox="0 0 300 70" preserveAspectRatio="none" className="w-full" style={{ height: '70px' }}>
           <defs>
             <filter id="ufo-glow">
               <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
