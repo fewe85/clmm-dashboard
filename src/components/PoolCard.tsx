@@ -40,9 +40,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
   const harvestThreshold = pool.compoundThreshold ?? 0
 
   return (
-    <div className="card-glow rounded-2xl p-5 flex gap-4">
-      {/* Left: main content */}
-      <div className="flex-1 space-y-4 min-w-0">
+    <div className="card-glow rounded-2xl p-5 space-y-4">
       {/* Stale / Error warnings */}
       {pool.stale && (
         <div className="text-xs px-3 py-1.5 rounded-lg" style={{ background: 'rgba(234,179,8,0.1)', color: 'var(--accent-yellow)' }}>
@@ -142,8 +140,12 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         </div>
       </div>
 
-      {/* 4. Vertical Range Thermometer */}
+      {/* 4. Space Range — full width */}
       <VerticalRange pool={pool} rangeWidth={pm.rangeWidth} ceMultiplier={pm.ceMultiplier} />
+
+      {/* Two-column: left info + right mining shaft */}
+      <div className="flex gap-4">
+      <div className="flex-1 space-y-4 min-w-0">
 
       {/* 5. P&L Breakdown */}
       <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
@@ -167,9 +169,9 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         </button>
         {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
       </div>
-      </div>{/* end left */}
+      </div>{/* end left info column */}
 
-      {/* Right: Live Earnings drip tank */}
+      {/* Right: Mining shaft */}
       <div className="flex-shrink-0 hidden md:flex" style={{ borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
         <LiveEarnings
           snapshots={pool.botState?.earningsSnapshots ?? []}
@@ -179,6 +181,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
           harvestThreshold={harvestThreshold}
         />
       </div>
+      </div>{/* end two-column */}
     </div>
   )
 }
