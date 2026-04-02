@@ -72,7 +72,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 2. Token Price + 24h Change */}
       <div className="flex items-baseline gap-2">
         <span className="hud-label">{pool.tokenA}</span>
-        <span className="mono text-lg font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
+        <span className="mono text-lg font-bold neon-value" style={{ color: 'var(--neon-yellow)' }}>
           ${tokenAPrice.toFixed(4)}
         </span>
         {priceChange24h != null && priceChange24h !== 0 && (
@@ -89,7 +89,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-lg px-3 py-2.5" style={{ background: '#050510', border: '1px solid var(--border)' }}>
           <div className="hud-label mb-0.5">Position Value</div>
-          <div className="mono text-xl font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
+          <div className="mono text-xl font-bold neon-value" style={{ color: 'var(--neon-yellow)' }}>
             {fmtUsd(pm.positionValue)}
           </div>
         </div>
@@ -97,9 +97,9 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
           className="rounded-lg px-3 py-2.5"
           style={{
             background: pm.netProfit >= 0
-              ? 'linear-gradient(135deg, rgba(0,240,255,0.06), #050510)'
-              : 'linear-gradient(135deg, rgba(255,0,85,0.06), #050510)',
-            border: `1px solid ${pm.netProfit >= 0 ? 'rgba(0,240,255,0.2)' : 'rgba(255,0,85,0.2)'}`,
+              ? 'linear-gradient(135deg, rgba(57,255,20,0.06), #050510)'
+              : 'linear-gradient(135deg, rgba(255,42,109,0.06), #050510)',
+            border: `1px solid ${pm.netProfit >= 0 ? 'rgba(57,255,20,0.2)' : 'rgba(255,42,109,0.2)'}`,
           }}
         >
           <div className="hud-label mb-0.5">Net P&L</div>
@@ -183,14 +183,15 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
   )
 }
 
-/* ── Sonar Radar ────────────────────────────────────────────────────────── */
+/* ── Neon Power Bar — Range Indicator ───────────────────────────────────── */
 
 function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   pool: PoolData; rangeWidth: number; ceMultiplier: number
 }) {
   const { priceLower, priceUpper, currentPrice, inRange } = pool
   const range = priceUpper - priceLower
-  const position = range > 0 ? ((currentPrice - priceLower) / range) : 0.5
+  const position = range > 0 ? ((currentPrice - priceLower) / range) * 100 : 50
+  const clamped = Math.max(2, Math.min(98, position))
 
   const distLower = ((currentPrice - priceLower) / currentPrice) * 100
   const distUpper = ((priceUpper - currentPrice) / currentPrice) * 100
@@ -199,102 +200,89 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   const danger = nearestPct < 0.5
   const warn = nearestPct < 1.2 && !danger
 
-  // Map price position to angle: 0% = -90° (left), 100% = +90° (right), 50% = 0° (top)
-  const angle = (position - 0.5) * 180 // -90 to +90
-  const blipColor = danger ? 'var(--neon-pink)' : warn ? 'var(--neon-yellow)' : 'var(--neon-cyan)'
+  const orbColor = danger ? '#ff2a6d' : warn ? '#ffaa00' : '#39ff14'
+  const orbGlow = danger ? 'rgba(255,42,109,0.6)' : warn ? 'rgba(255,170,0,0.5)' : 'rgba(57,255,20,0.5)'
 
-  // Blip position on circle (r=38, center 50,50)
-  const rad = (angle - 90) * (Math.PI / 180)
-  const blipR = 32
-  const bx = 50 + Math.cos(rad) * blipR
-  const by = 50 + Math.sin(rad) * blipR
+  // Tick marks (10 segments)
+  const ticks = Array.from({ length: 11 }, (_, i) => i * 10)
 
   return (
-    <div className="rounded-xl p-3" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
-      <div className="flex items-center gap-4">
-        {/* Sonar circle */}
-        <div className="flex-shrink-0 relative" style={{ width: 100, height: 100 }}>
-          <svg viewBox="0 0 100 100" width="100" height="100">
-            {/* Grid lines */}
-            <line x1="50" y1="5" x2="50" y2="95" stroke="var(--border)" strokeWidth="0.3" />
-            <line x1="5" y1="50" x2="95" y2="50" stroke="var(--border)" strokeWidth="0.3" />
+    <div className="rounded-lg p-3" style={{ background: '#050510', border: '1px solid var(--border)' }}>
+      {/* HUD label */}
+      <div className="flex justify-between items-center mb-2">
+        <span className="hud-label" style={{ color: inRange ? 'var(--neon-green)' : 'var(--neon-pink)' }}>
+          {inRange ? 'IN RANGE' : 'OUT OF RANGE'}
+        </span>
+        <span className="hud-label">±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x CE</span>
+      </div>
 
-            {/* Concentric range rings */}
-            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border)" strokeWidth="0.4" />
-            <circle cx="50" cy="50" r="32" fill="none" stroke="var(--border)" strokeWidth="0.3" strokeDasharray="2,3" />
-            <circle cx="50" cy="50" r="22" fill="none" stroke="var(--border)" strokeWidth="0.3" strokeDasharray="2,3" />
+      {/* Price labels */}
+      <div className="flex justify-between text-xs mb-1">
+        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</span>
+        <span className="mono font-bold neon-value" style={{ color: 'var(--neon-yellow)' }}>${currentPrice.toFixed(4)}</span>
+        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</span>
+      </div>
 
-            {/* Danger zone arc (outer ring, red/pink) */}
-            <circle cx="50" cy="50" r="42" fill="none" stroke={danger ? 'var(--neon-pink)' : 'var(--border)'}
-              strokeWidth={danger ? '1.5' : '0.4'} opacity={danger ? 0.6 : 1} className={danger ? 'range-danger-pulse' : ''} />
+      {/* Power bar SVG */}
+      <svg viewBox="0 0 300 36" className="w-full" style={{ height: '36px' }}>
+        <defs>
+          <linearGradient id="bar-bg" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.2" />
+            <stop offset="15%" stopColor="#ff2a6d" stopOpacity="0.05" />
+            <stop offset="35%" stopColor="#39ff14" stopOpacity="0.08" />
+            <stop offset="50%" stopColor="#39ff14" stopOpacity="0.12" />
+            <stop offset="65%" stopColor="#39ff14" stopOpacity="0.08" />
+            <stop offset="85%" stopColor="#ff2a6d" stopOpacity="0.05" />
+            <stop offset="100%" stopColor="#ff2a6d" stopOpacity="0.2" />
+          </linearGradient>
+          <filter id="orb-glow">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-            {/* Sweep line — rotates */}
-            <line x1="50" y1="50" x2="50" y2="8" stroke="var(--neon-cyan)" strokeWidth="0.8" opacity="0.3">
-              <animateTransform
-                attributeName="transform" type="rotate"
-                from="0 50 50" to="360 50 50"
-                dur="4s" repeatCount="indefinite"
-              />
-            </line>
+        {/* Bar background */}
+        <rect x="4" y="10" width="292" height="16" rx="3" fill="url(#bar-bg)" stroke="var(--border)" strokeWidth="0.5" />
 
-            {/* Sweep glow cone */}
-            <path d="M 50 50 L 45 10 A 42 42 0 0 1 55 10 Z" fill="var(--neon-cyan)" opacity="0.04">
-              <animateTransform
-                attributeName="transform" type="rotate"
-                from="0 50 50" to="360 50 50"
-                dur="4s" repeatCount="indefinite"
-              />
-            </path>
+        {/* Tick marks */}
+        {ticks.map(pct => {
+          const x = 4 + (pct / 100) * 292
+          return <line key={pct} x1={x} y1={8} x2={x} y2={28} stroke="var(--border)" strokeWidth="0.4" />
+        })}
 
-            {/* Blip afterglow (fading trail) */}
-            <circle cx={bx} cy={by} r="8" fill={blipColor} opacity="0.08" />
-            <circle cx={bx} cy={by} r="5" fill={blipColor} opacity="0.15" />
+        {/* Center line */}
+        <line x1="150" y1="6" x2="150" y2="30" stroke="rgba(57,255,20,0.15)" strokeWidth="0.8" strokeDasharray="2,2" />
 
-            {/* Blip */}
-            <circle cx={bx} cy={by} r="3" fill={blipColor}>
-              <animate attributeName="r" values="2.5;3.5;2.5" dur="2s" repeatCount="indefinite" />
-              <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />
-            </circle>
+        {/* Danger zone flicker — left */}
+        {(danger || warn) && nearestSide === 'lower' && (
+          <rect x="4" y="10" width="44" height="16" rx="3" fill={danger ? '#ff2a6d' : '#ffaa00'} opacity="0.15" className="range-danger-pulse" />
+        )}
+        {/* Danger zone flicker — right */}
+        {(danger || warn) && nearestSide === 'upper' && (
+          <rect x="252" y="10" width="44" height="16" rx="3" fill={danger ? '#ff2a6d' : '#ffaa00'} opacity="0.15" className="range-danger-pulse" />
+        )}
 
-            {/* Center dot */}
-            <circle cx="50" cy="50" r="1.5" fill="var(--neon-cyan)" opacity="0.5" />
-          </svg>
+        {/* Orb glow */}
+        <circle cx={4 + (clamped / 100) * 292} cy="18" r="10" fill={orbGlow} opacity="0.3" filter="url(#orb-glow)" />
 
-          {/* TRACKING label */}
-          <div className="absolute top-1 left-1.5 hud-label" style={{
-            fontSize: '7px', color: inRange ? 'var(--neon-cyan)' : 'var(--neon-pink)', opacity: 0.7,
-          }}>
-            {inRange ? 'TRACKING' : 'WARNING'}
-          </div>
-        </div>
+        {/* Orb core */}
+        <circle cx={4 + (clamped / 100) * 292} cy="18" r="5" fill={orbColor} filter="url(#orb-glow)">
+          <animate attributeName="r" values="4;5.5;4" dur={danger ? '0.8s' : '3s'} repeatCount="indefinite" />
+        </circle>
 
-        {/* Info column */}
-        <div className="flex-1 space-y-2">
-          <div>
-            <div className="hud-label mb-0.5">Current Price</div>
-            <div className="mono text-sm font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
-              ${currentPrice.toFixed(4)}
-            </div>
-          </div>
-          <div className="flex gap-4">
-            <div>
-              <div className="hud-label mb-0.5">Lower</div>
-              <div className="mono text-xs" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</div>
-            </div>
-            <div>
-              <div className="hud-label mb-0.5">Upper</div>
-              <div className="mono text-xs" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</div>
-            </div>
-          </div>
-          <div className="flex gap-4 items-baseline">
-            <span className="mono text-xs font-semibold" style={{ color: blipColor }}>
-              {nearestPct.toFixed(1)}% to {nearestSide}
-            </span>
-            <span className="hud-label">
-              ±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x
-            </span>
-          </div>
-        </div>
+        {/* Orb inner bright spot */}
+        <circle cx={4 + (clamped / 100) * 292} cy="17" r="2" fill="white" opacity="0.5" />
+      </svg>
+
+      {/* Distance label */}
+      <div className="flex justify-center mt-1">
+        <span className="mono text-xs font-semibold" style={{ color: orbColor, textShadow: `0 0 8px ${orbGlow}` }}>
+          {nearestPct.toFixed(1)}% to {nearestSide}
+        </span>
       </div>
     </div>
   )

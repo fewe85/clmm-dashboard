@@ -64,7 +64,7 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
     <div className="rounded-xl overflow-hidden" style={{ background: '#050510', border: '1px solid var(--border)' }}>
       {/* Oscilloscope label */}
       <div className="flex justify-between items-center px-3 pt-2">
-        <span className="hud-label" style={{ color: 'var(--neon-cyan)', opacity: 0.6 }}>Rebalance Activity</span>
+        <span className="hud-label" style={{ color: 'var(--neon-yellow)', opacity: 0.6 }}>Rebalance Activity</span>
         <span className="hud-label" style={{ opacity: 0.4 }}>7d</span>
       </div>
 
@@ -83,23 +83,23 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
 
             {/* Afterglow gradient */}
             <linearGradient id="trace-grad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="var(--neon-cyan)" stopOpacity="0.1" />
-              <stop offset="100%" stopColor="var(--neon-cyan)" stopOpacity="0.7" />
+              <stop offset="0%" stopColor="var(--neon-green)" stopOpacity="0.1" />
+              <stop offset="100%" stopColor="var(--neon-green)" stopOpacity="0.7" />
             </linearGradient>
           </defs>
 
           {/* Grid */}
           {Array.from({ length: 5 }, (_, i) => {
             const y = 4 + (i / 4) * (h - 8)
-            return <line key={`h${i}`} x1="0" y1={y} x2={w} y2={y} stroke="var(--neon-cyan)" strokeWidth="0.15" opacity="0.15" />
+            return <line key={`h${i}`} x1="0" y1={y} x2={w} y2={y} stroke="var(--neon-green)" strokeWidth="0.15" opacity="0.1" />
           })}
           {Array.from({ length: DAYS + 1 }, (_, d) => {
             const x = (d / DAYS) * w
-            return <line key={`v${d}`} x1={x} y1="0" x2={x} y2={h} stroke="var(--neon-cyan)" strokeWidth="0.15" opacity="0.15" />
+            return <line key={`v${d}`} x1={x} y1="0" x2={x} y2={h} stroke="var(--neon-green)" strokeWidth="0.15" opacity="0.1" />
           })}
 
           {/* Afterglow trace (wider, dimmer) */}
-          <path d={path} fill="none" stroke="var(--neon-cyan)" strokeWidth="3" opacity="0.08" filter="url(#phosphor)" />
+          <path d={path} fill="none" stroke="var(--neon-green)" strokeWidth="3" opacity="0.08" filter="url(#phosphor)" />
 
           {/* Main trace */}
           <path d={path} fill="none" stroke="url(#trace-grad)" strokeWidth="1.2" strokeLinecap="round" filter="url(#phosphor)" />
@@ -107,8 +107,8 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
           {/* Peak dots */}
           {dots.map((d, i) => (
             <g key={i}>
-              <circle cx={d.x} cy={d.y} r="4" fill="var(--neon-cyan)" opacity="0.1" />
-              <circle cx={d.x} cy={d.y} r={d.count > 1 ? 2 : 1.2} fill="var(--neon-cyan)" opacity="0.8">
+              <circle cx={d.x} cy={d.y} r="4" fill="var(--neon-green)" opacity="0.1" />
+              <circle cx={d.x} cy={d.y} r={d.count > 1 ? 2 : 1.2} fill="var(--neon-green)" opacity="0.8">
                 {i === dots.length - 1 && (
                   <animate attributeName="opacity" values="0.5;1;0.5" dur="1.5s" repeatCount="indefinite" />
                 )}
@@ -117,7 +117,7 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
           ))}
 
           {/* Baseline glow */}
-          <line x1="0" y1={baseline} x2={w} y2={baseline} stroke="var(--neon-cyan)" strokeWidth="0.4" opacity="0.2" />
+          <line x1="0" y1={baseline} x2={w} y2={baseline} stroke="var(--neon-green)" strokeWidth="0.4" opacity="0.2" />
         </svg>
       </div>
 

@@ -89,7 +89,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       {/* Rate label */}
       <div className="text-center mb-1 z-10">
         <div className="earning-pulse mx-auto mb-1" />
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-gold)' }}>
           ${displayTotal.toFixed(4)}
         </div>
         <div className="hud-label" style={{ fontSize: '8px' }}>
@@ -103,15 +103,15 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         <div
           className="absolute inset-x-2 top-0 bottom-0 rounded-lg overflow-hidden"
           style={{
-            border: '1px solid rgba(0,240,255,0.15)',
+            border: '1px solid rgba(255,170,0,0.12)',
             background: '#050510',
           }}
         >
           {/* Grid overlay */}
           <div className="absolute inset-0" style={{
             backgroundImage: `
-              linear-gradient(rgba(0,240,255,0.03) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,240,255,0.03) 1px, transparent 1px)
+              linear-gradient(rgba(255,170,0,0.04) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255,170,0,0.04) 1px, transparent 1px)
             `,
             backgroundSize: '12px 12px',
           }} />
@@ -121,8 +121,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
             style={{
               height: `${fillPct}%`,
-              background: `linear-gradient(to top, rgba(0,240,255,0.3), rgba(180,0,255,0.15) ${feesRatio * 100}%, rgba(0,240,255,0.25))`,
-              borderTop: fillPct > 2 ? '1px solid rgba(0,240,255,0.4)' : 'none',
+              background: `linear-gradient(to top, rgba(255,170,0,0.3), rgba(194,74,255,0.12) ${feesRatio * 100}%, rgba(255,208,0,0.2))`,
+              borderTop: fillPct > 2 ? '1px solid rgba(255,208,0,0.4)' : 'none',
             }}
           >
             {/* Surface shimmer */}
@@ -142,8 +142,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
                 animationDuration: `${d.duration}s`,
                 width: d.size,
                 height: d.size,
-                background: d.isReward ? 'var(--neon-cyan)' : 'var(--neon-purple)',
-                color: d.isReward ? 'var(--neon-cyan)' : 'var(--neon-purple)',
+                background: d.isReward ? 'var(--neon-gold)' : 'var(--neon-purple)',
+                color: d.isReward ? 'var(--neon-gold)' : 'var(--neon-purple)',
               }}
             />
           ))}
@@ -155,13 +155,13 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         <div className="hud-label" style={{ fontSize: '8px' }}>
           <span style={{ color: 'var(--neon-purple)' }}>fees</span>
           {' + '}
-          <span style={{ color: 'var(--neon-cyan)' }}>rewards</span>
+          <span style={{ color: 'var(--neon-gold)' }}>rewards</span>
         </div>
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-cyan)' }}>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-gold)' }}>
           ${(totalPerHour * 24).toFixed(2)}/d
         </div>
         {harvestSec !== null && harvestSec > 0 && (
-          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--neon-cyan)' : 'var(--text-muted)', fontSize: '9px' }}>
+          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '9px' }}>
             {Math.floor(harvestSec / 60)}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
           </div>
         )}
