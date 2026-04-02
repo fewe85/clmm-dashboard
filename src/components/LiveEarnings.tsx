@@ -12,7 +12,6 @@ interface LiveEarningsProps {
 }
 
 const W = 140
-const FILL_TARGET = 200
 
 function calcRate(snapshots: Snapshot[]): number {
   if (snapshots.length < 3) return 0
@@ -23,7 +22,6 @@ function calcRate(snapshots: Snapshot[]): number {
   return Math.max(0, ((newest.feesUsd - oldest.feesUsd) + (newest.rewardsUsd - oldest.rewardsUsd)) / hours)
 }
 
-// ─── Ore Density (text only) ──────────────────────────────────────────────
 function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   positionValue: number; pendingTotal: number; initialRate: number
 }) {
@@ -55,25 +53,21 @@ function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   )
 }
 
-// ─── Particle types ───────────────────────────────────────────────────────
+// Particle
 interface Rock {
-  x: number; y: number; vx: number; vy: number
-  size: number; rot: number; phase: 'fall' | 'belt' | 'melt' | 'drop' | 'done'
-  color: string; opacity: number; shape: number[][]; beltX?: number
+  x: number; y: number; vx: number; vy: number; size: number; rot: number
+  phase: 'pipe' | 'belt' | 'furnace' | 'drop' | 'done'
+  opacity: number; shape: number[][]; glow: number
 }
 
 function makeShape(s: number): number[][] {
-  const pts = 5 + Math.floor(Math.random() * 3)
-  return Array.from({ length: pts }, (_, i) => {
-    const a = (i / pts) * Math.PI * 2
-    const r = s * (0.5 + Math.random() * 0.5)
+  const n = 5 + Math.floor(Math.random() * 3)
+  return Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2, r = s * (0.5 + Math.random() * 0.5)
     return [Math.cos(a) * r, Math.sin(a) * r]
   })
 }
 
-const ROCK_COLORS = ['#888', '#999', '#777', '#aaa', '#707070']
-
-// ─── Main Component ───────────────────────────────────────────────────────
 export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold, positionValue }: LiveEarningsProps) {
   const totalPerHour = useMemo(() => calcRate(snapshots), [snapshots])
   const totalPerSecond = totalPerHour / 3600
@@ -85,8 +79,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const [harvestSec, setHarvestSec] = useState<number | null>(null)
   useEffect(() => {
     if (!nextHarvestAt) return
-    const update = () => { const ms = new Date(nextHarvestAt).getTime() - Date.now(); setHarvestSec(ms > 0 ? ms / 1000 : 0) }
-    update(); const t = setInterval(update, 1000); return () => clearInterval(t)
+    const upd = () => { const ms = new Date(nextHarvestAt).getTime() - Date.now(); setHarvestSec(ms > 0 ? ms / 1000 : 0) }
+    upd(); const t = setInterval(upd, 1000); return () => clearInterval(t)
   }, [nextHarvestAt])
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -96,7 +90,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const nextDelayRef = useRef(800)
   const fillRef = useRef(0)
 
-  // Resize
   useEffect(() => {
     const el = containerRef.current, canvas = canvasRef.current
     if (!el || !canvas) return
@@ -104,7 +97,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     obs.observe(el); return () => obs.disconnect()
   }, [])
 
-  // Animation loop
   useEffect(() => {
     if (totalPerHour <= 0) return
     let running = true
@@ -116,248 +108,222 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       if (!ctx) { requestAnimationFrame(loop); return }
       const h = canvas.height, now = Date.now()
 
-      // Update counter
       const elapsed = (now - baseRef.current.time) / 1000
-      setDisplayTotal(baseRef.current.value + elapsed * totalPerSecond)
+      const currentTotal = baseRef.current.value + elapsed * totalPerSecond
+      setDisplayTotal(currentTotal)
 
-      // Fill
-      const ft = harvestThreshold > 0 ? harvestThreshold : FILL_TARGET
-      fillRef.current += (Math.min((baseRef.current.value + elapsed * totalPerSecond) / ft, 1) - fillRef.current) * 0.02
+      const ft = harvestThreshold > 0 ? harvestThreshold : 200
+      fillRef.current += (Math.min(currentTotal / ft, 1) - fillRef.current) * 0.02
 
       ctx.clearRect(0, 0, W, h)
 
-      // ─── Layout zones ──────────────────────────────────────────
-      // Crusher: top 15%
-      // Left belt: 15%-50% (left third)
-      // Processor: 50% center
-      // Right drops: 50%-85% (right side)
-      // Collection: bottom 15%
-      const crushEnd = h * 0.15
-      const procY = h * 0.48
-      const collectTop = h * 0.82
-      const beltLeft = 18 // x position of left belt
-      const procX = W / 2
-      const dropRight = W - 25 // x position of right drops
+      // ─── LAYOUT ────────────────────────────────────────────────
+      // Crusher + pipe: top 10%
+      // Belt zone: 10%-35% (left side, rocks go down)
+      // Furnace: 35%-45% (center, transformation)
+      // Drop zone: 45%-55% (right side, drops fall freely)
+      // Basin: 55%-100% (big collection tank)
+      const cx = W / 2
+      const crushEnd = h * 0.10
+      const pipeBottom = h * 0.14
+      const beltX = 20
+      const beltTop = pipeBottom
+      const beltBottom = h * 0.34
+      const furnaceY = h * 0.38
+      const furnaceLeft = 16
+      const furnaceRight = W - 20
+      const dropX = W - 26
+      const dropStart = furnaceY + 12
+      const basinTop = h * 0.55
 
-      // ─── BACKGROUND — station interior ─────────────────────────
+      // ─── BACKGROUND ────────────────────────────────────────────
       ctx.fillStyle = '#08080f'
       ctx.fillRect(0, 0, W, h)
-      // Stars
-      for (let i = 0; i < 15; i++) {
-        ctx.fillStyle = `rgba(255,255,255,${0.08 + (i % 3) * 0.04})`
-        ctx.beginPath()
-        ctx.arc((i * 47 + 7) % (W - 8) + 4, (i * 73 + 11) % (h - 8) + 4, i % 5 === 0 ? 0.8 : 0.4, 0, Math.PI * 2)
-        ctx.fill()
+      for (let i = 0; i < 12; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${0.06 + (i % 3) * 0.04})`
+        ctx.beginPath(); ctx.arc((i * 47 + 7) % (W - 6) + 3, (i * 73 + 11) % (h - 6) + 3, 0.5, 0, Math.PI * 2); ctx.fill()
       }
-      // Wall panels
-      ctx.fillStyle = 'rgba(199,125,255,0.03)'
-      ctx.fillRect(0, 0, 6, h); ctx.fillRect(W - 6, 0, 6, h)
+      ctx.fillStyle = 'rgba(199,125,255,0.025)'
+      ctx.fillRect(0, 0, 5, h); ctx.fillRect(W - 5, 0, 5, h)
 
       // ─── CRUSHER (top center) ──────────────────────────────────
-      const crushPhase = Math.sin(now * 0.005)
-      // Hopper
+      const jaw = Math.sin(now * 0.005)
       ctx.fillStyle = '#3a3a4a'
       ctx.beginPath()
-      ctx.moveTo(procX - 24, 2); ctx.lineTo(procX - 12, crushEnd - 4)
-      ctx.lineTo(procX + 12, crushEnd - 4); ctx.lineTo(procX + 24, 2)
+      ctx.moveTo(cx - 22, 2); ctx.lineTo(cx - 10, crushEnd); ctx.lineTo(cx + 10, crushEnd); ctx.lineTo(cx + 22, 2)
       ctx.closePath(); ctx.fill()
       ctx.fillStyle = '#1a1a2a'
       ctx.beginPath()
-      ctx.moveTo(procX - 20, 4); ctx.lineTo(procX - 10, crushEnd - 6)
-      ctx.lineTo(procX + 10, crushEnd - 6); ctx.lineTo(procX + 20, 4)
+      ctx.moveTo(cx - 18, 4); ctx.lineTo(cx - 8, crushEnd - 2); ctx.lineTo(cx + 8, crushEnd - 2); ctx.lineTo(cx + 18, 4)
       ctx.closePath(); ctx.fill()
-      // Jaw
-      const jaw = 2 + crushPhase * 1.5
+      // Jaws
       ctx.fillStyle = '#6a6a7a'
-      ctx.fillRect(procX - jaw - 6, crushEnd - 6, 6, 4)
-      ctx.fillRect(procX + jaw, crushEnd - 6, 6, 4)
-      // Sparks
-      if (crushPhase > 0.5) {
-        ctx.fillStyle = `rgba(255,170,0,${0.4 + Math.random() * 0.3})`
-        ctx.beginPath(); ctx.arc(procX + (Math.random() - 0.5) * 8, crushEnd - 3, 1.5, 0, Math.PI * 2); ctx.fill()
-      }
+      ctx.fillRect(cx - 6 - jaw, crushEnd - 4, 5, 4)
+      ctx.fillRect(cx + 1 + jaw, crushEnd - 4, 5, 4)
+      if (jaw > 0.5) { ctx.fillStyle = 'rgba(255,170,0,0.4)'; ctx.beginPath(); ctx.arc(cx, crushEnd - 1, 2, 0, Math.PI * 2); ctx.fill() }
 
-      // ─── LEFT CONVEYOR BELT (rocks fall left, move down) ───────
-      // Belt track
+      // ─── PIPE: crusher → belt (center down then left) ──────────
+      // Vertical section
       ctx.fillStyle = '#2a2a3a'
-      ctx.fillRect(beltLeft - 6, crushEnd + 2, 14, procY - crushEnd - 6)
-      // Belt surface
-      ctx.fillStyle = '#333344'
-      ctx.fillRect(beltLeft - 4, crushEnd + 3, 10, procY - crushEnd - 8)
-      // Moving ridges on belt
-      const ridgeSpeed = (now * 0.03) % 12
-      for (let ry = crushEnd + 5; ry < procY - 5; ry += 12) {
-        const oy = ry + ridgeSpeed
-        if (oy > procY - 5) continue
-        ctx.fillStyle = 'rgba(199,125,255,0.06)'
-        ctx.fillRect(beltLeft - 3, oy, 8, 2)
-      }
-      // Belt gears (top + bottom)
-      for (const gy of [crushEnd + 2, procY - 4]) {
-        ctx.beginPath(); ctx.arc(beltLeft + 1, gy, 4, 0, Math.PI * 2)
-        ctx.fillStyle = '#444455'; ctx.fill()
-        ctx.beginPath(); ctx.arc(beltLeft + 1, gy, 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = '#555566'; ctx.fill()
-      }
-
-      // ─── PROCESSOR (center, horizontal) ────────────────────────
-      // Machine body — spans left to right
-      ctx.fillStyle = '#3a3a4a'
-      ctx.fillRect(beltLeft + 8, procY - 10, dropRight - beltLeft - 8, 22)
-      ctx.fillStyle = '#444455'
-      ctx.fillRect(beltLeft + 10, procY - 8, dropRight - beltLeft - 12, 4)
-      // Center reactor
-      const pulse = 0.5 + Math.sin(now * 0.004) * 0.3
-      ctx.beginPath(); ctx.arc(procX, procY + 1, 6, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(0,255,136,${pulse * 0.4})`; ctx.fill()
-      ctx.beginPath(); ctx.arc(procX, procY + 1, 3, 0, Math.PI * 2)
-      ctx.fillStyle = '#00ff88'; ctx.globalAlpha = pulse; ctx.fill(); ctx.globalAlpha = 1
-      // Glow
-      ctx.beginPath(); ctx.arc(procX, procY + 1, 14, 0, Math.PI * 2)
-      ctx.fillStyle = `rgba(0,255,136,${pulse * 0.04})`; ctx.fill()
-      // Input arrow (left)
-      ctx.fillStyle = 'rgba(199,125,255,0.15)'
-      ctx.beginPath(); ctx.moveTo(beltLeft + 10, procY - 2); ctx.lineTo(beltLeft + 16, procY + 1); ctx.lineTo(beltLeft + 10, procY + 4); ctx.fill()
-      // Output arrow (right)
-      ctx.fillStyle = 'rgba(0,255,136,0.15)'
-      ctx.beginPath(); ctx.moveTo(dropRight - 2, procY - 2); ctx.lineTo(dropRight + 4, procY + 1); ctx.lineTo(dropRight - 2, procY + 4); ctx.fill()
-      // Status LEDs
-      ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.4 + Math.sin(now * 0.004) * 0.3
-      ctx.beginPath(); ctx.arc(procX - 14, procY - 6, 1.5, 0, Math.PI * 2); ctx.fill()
-      ctx.fillStyle = '#b44dff'
-      ctx.beginPath(); ctx.arc(procX + 14, procY - 6, 1.5, 0, Math.PI * 2); ctx.fill()
-      ctx.globalAlpha = 1
-      // Bolts
-      for (const bx of [beltLeft + 10, dropRight - 2]) {
-        for (const by of [procY - 8, procY + 10]) {
-          ctx.beginPath(); ctx.arc(bx, by, 1.5, 0, Math.PI * 2)
-          ctx.fillStyle = '#1a1a2a'; ctx.fill()
-        }
-      }
-      // Horizontal conveyor inside (moving dots)
-      const convSpeed = (now * 0.04) % 8
-      for (let cx2 = beltLeft + 18; cx2 < dropRight - 6; cx2 += 8) {
-        const ox = cx2 + convSpeed
-        if (ox > dropRight - 6) continue
-        // Transition: grey on left, green on right
-        const t = (ox - beltLeft - 18) / (dropRight - beltLeft - 24)
-        const r = Math.floor(100 * (1 - t))
-        const g = Math.floor(100 * (1 - t) + 255 * t)
-        const b = Math.floor(80 * (1 - t) + 136 * t)
-        ctx.fillStyle = `rgba(${r},${g},${b},0.3)`
-        ctx.beginPath(); ctx.arc(ox, procY + 1, 2, 0, Math.PI * 2); ctx.fill()
-      }
-
-      // ─── RIGHT DROP ZONE (green drops fall) ────────────────────
-      // Pipe from processor output
-      ctx.fillStyle = '#2a2a3a'
-      ctx.fillRect(dropRight - 4, procY + 12, 8, collectTop - procY - 14)
+      ctx.fillRect(cx - 4, crushEnd, 8, pipeBottom - crushEnd + 4)
+      // Elbow
+      ctx.fillRect(beltX - 2, pipeBottom, cx - beltX + 6, 6)
+      // Pipe inner
       ctx.fillStyle = '#1a1a2a'
-      ctx.fillRect(dropRight - 2, procY + 14, 4, collectTop - procY - 18)
+      ctx.fillRect(cx - 2, crushEnd + 2, 4, pipeBottom - crushEnd)
+      ctx.fillRect(beltX, pipeBottom + 1, cx - beltX + 2, 4)
 
-      // ─── COLLECTION (bottom) ───────────────────────────────────
-      const collectH = h - collectTop - 4
-      const fillH = collectH * fillRef.current
-      const surfaceY = h - 4 - fillH
-      if (fillH > 2) {
-        const liqGrad = ctx.createLinearGradient(0, surfaceY, 0, h)
-        liqGrad.addColorStop(0, 'rgba(0,255,136,0.25)')
-        liqGrad.addColorStop(1, 'rgba(0,255,136,0.35)')
-        ctx.fillStyle = liqGrad
-        ctx.fillRect(8, surfaceY, W - 16, fillH + 4)
-        // Wave
-        ctx.beginPath(); ctx.moveTo(8, surfaceY)
-        for (let x = 8; x < W - 8; x += 2) {
-          ctx.lineTo(x, surfaceY + Math.sin(x * 0.08 + now * 0.002) * 1.5)
-        }
-        ctx.lineTo(W - 8, surfaceY); ctx.strokeStyle = 'rgba(0,255,136,0.5)'; ctx.lineWidth = 1; ctx.stroke()
-        // Glow up
-        const gGrad = ctx.createLinearGradient(0, surfaceY - 10, 0, surfaceY)
-        gGrad.addColorStop(0, 'transparent'); gGrad.addColorStop(1, 'rgba(0,255,136,0.06)')
-        ctx.fillStyle = gGrad; ctx.fillRect(8, surfaceY - 10, W - 16, 10)
+      // ─── LEFT CONVEYOR BELT (rocks move down) ──────────────────
+      ctx.fillStyle = '#2a2a3a'
+      ctx.fillRect(beltX - 5, beltTop + 4, 12, beltBottom - beltTop - 2)
+      ctx.fillStyle = '#333344'
+      ctx.fillRect(beltX - 3, beltTop + 5, 8, beltBottom - beltTop - 4)
+      // Ridges
+      const rSpd = (now * 0.03) % 10
+      for (let ry = beltTop + 8; ry < beltBottom - 4; ry += 10) {
+        const oy = ry + rSpd; if (oy > beltBottom - 4) continue
+        ctx.fillStyle = 'rgba(199,125,255,0.06)'; ctx.fillRect(beltX - 2, oy, 6, 2)
       }
+      // Gears
+      for (const gy of [beltTop + 5, beltBottom - 2]) {
+        ctx.beginPath(); ctx.arc(beltX + 1, gy, 4, 0, Math.PI * 2); ctx.fillStyle = '#444455'; ctx.fill()
+        ctx.beginPath(); ctx.arc(beltX + 1, gy, 1.5, 0, Math.PI * 2); ctx.fillStyle = '#555566'; ctx.fill()
+      }
+
+      // ─── FURNACE / SMELTER (horizontal) ────────────────────────
+      // Housing
+      ctx.fillStyle = '#333344'
+      ctx.fillRect(furnaceLeft, furnaceY - 8, furnaceRight - furnaceLeft, 20)
+      // Inner chamber — heat gradient
+      const heatPulse = 0.5 + Math.sin(now * 0.003) * 0.3
+      const hGrad = ctx.createLinearGradient(furnaceLeft, 0, furnaceRight, 0)
+      hGrad.addColorStop(0, `rgba(199,125,255,${0.06 * heatPulse})`)
+      hGrad.addColorStop(0.3, `rgba(255,100,0,${0.08 * heatPulse})`)
+      hGrad.addColorStop(0.6, `rgba(255,200,0,${0.06 * heatPulse})`)
+      hGrad.addColorStop(1, `rgba(0,255,136,${0.08 * heatPulse})`)
+      ctx.fillStyle = hGrad
+      ctx.fillRect(furnaceLeft + 2, furnaceY - 6, furnaceRight - furnaceLeft - 4, 16)
+      // Flame/plasma effect inside
+      for (let fx = furnaceLeft + 10; fx < furnaceRight - 10; fx += 6) {
+        const t = (fx - furnaceLeft) / (furnaceRight - furnaceLeft)
+        const flicker = Math.sin(now * 0.008 + fx * 0.3) * 3
+        const pr = Math.floor(199 * (1 - t))
+        const pg = Math.floor(125 * (1 - t) + 255 * t)
+        const pb = Math.floor(255 * (1 - t * 0.5) * (1 - t) + 136 * t)
+        ctx.fillStyle = `rgba(${pr},${pg},${pb},${0.15 + Math.abs(flicker) * 0.03})`
+        ctx.beginPath(); ctx.arc(fx, furnaceY + 2 + flicker, 3 + Math.random() * 2, 0, Math.PI * 2); ctx.fill()
+      }
+      // Top/bottom plates
+      ctx.fillStyle = '#444455'
+      ctx.fillRect(furnaceLeft, furnaceY - 9, furnaceRight - furnaceLeft, 2)
+      ctx.fillRect(furnaceLeft, furnaceY + 11, furnaceRight - furnaceLeft, 2)
+      // Bolts
+      for (const bx of [furnaceLeft + 3, furnaceRight - 5]) {
+        for (const by of [furnaceY - 8, furnaceY + 11]) {
+          ctx.beginPath(); ctx.arc(bx, by, 1.5, 0, Math.PI * 2); ctx.fillStyle = '#1a1a2a'; ctx.fill()
+        }
+      }
+      // Status LEDs
+      ctx.fillStyle = '#c77dff'; ctx.globalAlpha = 0.3 + Math.sin(now * 0.004) * 0.2
+      ctx.beginPath(); ctx.arc(furnaceLeft + 8, furnaceY - 6, 1.5, 0, Math.PI * 2); ctx.fill()
+      ctx.fillStyle = '#00ff88'
+      ctx.beginPath(); ctx.arc(furnaceRight - 8, furnaceY - 6, 1.5, 0, Math.PI * 2); ctx.fill()
+      ctx.globalAlpha = 1
+
+      // ─── DROP ZONE (right, free fall — no pipe) ────────────────
+      // Just a small output nozzle at furnace exit
+      ctx.fillStyle = '#2a2a3a'
+      ctx.fillRect(dropX - 3, furnaceY + 11, 8, 5)
+      ctx.fillStyle = '#00ff88'; ctx.globalAlpha = 0.15
+      ctx.fillRect(dropX - 1, furnaceY + 14, 4, 3)
+      ctx.globalAlpha = 1
+
+      // ─── BASIN (bottom 45% — big tank) ─────────────────────────
+      const basinH = h - basinTop - 3
+      const fillH = basinH * fillRef.current
+      const surfaceY = h - 3 - fillH
       // Tank walls
       ctx.fillStyle = '#2a2a3a'
-      ctx.fillRect(6, collectTop, 3, collectH + 4); ctx.fillRect(W - 9, collectTop, 3, collectH + 4)
-      ctx.fillRect(6, h - 4, W - 12, 3)
+      ctx.fillRect(6, basinTop, 3, basinH + 3); ctx.fillRect(W - 9, basinTop, 3, basinH + 3)
+      ctx.fillRect(6, h - 3, W - 12, 3)
+      // Tank rim
+      ctx.fillStyle = '#444455'
+      ctx.fillRect(5, basinTop - 2, W - 10, 3)
+      if (fillH > 2) {
+        const lGrad = ctx.createLinearGradient(0, surfaceY, 0, h)
+        lGrad.addColorStop(0, 'rgba(0,255,136,0.3)'); lGrad.addColorStop(1, 'rgba(0,255,136,0.4)')
+        ctx.fillStyle = lGrad; ctx.fillRect(9, surfaceY, W - 18, fillH + 3)
+        // Wave
+        ctx.beginPath(); ctx.moveTo(9, surfaceY)
+        for (let x = 9; x < W - 9; x += 2) ctx.lineTo(x, surfaceY + Math.sin(x * 0.07 + now * 0.002) * 1.5 + Math.sin(x * 0.13 + now * 0.003) * 0.8)
+        ctx.lineTo(W - 9, surfaceY); ctx.strokeStyle = 'rgba(0,255,136,0.5)'; ctx.lineWidth = 1; ctx.stroke()
+        // Glow up
+        const gGrad = ctx.createLinearGradient(0, surfaceY - 12, 0, surfaceY)
+        gGrad.addColorStop(0, 'transparent'); gGrad.addColorStop(1, 'rgba(0,255,136,0.06)')
+        ctx.fillStyle = gGrad; ctx.fillRect(9, surfaceY - 12, W - 18, 12)
+      }
 
       // ─── PARTICLES ─────────────────────────────────────────────
-      // Spawn
       if (now - lastSpawnRef.current > nextDelayRef.current || rocksRef.current.length === 0) {
         if (rocksRef.current.length < 15) {
-          const size = 6 + Math.random() * 8
+          const size = 5 + Math.random() * 6
           rocksRef.current.push({
-            x: procX + (Math.random() - 0.5) * 8,
-            y: crushEnd,
-            vx: -0.5 - Math.random() * 0.3, // drift left toward belt
-            vy: 0.4 + Math.random() * 0.3,
-            size, rot: Math.random() * Math.PI * 2,
-            phase: 'fall',
-            color: ROCK_COLORS[Math.floor(Math.random() * ROCK_COLORS.length)],
-            opacity: 0.9, shape: makeShape(size),
+            x: cx, y: crushEnd + 2, vx: 0, vy: 0.6, size, rot: Math.random() * Math.PI * 2,
+            phase: 'pipe', opacity: 0.9, shape: makeShape(size), glow: 0,
           })
-          lastSpawnRef.current = now
-          nextDelayRef.current = 800 + Math.random() * 1200
+          lastSpawnRef.current = now; nextDelayRef.current = 800 + Math.random() * 1200
         }
       }
 
       const alive: Rock[] = []
       for (const r of rocksRef.current) {
-        // Phase: fall → belt → melt → drop → done
-        if (r.phase === 'fall') {
-          r.x += r.vx; r.y += r.vy; r.rot += 0.02
-          // Reached belt?
-          if (r.x <= beltLeft + 4 || r.y > crushEnd + 20) {
-            r.phase = 'belt'; r.x = beltLeft + 1; r.vx = 0; r.vy = 0.5
-          }
+        if (r.phase === 'pipe') {
+          // Fall down center pipe, then go left through elbow
+          if (r.y < pipeBottom) { r.y += r.vy }
+          else { r.vx = -0.8; r.vy = 0; r.x += r.vx }
+          if (r.x <= beltX + 2) { r.phase = 'belt'; r.vx = 0; r.vy = 0.4 }
         } else if (r.phase === 'belt') {
-          r.y += 0.5; r.x = beltLeft + 1 + Math.sin(r.y * 0.1) * 1 // slight wobble
-          // Reached processor?
-          if (r.y >= procY - 6) {
-            r.phase = 'melt'; r.vy = 0; r.vx = 0.6; r.y = procY + 1
-          }
-        } else if (r.phase === 'melt') {
-          r.x += r.vx
-          // Shrink as it moves through processor
-          const prog = (r.x - beltLeft) / (dropRight - beltLeft)
-          r.size *= 0.995
-          r.opacity = Math.max(0.2, 1 - prog * 0.8)
-          // Reached output?
-          if (r.x >= dropRight - 2) {
-            r.phase = 'drop'; r.x = dropRight; r.vy = 0.8 + Math.random() * 0.5; r.vx = 0
-            r.size = 2 + Math.random() * 2; r.color = '#00ff88'; r.opacity = 0.8
+          r.y += r.vy; r.x = beltX + 1 + Math.sin(r.y * 0.1) * 0.8
+          if (r.y >= beltBottom) { r.phase = 'furnace'; r.vx = 0.5; r.vy = 0; r.y = furnaceY + 2 }
+        } else if (r.phase === 'furnace') {
+          r.x += r.vx; r.glow = Math.min(1, r.glow + 0.008)
+          r.size *= 0.998; r.rot += 0.01
+          if (r.x >= dropX) {
+            r.phase = 'drop'; r.vy = 0.6 + Math.random() * 0.4; r.vx = (Math.random() - 0.5) * 0.3
+            r.size = 2 + Math.random() * 2; r.glow = 1; r.opacity = 0.9
           }
         } else if (r.phase === 'drop') {
-          r.y += r.vy; r.vy += 0.01
-          r.x = dropRight + Math.sin(r.y * 0.05) * 2 // slight drift
-          // Hit liquid?
-          if (r.y > surfaceY) { r.size *= 0.85 }
+          r.y += r.vy; r.vy += 0.015; r.x += r.vx
+          r.x = Math.max(12, Math.min(W - 12, r.x))
+          if (r.y > surfaceY) r.size *= 0.88
           if (r.size < 0.3 || r.y > h) { r.phase = 'done' as any; continue }
         } else { continue }
 
         // Draw
-        if (r.phase === 'fall' || r.phase === 'belt') {
-          // Rock shape
+        if (r.phase === 'pipe' || r.phase === 'belt') {
           ctx.save(); ctx.translate(r.x, r.y); ctx.rotate(r.rot)
-          ctx.beginPath()
-          ctx.moveTo(r.shape[0][0], r.shape[0][1])
+          ctx.beginPath(); ctx.moveTo(r.shape[0][0], r.shape[0][1])
           for (let i = 1; i < r.shape.length; i++) ctx.lineTo(r.shape[i][0], r.shape[i][1])
-          ctx.closePath(); ctx.fillStyle = r.color; ctx.globalAlpha = r.opacity
-          ctx.fill(); ctx.globalAlpha = 1; ctx.restore()
-        } else if (r.phase === 'melt') {
-          // Transitioning: rock → green dot
-          const prog = (r.x - beltLeft) / (dropRight - beltLeft)
-          const gr = Math.floor(128 * (1 - prog))
-          const gg = Math.floor(128 * (1 - prog) + 255 * prog)
-          const gb = Math.floor(100 * (1 - prog) + 136 * prog)
-          ctx.beginPath(); ctx.arc(r.x, r.y, r.size * 0.7, 0, Math.PI * 2)
-          ctx.fillStyle = `rgba(${gr},${gg},${gb},${r.opacity})`; ctx.fill()
-          if (prog > 0.5) {
-            ctx.beginPath(); ctx.arc(r.x, r.y, r.size + 2, 0, Math.PI * 2)
-            ctx.fillStyle = `rgba(0,255,136,${(prog - 0.5) * 0.1})`; ctx.fill()
+          ctx.closePath(); ctx.fillStyle = '#c77dff'; ctx.globalAlpha = r.opacity; ctx.fill(); ctx.globalAlpha = 1
+          ctx.restore()
+        } else if (r.phase === 'furnace') {
+          const t = r.glow
+          const pr = Math.floor(199 * (1 - t))
+          const pg = Math.floor(125 * (1 - t) + 255 * t)
+          const pb = Math.floor(255 * (1 - t) + 136 * t)
+          // Rock shrinks, gets rounder, changes color
+          ctx.beginPath(); ctx.arc(r.x, r.y, r.size * (0.5 + t * 0.5), 0, Math.PI * 2)
+          ctx.fillStyle = `rgba(${pr},${pg},${pb},${r.opacity})`; ctx.fill()
+          if (t > 0.3) {
+            ctx.beginPath(); ctx.arc(r.x, r.y, r.size + 3, 0, Math.PI * 2)
+            ctx.fillStyle = `rgba(0,255,136,${(t - 0.3) * 0.1})`; ctx.fill()
+          }
+          // Heat distortion shimmer
+          if (t > 0.1 && t < 0.7) {
+            ctx.fillStyle = `rgba(255,150,0,${0.15 * (1 - t)})`
+            ctx.beginPath(); ctx.arc(r.x + Math.sin(now * 0.01 + r.x) * 3, r.y - 3, 2, 0, Math.PI * 2); ctx.fill()
           }
         } else if (r.phase === 'drop') {
-          // Green glowing drop
           ctx.beginPath(); ctx.arc(r.x, r.y, r.size, 0, Math.PI * 2)
           ctx.fillStyle = `rgba(0,255,136,${r.opacity})`; ctx.fill()
           ctx.beginPath(); ctx.arc(r.x, r.y, r.size + 2, 0, Math.PI * 2)
@@ -368,35 +334,24 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       }
       rocksRef.current = alive
 
-      // Frame border
       ctx.strokeStyle = 'rgba(199,125,255,0.1)'; ctx.lineWidth = 1; ctx.strokeRect(0.5, 0.5, W - 1, h - 1)
-
       requestAnimationFrame(loop)
     }
-    loop()
-    return () => { running = false }
+    loop(); return () => { running = false }
   }, [totalPerHour, totalPerSecond, harvestThreshold])
 
   if (totalPerHour <= 0) return null
 
   return (
     <div className="flex flex-col items-center justify-between relative" style={{ width: W, minHeight: '100%' }}>
-      {/* Counter */}
       <div className="text-center z-10 flex-shrink-0 w-full py-1">
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
-          ${displayTotal.toFixed(4)}
-        </div>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>${displayTotal.toFixed(4)}</div>
         <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
       </div>
-
       <OreDensityMeter positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} initialRate={totalPerHour} />
-
-      {/* Canvas */}
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 280 }}>
         <canvas ref={canvasRef} width={W} height={400} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
       </div>
-
-      {/* Stats */}
       <div className="text-center z-10 flex-shrink-0 py-1 space-y-0.5">
         {harvestThreshold > 0 && (
           <div className="mono font-bold" style={{ fontSize: '10px', color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>
