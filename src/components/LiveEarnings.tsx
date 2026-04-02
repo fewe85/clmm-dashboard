@@ -149,7 +149,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       // ═══ LAYOUT ═══════════════════════════════════════════
       const B1Y = H * 0.06                    // Band 1 top
       const B1L = 6, B1R = W - 6              // Band 1 left/right
-      const LASER_Y = B1Y + PX                // Laser Y (horizontal, at right end of band 1)
+      // Laser at right end of band 1
       const B2Y = H * 0.20                    // Band 2 top
       const B2L = 6, B2R = W - 6
       const FK_OX = 8, FK_OY = H * 0.38      // Flask origin (left side)
