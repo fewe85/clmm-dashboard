@@ -200,11 +200,11 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   const danger = nearestPct < 0.5
   const warn = nearestPct < 1.2 && !danger
 
-  const ufoX = 4 + (clamped / 100) * 292
+  const ufoX = 10 + (clamped / 100) * 580
 
-  // Deterministic stars — spread across full width
-  const stars = Array.from({ length: 50 }, (_, i) => ({
-    x: (i * 43 + 7) % 296 + 2,
+  // Deterministic stars — spread across full 600 width
+  const stars = Array.from({ length: 60 }, (_, i) => ({
+    x: (i * 83 + 7) % 596 + 2,
     y: (i * 29 + 11) % 66 + 2,
     r: i % 7 === 0 ? 1.2 : i % 3 === 0 ? 0.8 : 0.4,
     a: 0.15 + (i % 5) * 0.1,
@@ -231,7 +231,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
       {/* Space scene SVG */}
       <div className="px-2 py-1">
-        <svg viewBox="0 0 300 70" preserveAspectRatio="none" className="w-full" style={{ height: '70px' }}>
+        <svg viewBox="0 0 600 70" preserveAspectRatio="xMidYMid slice" className="w-full" style={{ height: '70px' }}>
           <defs>
             <filter id="ufo-glow">
               <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
@@ -269,12 +269,12 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
           </defs>
 
           {/* Space background */}
-          <rect width="300" height="70" fill="#020208" />
-          <rect width="300" height="70" fill="url(#nebula-left)" />
-          <rect width="300" height="70" fill="url(#nebula-right)" />
-          <rect width="300" height="70" fill="url(#nebula-center)" />
-          <rect width="300" height="70" fill="url(#dust1)" />
-          <rect width="300" height="70" fill="url(#dust2)" />
+          <rect width="600" height="70" fill="#020208" />
+          <rect width="600" height="70" fill="url(#nebula-left)" />
+          <rect width="600" height="70" fill="url(#nebula-right)" />
+          <rect width="600" height="70" fill="url(#nebula-center)" />
+          <rect width="600" height="70" fill="url(#dust1)" />
+          <rect width="600" height="70" fill="url(#dust2)" />
 
           {/* Stars */}
           {stars.map((s, i) => (
@@ -284,24 +284,24 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
           ))}
 
           {/* Range boundary lines — glowing red edges */}
-          <line x1="6" y1="0" x2="6" y2="70" stroke="#ff2a6d" strokeWidth="1.5" opacity="0.25" />
-          <line x1="294" y1="0" x2="294" y2="70" stroke="#ff2a6d" strokeWidth="1.5" opacity="0.25" />
+          <line x1="10" y1="0" x2="10" y2="70" stroke="#ff2a6d" strokeWidth="1.5" opacity="0.25" />
+          <line x1="590" y1="0" x2="590" y2="70" stroke="#ff2a6d" strokeWidth="1.5" opacity="0.25" />
           {/* Small asteroids at edges */}
-          <circle cx="8" cy="15" r="2" fill="#444" opacity="0.5" />
-          <circle cx="10" cy="50" r="1.5" fill="#555" opacity="0.4" />
-          <circle cx="292" cy="25" r="2.5" fill="#444" opacity="0.5" />
-          <circle cx="290" cy="55" r="1.5" fill="#555" opacity="0.4" />
+          <circle cx="14" cy="15" r="2" fill="#444" opacity="0.5" />
+          <circle cx="18" cy="50" r="1.5" fill="#555" opacity="0.4" />
+          <circle cx="586" cy="25" r="2.5" fill="#444" opacity="0.5" />
+          <circle cx="582" cy="55" r="1.5" fill="#555" opacity="0.4" />
 
           {/* Danger zones */}
           {(danger || warn) && nearestSide === 'lower' && (
-            <rect x="0" y="0" width="35" height="70" fill="#ff2a6d" opacity="0.1" className="range-danger-pulse" />
+            <rect x="0" y="0" width="60" height="70" fill="#ff2a6d" opacity="0.1" className="range-danger-pulse" />
           )}
           {(danger || warn) && nearestSide === 'upper' && (
-            <rect x="265" y="0" width="35" height="70" fill="#ff2a6d" opacity="0.1" className="range-danger-pulse" />
+            <rect x="540" y="0" width="60" height="70" fill="#ff2a6d" opacity="0.1" className="range-danger-pulse" />
           )}
 
           {/* Center safe zone */}
-          <line x1="150" y1="0" x2="150" y2="70" stroke="#c77dff" strokeWidth="0.4" strokeDasharray="3,5" opacity="0.2" />
+          <line x1="300" y1="0" x2="300" y2="70" stroke="#c77dff" strokeWidth="0.4" strokeDasharray="3,5" opacity="0.2" />
 
           {/* Tractor beam */}
           <polygon
@@ -311,8 +311,8 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
           />
           {/* Beam scan lines */}
           {[44, 50, 56, 62].map(y => (
-            <line key={y} x1={ufoX - 8 - (y - 40) * 0.5} y1={y} x2={ufoX + 8 + (y - 40) * 0.5} y2={y}
-              stroke="#c77dff" strokeWidth="0.3" opacity="0.15" />
+            <line key={y} x1={ufoX - 10 - (y - 40) * 0.6} y1={y} x2={ufoX + 10 + (y - 40) * 0.6} y2={y}
+              stroke="#c77dff" strokeWidth="0.4" opacity="0.12" />
           ))}
 
           {/* UFO */}
