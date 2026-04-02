@@ -248,19 +248,14 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       const TWALL = PX  // wall thickness
 
       // Helper: draw transparent tube section (outline only, dark fill inside)
-      function drawTubeV(x: number, y1: number, y2: number) {
-        // Inner dark
+      const drawTubeV = (x: number, y1: number, y2: number) => {
         pxRect(c, x + TWALL, Math.min(y1, y2), TW - TWALL * 2, Math.abs(y2 - y1), '#0a0a14')
-        // Left wall
         for (let y = Math.min(y1, y2); y < Math.max(y1, y2); y += PX) pxRect(c, x, y, TWALL, PX, '#555566')
-        // Right wall
         for (let y = Math.min(y1, y2); y < Math.max(y1, y2); y += PX) pxRect(c, x + TW - TWALL, y, TWALL, PX, '#444455')
       }
-      function drawTubeH(x1: number, x2: number, y: number) {
+      const drawTubeH = (x1: number, x2: number, y: number) => {
         pxRect(c, Math.min(x1, x2), y + TWALL, Math.abs(x2 - x1), TW - TWALL * 2, '#0a0a14')
-        // Top wall
         for (let x = Math.min(x1, x2); x < Math.max(x1, x2); x += PX) pxRect(c, x, y, PX, TWALL, '#555566')
-        // Bottom wall
         for (let x = Math.min(x1, x2); x < Math.max(x1, x2); x += PX) pxRect(c, x, y + TW - TWALL, PX, TWALL, '#444455')
       }
 
