@@ -307,7 +307,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.strokeRect(railW + 16, 0, W - railW * 2 - 32, 3)
 
     // ─── ORE CRUSHER — central intake machine ─────────────────────
-    const cx = W / 2
+    // cx already defined above (W / 2)
     const crushY = 8
     const machineOutY = intakeEnd * 0.85
     const crushPhase = Math.sin(now * 0.005) // jaw open/close
