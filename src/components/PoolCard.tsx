@@ -226,6 +226,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
             </span>
           )
         })()}
+        <span className="mono font-bold neon-value" style={{ color: 'var(--lavender)', fontSize: '10px' }}>COORD: [${currentPrice.toFixed(4)}]</span>
         <span className="hud-label" style={{ color: 'var(--lavender)' }}>
           ±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x CE
         </span>
@@ -234,7 +235,6 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
       {/* Price labels */}
       <div className="flex justify-between text-xs px-3 mt-1">
         <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</span>
-        <span className="mono font-bold neon-value" style={{ color: 'var(--lavender)' }}>COORD: [${currentPrice.toFixed(4)}]</span>
         <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</span>
       </div>
 
