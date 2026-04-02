@@ -213,16 +213,15 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       ctx.globalAlpha = 1
     }
 
-    // ─── PROCESSING LASER ──────────────────────────────────────────
-    // Horizontal scanning laser that sweeps up and down
-    const laserCycle = 4000 // ms per full sweep
+    // ─── PROCESSING LASER — neon violet ────────────────────────────
+    const laserCycle = 4000
     const laserT = (now % laserCycle) / laserCycle
     const laserY = intakeEnd + 8 + Math.sin(laserT * Math.PI) * (processEnd - intakeEnd - 16)
+    const laser2Y = laserY // single laser reference for collision
 
-    // Laser beam
     ctx.save()
-    ctx.globalAlpha = 0.7 + Math.sin(now * 0.01) * 0.3
-    ctx.strokeStyle = '#ff6b35'
+    ctx.globalAlpha = 0.6 + Math.sin(now * 0.008) * 0.3
+    ctx.strokeStyle = '#b44dff'
     ctx.lineWidth = 1.5
     ctx.beginPath()
     ctx.moveTo(railW + 2, laserY)
@@ -230,41 +229,24 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.stroke()
 
     // Laser glow
-    const laserGlow = ctx.createLinearGradient(0, laserY - 6, 0, laserY + 6)
+    const laserGlow = ctx.createLinearGradient(0, laserY - 8, 0, laserY + 8)
     laserGlow.addColorStop(0, 'transparent')
-    laserGlow.addColorStop(0.5, 'rgba(255,107,53,0.12)')
+    laserGlow.addColorStop(0.5, 'rgba(180,77,255,0.15)')
     laserGlow.addColorStop(1, 'transparent')
     ctx.fillStyle = laserGlow
-    ctx.fillRect(railW, laserY - 6, W - railW * 2, 12)
+    ctx.fillRect(railW, laserY - 8, W - railW * 2, 16)
 
-    // Laser emitter nodes (left + right)
+    // Emitter nodes
     for (const ex of [railW + 1, W - railW - 1]) {
       ctx.beginPath()
       ctx.arc(ex, laserY, 2.5, 0, Math.PI * 2)
-      ctx.fillStyle = '#ff6b35'
+      ctx.fillStyle = '#b44dff'
       ctx.fill()
-      // Emitter glow
       ctx.beginPath()
       ctx.arc(ex, laserY, 5, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(255,107,53,0.15)'
+      ctx.fillStyle = 'rgba(180,77,255,0.2)'
       ctx.fill()
     }
-    ctx.restore()
-
-    // Second laser — green analysis beam, slightly offset timing
-    const laser2T = ((now + 2000) % laserCycle) / laserCycle
-    const laser2Y = intakeEnd + 8 + Math.sin(laser2T * Math.PI) * (processEnd - intakeEnd - 16)
-
-    ctx.save()
-    ctx.globalAlpha = 0.4 + Math.sin(now * 0.008) * 0.2
-    ctx.strokeStyle = '#00ff88'
-    ctx.lineWidth = 0.8
-    ctx.setLineDash([3, 4])
-    ctx.beginPath()
-    ctx.moveTo(railW + 2, laser2Y)
-    ctx.lineTo(W - railW - 2, laser2Y)
-    ctx.stroke()
-    ctx.setLineDash([])
     ctx.restore()
 
     // ─── COLLECTION ZONE (bottom) ────────────────────────────────
