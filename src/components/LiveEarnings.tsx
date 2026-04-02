@@ -609,7 +609,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         </div>
         <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
         {harvestThreshold > 0 && (
-          <div className="mono" style={{ fontSize: '8px', color: displayTotal >= harvestThreshold ? '#00ff88' : 'var(--text-muted)', marginTop: 2 }}>
+          <div className="mono font-bold neon-value" style={{ fontSize: '10px', color: displayTotal >= harvestThreshold ? '#00ff88' : '#c77dff', marginTop: 2 }}>
             ${displayTotal.toFixed(2)} / ${harvestThreshold.toFixed(2)}
           </div>
         )}
