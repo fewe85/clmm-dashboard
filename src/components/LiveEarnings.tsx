@@ -479,27 +479,27 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           p.fragments = Array.from({ length: dotCount }, () => ({
             x: p.x + (Math.random() - 0.5) * p.size * 0.8,
             y: p.y,
-            vx: (Math.random() - 0.5) * 0.8,
-            vy: 0.5 + Math.random() * 0.8,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: 0.8 + Math.random() * 1.2,
             size: 1.5 + Math.random() * 2,
-            glow: 0,
+            glow: 0.3,
           }))
         }
       }
 
       if (p.phase === 'process') {
-        // Asteroid fades fast
-        p.size *= 0.88
-        p.opacity *= 0.9
+        // Asteroid destroyed instantly
+        p.size = 0
+        p.opacity = 0
 
         // Dots fall down with gravity
         if (p.fragments) {
           for (const f of p.fragments) {
             f.x += f.vx
             f.y += f.vy
-            f.vy += 0.015
-            f.vx *= 0.99
-            f.glow = Math.min(1, f.glow + 0.01)
+            f.vy += 0.02
+            f.vx *= 0.98
+            f.glow = Math.min(1, f.glow + 0.03)
             // Bounce off tube walls
             if (f.x < 8) { f.x = 8; f.vx = Math.abs(f.vx) * 0.5 }
             if (f.x > W - 8) { f.x = W - 8; f.vx = -Math.abs(f.vx) * 0.5 }
