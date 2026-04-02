@@ -356,12 +356,9 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               fill="#333344"
             />
 
-            {/* Command tower — stepped pyramid on top */}
-            <rect x={ufoX - 8} y="22" width="14" height="4" fill="#4a4a5a" />
-            <rect x={ufoX - 5} y="19" width="8" height="3" fill="#555566" />
-            <rect x={ufoX - 3} y="17" width="4" height="2" fill="#5a5a6a" />
-            {/* Tower windows */}
-            <rect x={ufoX - 4} y="23" width="10" height="1" fill={danger ? 'rgba(255,42,109,0.5)' : 'rgba(126,184,255,0.3)'} />
+            {/* Dorsal superstructure — flat, wide, brutal */}
+            <rect x={ufoX - 14} y="24" width="28" height="3" fill="#444455" />
+            <rect x={ufoX - 12} y="25" width="24" height="1" fill={danger ? 'rgba(255,42,109,0.4)' : 'rgba(126,184,255,0.2)'} />
 
             {/* Hull armor plates — horizontal lines */}
             {[30, 33, 40, 43].map(y => (
@@ -402,11 +399,8 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
             </circle>
 
-            {/* Shield/sensor arrays — antenna spikes */}
-            <line x1={ufoX - 2} y1="17" x2={ufoX} y2="13" stroke="#6a6a7a" strokeWidth="0.6" />
-            <circle cx={ufoX} cy="12.5" r="0.8" fill="#b44dff" opacity="0.5">
-              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.5s" repeatCount="indefinite" />
-            </circle>
+            {/* Dorsal sensor strip */}
+            <rect x={ufoX - 10} y="23" width="20" height="1" fill="rgba(199,125,255,0.08)" />
 
             {/* Hull glow trim */}
             <line x1={ufoX - 27} y1="36" x2={ufoX + 33} y2="36" stroke={danger ? 'rgba(255,42,109,0.1)' : 'rgba(199,125,255,0.08)'} strokeWidth="0.8" />
