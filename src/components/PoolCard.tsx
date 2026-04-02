@@ -315,7 +315,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               stroke="#c77dff" strokeWidth="0.4" opacity="0.12" />
           ))}
 
-          {/* UFO */}
+          {/* Mech Ship — angular, industrial, matching robot style */}
           <g filter="url(#ufo-glow)">
             {/* Hover bob */}
             <animateTransform
@@ -324,74 +324,75 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               dur={danger ? '0.6s' : '4s'}
               repeatCount="indefinite"
             />
-            {/* Tilt/wank */}
             <animateTransform
               attributeName="transform" type="rotate"
-              values={`0 ${ufoX} 33; -2 ${ufoX} 33; 0 ${ufoX} 33; 3 ${ufoX} 33; -1 ${ufoX} 33; 0 ${ufoX} 33`}
+              values={`0 ${ufoX} 35; -2 ${ufoX} 35; 0 ${ufoX} 35; 2 ${ufoX} 35; 0 ${ufoX} 35`}
               dur={danger ? '0.8s' : '5s'}
               repeatCount="indefinite"
               additive="sum"
             />
 
-            {/* Saucer rim — metallic with purple tint */}
-            <ellipse cx={ufoX} cy="33" rx="16" ry="4"
-              fill={danger ? '#cc2255' : '#9055cc'}
-              stroke={danger ? '#ff2a6d' : '#c77dff'}
-              strokeWidth="0.8"
-              opacity="0.95"
+            {/* Main hull — angular trapezoid */}
+            <polygon
+              points={`${ufoX - 14},38 ${ufoX - 10},24 ${ufoX + 10},24 ${ufoX + 14},38`}
+              fill="#4a4a5a" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.3)'} strokeWidth="0.6"
             />
+            {/* Upper hull plate */}
+            <polygon
+              points={`${ufoX - 9},25 ${ufoX - 7},20 ${ufoX + 7},20 ${ufoX + 9},25`}
+              fill="#555566"
+            />
+            {/* Hull highlight */}
+            <rect x={ufoX - 8} y="26" width="16" height="2" fill="#5a5a6a" opacity="0.6" />
 
-            {/* Saucer body — lighter top */}
-            <ellipse cx={ufoX} cy="31" rx="14" ry="5"
-              fill={danger ? '#dd4477' : '#a366dd'}
-              opacity="0.9"
+            {/* Visor — angular slit like robot */}
+            <polygon
+              points={`${ufoX - 7},28 ${ufoX - 5},26 ${ufoX + 5},26 ${ufoX + 7},28 ${ufoX + 5},30 ${ufoX - 5},30`}
+              fill="#0a0a1a"
             />
+            {/* Eyes in visor */}
+            <rect x={ufoX - 4} y="27" width="3" height="2" fill={danger ? '#ff2a6d' : '#ff4444'} opacity={danger ? 1 : 0.7} />
+            <rect x={ufoX + 1} y="27" width="3" height="2" fill={danger ? '#ff2a6d' : '#ff4444'} opacity={danger ? 1 : 0.7} />
+            {danger && <polygon points={`${ufoX - 7},28 ${ufoX - 5},26 ${ufoX + 5},26 ${ufoX + 7},28 ${ufoX + 5},30 ${ufoX - 5},30`} fill="rgba(255,42,109,0.2)" />}
 
-            {/* Dome — glass bubble */}
-            <ellipse cx={ufoX} cy="27" rx="7" ry="6"
-              fill={danger ? '#ff6699' : '#d4aaff'}
-              opacity="0.6"
-            />
-            <ellipse cx={ufoX} cy="26" rx="5" ry="4.5"
-              fill={danger ? '#ffaacc' : '#e8ccff'}
-              opacity="0.35"
-            />
-
-            {/* Cockpit window — bright highlight */}
-            <ellipse cx={ufoX} cy="25.5" rx="3" ry="2.5"
-              fill={danger ? '#ff88aa' : '#f0ddff'}
-              opacity="0.7"
-            />
-            <ellipse cx={ufoX - 0.5} cy="24.5" rx="1.5" ry="1"
-              fill="white" opacity="0.5"
-            />
-
-            {/* Engine pods — left */}
-            <circle cx={ufoX - 12} cy="34" r="2.5"
-              fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.7"
-            >
-              <animate attributeName="opacity" values="0.3;0.9;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" />
+            {/* Reactor core — center chest */}
+            <circle cx={ufoX} cy="33" r="2.5" fill={danger ? '#ff2a6d' : '#b44dff'}>
+              <animate attributeName="opacity" values="0.5;1;0.5" dur={danger ? '0.3s' : '2s'} repeatCount="indefinite" />
             </circle>
-            <circle cx={ufoX - 12} cy="34" r="4" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.1">
+            <circle cx={ufoX} cy="33" r="4" fill={danger ? '#ff2a6d' : '#b44dff'} opacity="0.1">
+              <animate attributeName="r" values="3;5;3" dur={danger ? '0.3s' : '2s'} repeatCount="indefinite" />
+            </circle>
+
+            {/* Wing/shoulder plates — angular */}
+            <polygon
+              points={`${ufoX - 14},38 ${ufoX - 22},34 ${ufoX - 20},30 ${ufoX - 12},32`}
+              fill="#3a3a4a" stroke="rgba(199,125,255,0.15)" strokeWidth="0.4"
+            />
+            <polygon
+              points={`${ufoX + 14},38 ${ufoX + 22},34 ${ufoX + 20},30 ${ufoX + 12},32`}
+              fill="#3a3a4a" stroke="rgba(199,125,255,0.15)" strokeWidth="0.4"
+            />
+
+            {/* Engine thrusters — under wings */}
+            <circle cx={ufoX - 18} cy="35" r="2" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.6">
+              <animate attributeName="opacity" values="0.3;0.8;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" />
+            </circle>
+            <circle cx={ufoX + 18} cy="35" r="2" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.6">
+              <animate attributeName="opacity" values="0.3;0.8;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin="0.15s" />
+            </circle>
+            {/* Thruster glow */}
+            <circle cx={ufoX - 18} cy="35" r="4" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.08">
               <animate attributeName="r" values="3;5;3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" />
             </circle>
-
-            {/* Engine pods — right */}
-            <circle cx={ufoX + 12} cy="34" r="2.5"
-              fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.7"
-            >
-              <animate attributeName="opacity" values="0.3;0.9;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin="0.15s" />
-            </circle>
-            <circle cx={ufoX + 12} cy="34" r="4" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.1">
+            <circle cx={ufoX + 18} cy="35" r="4" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.08">
               <animate attributeName="r" values="3;5;3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin="0.15s" />
             </circle>
 
-            {/* Window lights along rim */}
-            {[-8, -4, 0, 4, 8].map((dx, i) => (
-              <circle key={i} cx={ufoX + dx} cy="33" r="0.8" fill="#ffe066" opacity="0.6">
-                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
-              </circle>
-            ))}
+            {/* Antenna */}
+            <line x1={ufoX} y1="20" x2={ufoX} y2="15" stroke="#6a6a7a" strokeWidth="1" />
+            <circle cx={ufoX} cy="14" r="1.5" fill="#b44dff">
+              <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+            </circle>
           </g>
         </svg>
       </div>
