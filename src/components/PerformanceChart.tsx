@@ -18,6 +18,7 @@ interface Props {
   elonClmmVsHodl: number
   totalInvested: number
   daysRunning: number
+  netProfit: number
 }
 
 type TimeWindow = '24h' | '7d' | '30d' | 'all'
@@ -29,7 +30,7 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, totalInvested, daysRunning }: Props) {
+export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, totalInvested, daysRunning, netProfit }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
   const [mode, setMode] = useState<'profit' | 'vshodl'>('profit')
 
@@ -64,16 +65,25 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
       if (snap.pool === 'apt') lastApt = snap
       else lastElon = snap
 
-      // Net profit = only fees + rewards earned (no posUsd delta which includes deposits)
-      let profit = 0
+      // Earnings curve (fees + rewards only, no posUsd jumps from deposits)
+      let earnings = 0
       if (lastApt && baseApt) {
-        profit += (lastApt.feesUsd - baseApt.feesUsd) + (lastApt.rewardsUsd - baseApt.rewardsUsd)
+        earnings += (lastApt.feesUsd - baseApt.feesUsd) + (lastApt.rewardsUsd - baseApt.rewardsUsd)
       }
       if (lastElon && baseElon) {
-        profit += (lastElon.feesUsd - baseElon.feesUsd) + (lastElon.rewardsUsd - baseElon.rewardsUsd)
+        earnings += (lastElon.feesUsd - baseElon.feesUsd) + (lastElon.rewardsUsd - baseElon.rewardsUsd)
       }
 
-      points.push({ time: t, label: fmtDate(new Date(t)), profit, vshodl: 0 })
+      points.push({ time: t, label: fmtDate(new Date(t)), profit: earnings, vshodl: 0 })
+    }
+
+    // Scale P&L curve to match the accurate netProfit from PoolCard
+    if (mode === 'profit' && points.length > 1 && netProfit !== 0) {
+      const lastEarnings = points[points.length - 1].profit
+      if (lastEarnings > 0) {
+        const scale = netProfit / lastEarnings
+        for (const p of points) p.profit *= scale
+      }
     }
 
     if (mode === 'vshodl' && points.length > 0) {

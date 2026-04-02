@@ -101,6 +101,7 @@ function AppContent() {
             elonClmmVsHodl={elonClmmVsHodl}
             totalInvested={elon.invested}
             daysRunning={elon.daysRunning}
+            netProfit={elon.netProfit}
           />
         </div>
       )}
