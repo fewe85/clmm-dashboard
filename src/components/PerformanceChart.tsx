@@ -64,14 +64,13 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
       if (snap.pool === 'apt') lastApt = snap
       else lastElon = snap
 
+      // Net profit = only fees + rewards earned (no posUsd delta which includes deposits)
       let profit = 0
       if (lastApt && baseApt) {
         profit += (lastApt.feesUsd - baseApt.feesUsd) + (lastApt.rewardsUsd - baseApt.rewardsUsd)
-          + ((lastApt.posUsd || 0) - (baseApt.posUsd || 0))
       }
       if (lastElon && baseElon) {
         profit += (lastElon.feesUsd - baseElon.feesUsd) + (lastElon.rewardsUsd - baseElon.rewardsUsd)
-          + ((lastElon.posUsd || 0) - (baseElon.posUsd || 0))
       }
 
       points.push({ time: t, label: fmtDate(new Date(t)), profit, vshodl: 0 })
