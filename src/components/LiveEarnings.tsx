@@ -190,8 +190,8 @@ function OreDensityMeter({ ratePerHour, positionValue }: { ratePerHour: number; 
   return (
     <div className="w-full flex-shrink-0 px-1">
       <div className="flex items-center justify-between mb-0.5">
-        <span className="hud-label" style={{ fontSize: '7px', color: '#9a9ab0' }}>ORE DENSITY</span>
-        <span className="mono font-bold" style={{ fontSize: '8px', color: tierColor }}>
+        <span className="mono font-bold" style={{ fontSize: '9px', color: '#b0b8cc' }}>ORE DENSITY</span>
+        <span className="mono font-bold" style={{ fontSize: '9px', color: tierColor }}>
           {tier} {liveApr > 0 ? `${liveApr >= 1000 ? `${(liveApr / 1000).toFixed(1)}k` : liveApr.toFixed(0)}%` : ''}
         </span>
       </div>
