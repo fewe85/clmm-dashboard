@@ -376,12 +376,12 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           spawnRef.current = { last: now, delay: 2000 + Math.random() * 2000 }
         }
       }
-      // Bubbles in flask
-      if (Math.random() < 0.025 && partsRef.current.filter(p => p.type === 'bubble').length < 5) {
+      // Gentle bubbling in purple flask liquid (simmering)
+      if (Math.random() < 0.04 && partsRef.current.filter(p => p.type === 'bubble').length < 8) {
         partsRef.current.push({
-          x: FK_CX + (Math.random() - 0.5) * flask.bR, y: flask.bCY + flask.bR - 4,
-          vx: 0, vy: -0.15 - Math.random() * 0.2, size: 1.5 + Math.random() * 2,
-          type: 'bubble', color: '#00ff88', life: 1, phase: 0,
+          x: FK_CX + (Math.random() - 0.5) * flask.bR * 0.8, y: flask.bCY + flask.bR - 6,
+          vx: 0, vy: -0.08 - Math.random() * 0.1, size: 1 + Math.random() * 1.5,
+          type: 'bubble', color: '#b44dff', life: 1, phase: 0,
         })
       }
       // Path E: Steam in U-tube
@@ -466,10 +466,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           c.globalAlpha = 1
 
         } else if (p.type === 'bubble') {
-          p.y += p.vy; p.x += Math.sin(now * 0.005 + p.x) * 0.08; p.life -= 0.004
-          if (p.life <= 0 || p.y < flask.bCY - flask.bR + 5) continue
+          p.y += p.vy; p.x += Math.sin(now * 0.003 + p.x) * 0.04; p.life -= 0.003
+          if (p.life <= 0 || p.y < flask.bCY - flask.bR + 8) continue
           c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          c.strokeStyle = `rgba(0,255,136,${p.life * 0.2})`; c.lineWidth = 0.6; c.stroke()
+          c.strokeStyle = `rgba(200,140,255,${p.life * 0.2})`; c.lineWidth = 0.5; c.stroke()
+          c.fillStyle = `rgba(180,77,255,${p.life * 0.04})`; c.fill()
 
         } else if (p.type === 'steam') {
           // Path E: 3-phase through U-tube
@@ -541,24 +542,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       c.beginPath(); c.arc(FK_CX, flask.bCY, flask.bR + 3, 0, Math.PI * 2)
       c.fillStyle = `rgba(180,77,255,${0.01 + flamePulse * 0.02})`; c.fill()
 
-      // ═══ EFFECT 3: Condensation flash at U-tube peak ══════
-      flashRef.current = flashRef.current.filter(f => {
-        const age = (now - f.t) / 1000
-        if (age > 0.3) return false
-        const fa = (1 - age / 0.3) * 0.4
-        c.beginPath(); c.arc(f.x, f.y, 4 + age * 6, 0, Math.PI * 2)
-        c.fillStyle = `rgba(180,255,255,${fa})`; c.fill()
-        return true
-      })
-      // Flash triggers when steam crosses the midpoint
-      for (const p of partsRef.current) {
-        if (p.type === 'steam' && p.phase === 1) {
-          const midX = (UT_LX + UT_RX) / 2
-          if (Math.abs(p.x - midX) < 2 && flashRef.current.length < 3) {
-            flashRef.current.push({ t: now, x: p.x, y: UT_TOP - 2 })
-          }
-        }
-      }
+      // ═══ EFFECT 3: Soft condensation glow at U-tube peak ══
+      const condGlow = 0.03 + Math.sin(now * 0.0015) * 0.015
+      const midUX = (UT_LX + UT_RX + 6) / 2
+      c.beginPath(); c.arc(midUX, UT_TOP - 2, 8, 0, Math.PI * 2)
+      c.fillStyle = `rgba(150,255,220,${condGlow})`; c.fill()
 
       // ═══ EFFECT 4: Drop formation at U-tube nozzle ════════
       const drip = dripRef.current
