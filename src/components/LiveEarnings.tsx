@@ -31,7 +31,7 @@ const COL = {
   neonGreen: '#00ff88',
   neonPurple: '#b44dff',
   warn: '#ff6b35',
-  asteroid: ['#5a4a3a', '#6b5540', '#4a3a2e', '#7a5545', '#3d3028'],
+  asteroid: ['#9a8a7a', '#ab9580', '#8a7a6e', '#ba9585', '#7d7068'],
   glow: 'rgba(0,255,136,0.15)',
   processGlow: 'rgba(255,107,53,0.08)',
 }
@@ -72,7 +72,7 @@ function makeShape(size: number): number[][] {
 }
 
 function makeParticle(_h: number): Particle {
-  const size = 5 + Math.random() * 10
+  const size = 8 + Math.random() * 12
   return {
     x: 20 + Math.random() * (W - 40),
     y: -size,
@@ -396,14 +396,21 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
 
     // ─── PARTICLES ───────────────────────────────────────────────
-    // Spawn asteroids
-    if (now - lastSpawnRef.current > nextSpawnDelay.current) {
+    // Spawn asteroids — always keep some alive
+    if (now - lastSpawnRef.current > nextSpawnDelay.current || particlesRef.current.length === 0) {
       if (particlesRef.current.length < 12) {
-        particlesRef.current.push(makeParticle(h))
+        const p = makeParticle(h)
+        p.y = 5 // start visible inside canvas
+        particlesRef.current.push(p)
         lastSpawnRef.current = now
         nextSpawnDelay.current = 1000 + Math.random() * 1500
       }
     }
+
+    // Debug: draw particle count
+    ctx.fillStyle = 'rgba(255,255,255,0.3)'
+    ctx.font = '8px monospace'
+    ctx.fillText(`${particlesRef.current.length}`, 8, h - 4)
 
     const surfaceLimit = h - 4 - collectionH * fillRef.current
 
