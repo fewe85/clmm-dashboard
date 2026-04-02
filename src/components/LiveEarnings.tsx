@@ -17,7 +17,7 @@ interface LiveEarningsProps {
 
 // ─── Config ───────────────────────────────────────────────────────────────
 const FILL_TARGET = 200 // $200 = 100% fill
-const W = 120 // canvas width
+const W = 140 // canvas width
 const ZONE_INTAKE = 0.18  // top 18%
 const ZONE_PROCESS = 0.37 // middle 37%
 // bottom 45% = collection
