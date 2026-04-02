@@ -65,7 +65,7 @@ function WalletColumn({ wallet, bay, accent }: { wallet: WalletBalance; bay: str
 
       <div className="mt-1.5 pt-1.5 flex justify-between text-xs" style={{ borderTop: '1px solid #2a2a3a' }}>
         <span className="hud-label" style={{ fontSize: '8px' }}>Subtotal</span>
-        <span className="mono font-semibold neon-value" style={{ color: 'var(--lavender)' }}>
+        <span className="mono font-semibold" style={{ color: '#d0d8ec' }}>
           {fmtUsd(wallet.totalUsd)}
         </span>
       </div>
