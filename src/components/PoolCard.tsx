@@ -55,18 +55,30 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         </div>
       )}
 
-      {/* 1. Header: Pool Name + In Range Badge */}
+      {/* 1. Header: Pool Name + Mine Drift Badge */}
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{poolName}</h2>
-        <span
-          className={`text-xs px-2.5 py-1 rounded-full font-medium ${pool.inRange ? 'pulse-badge' : ''}`}
-          style={{
-            background: pool.inRange ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-            color: pool.inRange ? 'var(--accent-green)' : 'var(--accent-red)',
-          }}
-        >
-          {pool.inRange ? 'DRILLING' : 'MINE LOST'}
-        </span>
+        {(() => {
+          if (!pool.inRange) {
+            return (
+              <span className="text-xs px-2.5 py-1 rounded-full font-medium mono"
+                style={{ background: 'rgba(239,68,68,0.15)', color: 'var(--accent-red)' }}>
+                MINE LOST
+              </span>
+            )
+          }
+          const mid = (pool.priceLower + pool.priceUpper) / 2
+          const halfRange = (pool.priceUpper - pool.priceLower) / 2
+          const drift = halfRange > 0 ? ((pool.currentPrice - mid) / halfRange) * 100 : 0
+          const driftColor = Math.abs(drift) > 70 ? 'var(--accent-red)' : Math.abs(drift) > 40 ? '#ff8c00' : 'var(--accent-green)'
+          const sign = drift >= 0 ? '+' : ''
+          return (
+            <span className={`text-xs px-2.5 py-1 rounded-full font-medium mono ${Math.abs(drift) < 40 ? 'pulse-badge' : ''}`}
+              style={{ background: Math.abs(drift) > 70 ? 'rgba(239,68,68,0.15)' : Math.abs(drift) > 40 ? 'rgba(255,140,0,0.15)' : 'rgba(34,197,94,0.15)', color: driftColor }}>
+              {sign}{drift.toFixed(0)}% TO MINE CENTER
+            </span>
+          )
+        })()}
       </div>
 
       {/* 2. Token Price + 24h Change */}
@@ -414,7 +426,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
           color: danger ? '#ff2a6d' : warn ? '#e0c3fc' : '#39ff14',
           textShadow: danger ? '0 0 8px rgba(255,42,109,0.6)' : '0 0 8px rgba(57,255,20,0.4)',
         }}>
-          {nearestPct.toFixed(1)}% to {nearestSide}
+          {nearestPct.toFixed(1)}% TO MINE EDGE
         </span>
       </div>
     </div>
