@@ -202,16 +202,16 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
   const ufoX = 4 + (clamped / 100) * 292
 
-  // Deterministic stars
-  const stars = Array.from({ length: 30 }, (_, i) => ({
-    x: (i * 47 + 13) % 300,
-    y: (i * 31 + 7) % 48,
-    r: i % 5 === 0 ? 1 : 0.5,
-    a: 0.2 + (i % 4) * 0.15,
+  // Deterministic stars — spread across full width
+  const stars = Array.from({ length: 50 }, (_, i) => ({
+    x: (i * 43 + 7) % 296 + 2,
+    y: (i * 29 + 11) % 66 + 2,
+    r: i % 7 === 0 ? 1.2 : i % 3 === 0 ? 0.8 : 0.4,
+    a: 0.15 + (i % 5) * 0.1,
   }))
 
   return (
-    <div className="rounded-lg overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', margin: '0 -20px' }}>
+    <div className="overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', borderRadius: 6, margin: '0 -24px' }}>
       {/* HUD overlay */}
       <div className="flex justify-between items-center px-3 pt-2">
         <span className="hud-label" style={{ color: inRange ? 'var(--neon-green)' : 'var(--neon-pink)' }}>

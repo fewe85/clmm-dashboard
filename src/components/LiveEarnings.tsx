@@ -72,158 +72,195 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   if (totalPerHour <= 0) return null
 
   const ores = useMemo(() =>
-    Array.from({ length: 12 }, (_, i) => ({
-      left: 10 + (i * 29 + 13) % 80,
-      delay: (i * 0.7) % 4.5,
-      duration: 2.5 + (i % 3) * 0.7,
+    Array.from({ length: 10 }, (_, i) => ({
+      left: 18 + (i * 23 + 11) % 64,
+      delay: (i * 0.8) % 4.5,
+      duration: 2.2 + (i % 3) * 0.6,
       shape: i % 3,
-      isReward: i > Math.floor(12 * feesRatio),
+      isReward: i > Math.floor(10 * feesRatio),
     })),
   [feesRatio])
 
-  const shaftStars = useMemo(() =>
-    Array.from({ length: 18 }, (_, i) => ({
-      x: 8 + (i * 41 + 7) % 84,
-      y: 3 + (i * 37 + 11) % 94,
-      r: i % 5 === 0 ? 0.8 : 0.4,
-      twinkle: i % 6 === 0,
-    })),
-  [])
-
   return (
-    <div className="flex flex-col items-center justify-between relative" style={{ width: 110, minHeight: '100%' }}>
+    <div className="flex flex-col items-center justify-between relative" style={{ width: 120, minHeight: '100%' }}>
 
-      {/* Mining rig SVG header — satellite dish / collector */}
-      <svg viewBox="0 0 110 40" className="w-full flex-shrink-0" style={{ height: 40 }}>
-        {/* Stars */}
-        <circle cx="10" cy="8" r="0.5" fill="white" opacity="0.3" />
-        <circle cx="85" cy="5" r="0.6" fill="white" opacity="0.2" />
-        <circle cx="30" cy="3" r="0.4" fill="white" opacity="0.25" />
+      {/* Entire column is one SVG-driven containment tube */}
+      <svg viewBox="0 0 120 420" className="w-full" style={{ height: '100%', minHeight: 380 }}>
+        <defs>
+          <linearGradient id="tube-glass" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#c77dff" stopOpacity="0.12" />
+            <stop offset="20%" stopColor="#c77dff" stopOpacity="0.03" />
+            <stop offset="80%" stopColor="#c77dff" stopOpacity="0.03" />
+            <stop offset="100%" stopColor="#c77dff" stopOpacity="0.12" />
+          </linearGradient>
+          <linearGradient id="fill-grad" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0%" stopColor="#c77dff" stopOpacity="0.45" />
+            <stop offset="40%" stopColor="#a855f7" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#c77dff" stopOpacity="0.05" />
+          </linearGradient>
+          <clipPath id="tube-clip">
+            <rect x="20" y="55" width="80" height="300" rx="12" />
+          </clipPath>
+          <filter id="ore-glow">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="1" />
+          </filter>
+        </defs>
 
-        {/* Satellite dish / collector */}
-        <path d="M 35 18 Q 55 6 75 18" fill="none" stroke="#c77dff" strokeWidth="1.5" opacity="0.6" />
-        <path d="M 38 18 Q 55 8 72 18" fill="none" stroke="#c77dff" strokeWidth="0.5" opacity="0.3" />
+        {/* Stars background */}
+        {Array.from({ length: 12 }, (_, i) => (
+          <circle key={i}
+            cx={10 + (i * 37 + 5) % 100}
+            cy={20 + (i * 53 + 17) % 380}
+            r={i % 4 === 0 ? 0.8 : 0.4}
+            fill="white" opacity={0.1 + (i % 3) * 0.06}
+          />
+        ))}
+
+        {/* === TOP CAP — funnel/collector === */}
         {/* Antenna */}
-        <line x1="55" y1="12" x2="55" y2="4" stroke="#c77dff" strokeWidth="0.8" opacity="0.5" />
-        <circle cx="55" cy="3" r="1.5" fill="#c77dff" opacity="0.7">
-          <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2s" repeatCount="indefinite" />
+        <line x1="60" y1="2" x2="60" y2="18" stroke="#c77dff" strokeWidth="1" opacity="0.5" />
+        <circle cx="60" cy="2" r="2" fill="#c77dff" opacity="0.8">
+          <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
         </circle>
-        {/* Dish supports */}
-        <line x1="42" y1="18" x2="55" y2="24" stroke="#666" strokeWidth="0.6" opacity="0.4" />
-        <line x1="68" y1="18" x2="55" y2="24" stroke="#666" strokeWidth="0.6" opacity="0.4" />
-        {/* Collection beam downward */}
-        <polygon points="48,24 62,24 68,38 42,38" fill="#c77dff" opacity="0.04" />
-        <line x1="48" y1="24" x2="42" y2="38" stroke="#c77dff" strokeWidth="0.3" opacity="0.15" />
-        <line x1="62" y1="24" x2="68" y2="38" stroke="#c77dff" strokeWidth="0.3" opacity="0.15" />
+        {/* Dish */}
+        <path d="M 30 22 Q 60 12 90 22" fill="none" stroke="#c77dff" strokeWidth="1.5" opacity="0.5" />
+        {/* Funnel body */}
+        <path d="M 32 22 L 20 50 L 20 55 L 100 55 L 100 50 L 88 22 Z"
+          fill="#0d0d1a" stroke="#c77dff" strokeWidth="0.8" opacity="0.7" />
+        {/* Funnel inner glow */}
+        <path d="M 38 26 L 28 48 L 92 48 L 82 26 Z" fill="#c77dff" opacity="0.03" />
+        {/* Funnel opening indicator */}
+        <ellipse cx="60" cy="50" rx="35" ry="4" fill="none" stroke="#c77dff" strokeWidth="0.5" opacity="0.3" />
 
-        {/* Value display */}
-        <text x="55" y="34" textAnchor="middle" fill="#c77dff" fontSize="7" fontFamily="JetBrains Mono, monospace" fontWeight="bold" opacity="0.9">
+        {/* Value display in funnel */}
+        <text x="60" y="40" textAnchor="middle" fill="#c77dff" fontSize="8" fontFamily="JetBrains Mono, monospace" fontWeight="bold">
           ${displayTotal.toFixed(4)}
         </text>
-      </svg>
+        <text x="60" y="48" textAnchor="middle" fill="#c77dff" fontSize="5" fontFamily="JetBrains Mono, monospace" opacity="0.5" letterSpacing="1.5">
+          COLLECTED
+        </text>
 
-      {/* Mining shaft — the main container */}
-      <div className="relative flex-1 w-full" style={{ minHeight: 180 }}>
-        <div
-          className="absolute inset-x-1 top-0 bottom-0 overflow-hidden"
-          style={{
-            border: '1px solid rgba(199,125,255,0.12)',
-            background: '#020208',
-            borderRadius: '4px 4px 8px 8px',
-          }}
-        >
-          {/* Space background */}
-          {shaftStars.map((s, i) => (
-            <div key={i} className="absolute rounded-full" style={{
-              left: `${s.x}%`, top: `${s.y}%`,
-              width: s.r * 2, height: s.r * 2,
-              background: 'white',
-              opacity: 0.12 + (i % 3) * 0.08,
-              animation: s.twinkle ? 'earning-pulse 3s ease-in-out infinite' : undefined,
-            }} />
-          ))}
+        {/* === TUBE BODY — containment vessel === */}
+        {/* Glass tube */}
+        <rect x="20" y="55" width="80" height="300" rx="12" fill="url(#tube-glass)" stroke="#c77dff" strokeWidth="0.6" opacity="0.8" />
 
-          {/* Shaft frame — metallic ribs */}
-          <div className="absolute top-0 bottom-0 left-0" style={{ width: 3, background: 'linear-gradient(to bottom, rgba(199,125,255,0.15), rgba(199,125,255,0.03), rgba(199,125,255,0.15))' }} />
-          <div className="absolute top-0 bottom-0 right-0" style={{ width: 3, background: 'linear-gradient(to bottom, rgba(199,125,255,0.15), rgba(199,125,255,0.03), rgba(199,125,255,0.15))' }} />
-          {/* Bolts/rivets */}
-          {[10, 30, 50, 70, 90].map(pct => (
-            <div key={`l${pct}`}>
-              <div className="absolute" style={{ left: 0, top: `${pct}%`, width: 4, height: 4, borderRadius: '50%', background: 'rgba(199,125,255,0.1)', border: '0.5px solid rgba(199,125,255,0.15)' }} />
-              <div className="absolute" style={{ right: 0, top: `${pct}%`, width: 4, height: 4, borderRadius: '50%', background: 'rgba(199,125,255,0.1)', border: '0.5px solid rgba(199,125,255,0.15)' }} />
-            </div>
-          ))}
+        {/* Metal rings/bands */}
+        {[55, 115, 175, 235, 295, 355].map(y => (
+          <g key={y}>
+            <rect x="17" y={y - 2} width="86" height="4" rx="2"
+              fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.4" opacity="0.5" />
+            {/* Bolts on each ring */}
+            <circle cx="20" cy={y} r="1.5" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.3" opacity="0.4" />
+            <circle cx="100" cy={y} r="1.5" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.3" opacity="0.4" />
+          </g>
+        ))}
 
-          {/* Horizontal struts with glow */}
-          {[25, 50, 75].map(pct => (
-            <div key={pct} className="absolute left-1 right-1" style={{
-              top: `${pct}%`, height: 1,
-              background: 'linear-gradient(to right, rgba(199,125,255,0.15), rgba(199,125,255,0.04), rgba(199,125,255,0.15))',
-            }} />
-          ))}
+        {/* Side pipes */}
+        <rect x="14" y="70" width="3" height="270" rx="1.5" fill="#0d0d1a" stroke="#c77dff" strokeWidth="0.3" opacity="0.3" />
+        <rect x="103" y="70" width="3" height="270" rx="1.5" fill="#0d0d1a" stroke="#c77dff" strokeWidth="0.3" opacity="0.3" />
+        {/* Pipe connectors */}
+        {[100, 180, 260].map(y => (
+          <g key={`p${y}`}>
+            <line x1="17" y1={y} x2="20" y2={y} stroke="#c77dff" strokeWidth="0.5" opacity="0.3" />
+            <line x1="100" y1={y} x2="103" y2={y} stroke="#c77dff" strokeWidth="0.5" opacity="0.3" />
+          </g>
+        ))}
 
-          {/* Fill level — collected ore */}
-          <div
-            className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
-            style={{
-              height: `${fillPct}%`,
-              background: 'linear-gradient(to top, rgba(199,125,255,0.4), rgba(168,85,247,0.2) 40%, rgba(199,125,255,0.05))',
-              borderTop: fillPct > 2 ? '1px solid rgba(199,125,255,0.5)' : 'none',
-            }}
-          >
-            {/* Ore pile silhouette */}
-            {fillPct > 8 && (
-              <svg className="absolute bottom-0 left-0 right-0" viewBox="0 0 100 16" preserveAspectRatio="none" style={{ height: '16px', opacity: 0.35 }}>
-                <polygon points="0,16 5,10 12,14 18,8 25,12 32,6 40,11 48,7 55,13 62,5 70,10 78,14 85,8 92,12 100,16" fill="#c77dff" />
-              </svg>
-            )}
-            {fillPct > 5 && <div className="surface-shimmer" />}
-          </div>
+        {/* Viewing port — oval window */}
+        <ellipse cx="60" cy="140" rx="18" ry="22" fill="none" stroke="#c77dff" strokeWidth="0.8" opacity="0.25" />
+        <ellipse cx="60" cy="140" rx="16" ry="20" fill="none" stroke="#c77dff" strokeWidth="0.3" opacity="0.15" />
+        {/* Glass reflection */}
+        <ellipse cx="54" cy="132" rx="4" ry="6" fill="white" opacity="0.02" />
+
+        {/* Content inside tube (clipped) */}
+        <g clipPath="url(#tube-clip)">
+          {/* Fill level */}
+          <rect x="20" y={55 + 300 * (1 - fillPct / 100)} width="80" height={300 * fillPct / 100}
+            fill="url(#fill-grad)">
+            <animate attributeName="height"
+              to={String(300 * fillPct / 100)}
+              dur="2s" fill="freeze" />
+          </rect>
+
+          {/* Surface line glow */}
+          {fillPct > 3 && (
+            <line x1="22" y1={55 + 300 * (1 - fillPct / 100)} x2="98" y2={55 + 300 * (1 - fillPct / 100)}
+              stroke="#c77dff" strokeWidth="1" opacity="0.5">
+              <animate attributeName="opacity" values="0.3;0.7;0.3" dur="3s" repeatCount="indefinite" />
+            </line>
+          )}
+
+          {/* Ore pile at bottom */}
+          {fillPct > 5 && (
+            <g opacity="0.35">
+              <polygon points="20,355 30,342 40,350 50,338 60,345 70,335 80,348 90,340 100,355" fill="#c77dff" />
+              <polygon points="25,355 35,346 45,352 55,340 65,348 75,338 85,350 95,345 100,355" fill="#a855f7" opacity="0.6" />
+            </g>
+          )}
 
           {/* Falling ores */}
-          {ores.map((o, i) => (
-            <svg
-              key={i}
-              className="ore-fall"
-              style={{
-                left: `${o.left}%`,
-                animationDelay: `${o.delay}s`,
-                animationDuration: `${o.duration}s`,
-                color: o.isReward ? '#c77dff' : '#a855f7',
-                width: o.shape === 0 ? 8 : 7,
-                height: o.shape === 0 ? 10 : 8,
-              }}
-              viewBox="0 0 10 12"
-            >
-              {o.shape === 0 ? (
-                <polygon points="5,0 10,5 5,12 0,5" fill="currentColor" opacity="0.9" />
-              ) : o.shape === 1 ? (
-                <polygon points="3,0 7,0 9,5 7,12 3,12 1,5" fill="currentColor" opacity="0.8" />
-              ) : (
-                <polygon points="2,2 8,0 10,4 8,8 2,10 0,6" fill="currentColor" opacity="0.8" />
-              )}
-              <circle cx="5" cy="4" r="1" fill="white" opacity="0.4" />
-            </svg>
-          ))}
-        </div>
-      </div>
+          {ores.map((o, i) => {
+            const oreX = 20 + (o.left / 100) * 80
+            return (
+              <g key={i} opacity="0">
+                <animateTransform attributeName="transform" type="translate"
+                  values={`0 -10; 0 300`}
+                  dur={`${o.duration}s`} begin={`${o.delay}s`}
+                  repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0;0.9;0.9;0"
+                  dur={`${o.duration}s`} begin={`${o.delay}s`}
+                  keyTimes="0;0.1;0.85;1" repeatCount="indefinite" />
+                {o.shape === 0 ? (
+                  <polygon points={`${oreX},60 ${oreX + 4},65 ${oreX},72 ${oreX - 4},65`}
+                    fill={o.isReward ? '#c77dff' : '#a855f7'} />
+                ) : o.shape === 1 ? (
+                  <polygon points={`${oreX - 2},60 ${oreX + 2},60 ${oreX + 3},65 ${oreX + 2},72 ${oreX - 2},72 ${oreX - 3},65`}
+                    fill={o.isReward ? '#c77dff' : '#a855f7'} />
+                ) : (
+                  <polygon points={`${oreX - 2},62 ${oreX + 3},60 ${oreX + 4},64 ${oreX + 3},68 ${oreX - 2},70 ${oreX - 3},66`}
+                    fill={o.isReward ? '#c77dff' : '#a855f7'} />
+                )}
+                {/* Sparkle */}
+                <circle cx={oreX} cy="64" r="1" fill="white" opacity="0.4" />
+              </g>
+            )
+          })}
+        </g>
 
-      {/* Bottom — cargo bay status */}
-      <div className="text-center mt-1.5 z-10 space-y-0.5">
-        <div className="hud-label" style={{ fontSize: '7px' }}>
-          <span style={{ color: '#a855f7' }}>fees</span>
-          {' + '}
-          <span style={{ color: '#c77dff' }}>rewards</span>
-        </div>
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
+        {/* === BOTTOM CAP — base/stand === */}
+        <path d="M 20 355 L 15 370 L 105 370 L 100 355 Z"
+          fill="#0d0d1a" stroke="#c77dff" strokeWidth="0.6" opacity="0.6" />
+        {/* Base plate */}
+        <rect x="12" y="370" width="96" height="5" rx="2"
+          fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.4" opacity="0.5" />
+        {/* Base legs */}
+        <rect x="22" y="375" width="4" height="12" rx="1" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.3" opacity="0.3" />
+        <rect x="94" y="375" width="4" height="12" rx="1" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.3" opacity="0.3" />
+        <rect x="56" y="375" width="8" height="12" rx="1" fill="#1a1a3e" stroke="#c77dff" strokeWidth="0.3" opacity="0.3" />
+
+        {/* Status indicators on base */}
+        <circle cx="35" cy="377" r="2" fill="#39ff14" opacity="0.6">
+          <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="85" cy="377" r="2" fill="#c77dff" opacity="0.6">
+          <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite" begin="1s" />
+        </circle>
+
+        {/* Bottom text */}
+        <text x="60" y="398" textAnchor="middle" fill="#a855f7" fontSize="5" fontFamily="JetBrains Mono, monospace" opacity="0.5" letterSpacing="1">
+          FEES + REWARDS
+        </text>
+        <text x="60" y="410" textAnchor="middle" fill="#c77dff" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="bold">
           ${(totalPerHour * 24).toFixed(2)}/d
-        </div>
+        </text>
         {harvestSec !== null && harvestSec > 0 && (
-          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--neon-green)' : 'var(--text-muted)', fontSize: '9px' }}>
+          <text x="60" y="418" textAnchor="middle"
+            fill={harvestSec < 300 ? '#39ff14' : '#4a5280'}
+            fontSize="6" fontFamily="JetBrains Mono, monospace">
             {Math.floor(harvestSec / 60)}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
-          </div>
+          </text>
         )}
-      </div>
+      </svg>
     </div>
   )
 }

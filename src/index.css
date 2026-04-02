@@ -32,7 +32,7 @@ body {
   margin: 0;
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  font-family: 'JetBrains Mono', 'Outfit', system-ui, monospace;
   -webkit-font-smoothing: antialiased;
 }
 
