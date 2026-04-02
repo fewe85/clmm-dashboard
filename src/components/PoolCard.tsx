@@ -148,15 +148,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 5. P&L Breakdown (collapsible) */}
       <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} pm={pm} />
 
-      {/* 7. Rebalance Heartbeat */}
-      <RebalanceHeartbeat
-        metrics={pm.metrics}
-        totalRebalances={pm.totalRebalances}
-        lastRebalanceAt={pool.botState?.lastRebalanceAt ?? null}
-        swapCostTotal={calcSwapCostTotal(pool, pm)}
-      />
-
-      {/* 8. Drill Calibration (collapsed, same style as MISSION DETAILS) */}
+      {/* 8. Drill Calibration (directly under MISSION DETAILS) */}
       <div
         className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer"
         style={{
@@ -170,6 +162,14 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>DRILL CALIBRATION</span>
       </div>
       {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
+
+      {/* 9. Rebalance Heartbeat */}
+      <RebalanceHeartbeat
+        metrics={pm.metrics}
+        totalRebalances={pm.totalRebalances}
+        lastRebalanceAt={pool.botState?.lastRebalanceAt ?? null}
+        swapCostTotal={calcSwapCostTotal(pool, pm)}
+      />
       </div>{/* end left */}
 
       {/* Right: Live Earnings drip tank */}
@@ -520,7 +520,7 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }:
                     : `repeating-linear-gradient(45deg, transparent, transparent 6px, rgba(255,42,109,0.02) 6px, rgba(255,42,109,0.02) 12px)`,
                 }}
               >
-                <span className="mono" style={{ color: '#888', fontSize: '10px' }}>{r.label}</span>
+                <span className="mono" style={{ color: '#9a9ab0', fontSize: '10px' }}>{r.label}</span>
                 <span
                   className="mono font-medium"
                   style={{
@@ -697,18 +697,18 @@ function RangeOptimization({ pool, metrics }: { pool: PoolData; metrics: Rebalan
   ]
 
   return (
-    <div className="space-y-1 pt-1">
+    <div className="space-y-1 pt-1 px-2">
       {rows.map(([label, val, sub], i) => (
         <div key={i} className="flex justify-between text-xs">
-          <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-          <span className="mono" style={{ color: 'var(--text-primary)' }}>
+          <span style={{ color: '#9a9ab0' }}>{label}</span>
+          <span className="mono" style={{ color: '#b0b8cc' }}>
             {val}
-            {sub && <span style={{ color: 'var(--text-muted)' }}> ({sub})</span>}
+            {sub && <span style={{ color: '#8892b0' }}> ({sub})</span>}
           </span>
         </div>
       ))}
       <div className="flex justify-between text-xs pt-1">
-        <span style={{ color: 'var(--text-muted)' }}>Empfehlung</span>
+        <span style={{ color: '#9a9ab0' }}>Empfehlung</span>
         <span className="mono font-semibold" style={{ color: recColor }}>
           {rec || '—'}
           {riskAdjustedPct > 0 && cP75Disp > 0 && ` (±${riskAdjustedPct.toFixed(1)}%)`}
