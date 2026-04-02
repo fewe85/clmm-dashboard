@@ -90,12 +90,12 @@ function makeParticle(_h: number): Particle {
 }
 
 /** Ore Density meter — live APR purely from pending value deltas */
-function OreDensityMeter({ positionValue, pendingTotal }: {
-  positionValue: number; pendingTotal: number
+function OreDensityMeter({ positionValue, pendingTotal, initialRatePerHour }: {
+  positionValue: number; pendingTotal: number; initialRatePerHour: number
 }) {
   // History of pending values — each refresh adds a point
   const historyRef = useRef<{ value: number; time: number }[]>([])
-  const bestRateRef = useRef(0)
+  const bestRateRef = useRef(initialRatePerHour) // seed with snapshot rate
 
   useEffect(() => {
     const now = Date.now()
@@ -774,7 +774,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       </div>
 
       {/* Ore density meter — earning velocity + live APR */}
-      <OreDensityMeter positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} />
+      <OreDensityMeter positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} initialRatePerHour={totalPerHour} />
 
       {/* Refinery column — canvas fills all remaining height */}
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 250 }}>
