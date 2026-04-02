@@ -128,12 +128,12 @@ function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: 
   // Flame — purple core, green tips, 3x bigger, dramatic
   // Large glow halo
   c.beginPath(); c.arc(cx, tY - 12, 30, 0, Math.PI * 2)
-  c.fillStyle = `rgba(180,77,255,${0.04 + Math.sin(now * 0.004) * 0.02})`; c.fill()
+  c.fillStyle = `rgba(180,77,255,${0.04 + Math.sin(now * 0.001) * 0.02})`; c.fill()
   c.beginPath(); c.arc(cx, tY - 8, 20, 0, Math.PI * 2)
-  c.fillStyle = `rgba(0,255,136,${0.02 + Math.sin(now * 0.005) * 0.01})`; c.fill()
+  c.fillStyle = `rgba(0,255,136,${0.02 + Math.sin(now * 0.0012) * 0.01})`; c.fill()
   for (let i = 0; i < 7; i++) {
-    const fx = cx - 18 + i * 6, fh = 16 + Math.sin(now * 0.011 + i * 1.1) * 6
-    c.globalAlpha = 0.5 + Math.sin(now * 0.013 + i) * 0.2
+    const fx = cx - 18 + i * 6, fh = 16 + Math.sin(now * 0.002 + i * 1.1) * 6
+    c.globalAlpha = 0.5 + Math.sin(now * 0.0025 + i) * 0.2
     // Outer flame — green tips
     c.fillStyle = '#00ff88'
     c.beginPath(); c.moveTo(fx - 5, tY); c.lineTo(fx, tY - fh); c.lineTo(fx + 5, tY); c.fill()
@@ -164,35 +164,41 @@ function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: nu
       c.fillStyle = 'rgba(100,120,160,0.12)'; c.fillRect(minX, y1 + tw + 1, w, 1)
     }
   }
-  // Left vertical (up to near top)
-  const arcR = 18 // large smooth bend radius
-  glass(lx, startY, lx, topY + arcR, true)
-  // Right vertical (down from near top)
-  glass(rx, topY + arcR, rx, botY, true)
-  // Horizontal middle (between arcs)
-  glass(lx + arcR, topY, rx - arcR + tw + 2, topY, false)
+  // Left vertical (up to bend start)
+  const bendH = 20 // how high above topY the bend extends
+  glass(lx, startY, lx, topY + bendH, true)
+  // Right vertical (down from bend)
+  glass(rx, topY + bendH, rx, botY, true)
 
-  // Rounded bend — LEFT corner (going from up→right)
-  c.strokeStyle = 'rgba(140,160,200,0.18)'; c.lineWidth = 1
-  // Outer arc
-  c.beginPath(); c.arc(lx + arcR, topY + arcR, arcR, Math.PI, Math.PI * 1.5); c.stroke()
-  // Inner arc
-  c.strokeStyle = 'rgba(100,120,160,0.12)'
-  c.beginPath(); c.arc(lx + arcR, topY + arcR, arcR - tw, Math.PI, Math.PI * 1.5); c.stroke()
-  // Fill bend interior
-  c.fillStyle = 'rgba(10,10,20,0.7)'
-  c.beginPath(); c.arc(lx + arcR, topY + arcR, arcR - 1, Math.PI, Math.PI * 1.5)
-  c.arc(lx + arcR, topY + arcR, arcR - tw + 1, Math.PI * 1.5, Math.PI, true)
-  c.closePath(); c.fill()
+  // Smooth semicircular bend at top — ONE continuous path
+  const midX = (lx + rx + tw + 2) / 2
+  const bendTop = topY - 4 // curve peak above topY
 
-  // Rounded bend — RIGHT corner (going from right→down)
+  // Outer wall of bend (smooth bezier)
   c.strokeStyle = 'rgba(140,160,200,0.18)'; c.lineWidth = 1
-  c.beginPath(); c.arc(rx + tw + 2 - arcR, topY + arcR, arcR, Math.PI * 1.5, Math.PI * 2); c.stroke()
+  c.beginPath()
+  c.moveTo(lx, topY + bendH)
+  c.quadraticCurveTo(lx, bendTop, midX, bendTop)
+  c.quadraticCurveTo(rx + tw + 2, bendTop, rx + tw + 2, topY + bendH)
+  c.stroke()
+
+  // Inner wall of bend
   c.strokeStyle = 'rgba(100,120,160,0.12)'
-  c.beginPath(); c.arc(rx + tw + 2 - arcR, topY + arcR, arcR - tw, Math.PI * 1.5, Math.PI * 2); c.stroke()
+  c.beginPath()
+  c.moveTo(lx + tw + 1, topY + bendH)
+  c.quadraticCurveTo(lx + tw + 1, bendTop + tw + 2, midX, bendTop + tw + 2)
+  c.quadraticCurveTo(rx, bendTop + tw + 2, rx, topY + bendH)
+  c.stroke()
+
+  // Fill the bend interior (dark glass)
   c.fillStyle = 'rgba(10,10,20,0.7)'
-  c.beginPath(); c.arc(rx + tw + 2 - arcR, topY + arcR, arcR - 1, Math.PI * 1.5, Math.PI * 2)
-  c.arc(rx + tw + 2 - arcR, topY + arcR, arcR - tw + 1, Math.PI * 2, Math.PI * 1.5, true)
+  c.beginPath()
+  c.moveTo(lx + 1, topY + bendH)
+  c.quadraticCurveTo(lx + 1, bendTop + 1, midX, bendTop + 1)
+  c.quadraticCurveTo(rx + tw + 1, bendTop + 1, rx + tw + 1, topY + bendH)
+  c.lineTo(rx, topY + bendH)
+  c.quadraticCurveTo(rx, bendTop + tw + 1, midX, bendTop + tw + 1)
+  c.quadraticCurveTo(lx + tw + 1, bendTop + tw + 1, lx + tw + 1, topY + bendH)
   c.closePath(); c.fill()
 
   // Metal joints at start and end
@@ -334,20 +340,19 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       // Wall shelf / platform for flask
       const flask = drawFlask(c, FK_CX, FK_TOP, Math.min(1, fillRef.current * 2.5), now)
-      const shelfY = flask.bCY + flask.bR + 13 // exactly at tripod feet bottom
-      const shelfW = W * 0.55
-      // Shelf surface
+      const shelfY = flask.bCY + flask.bR + 13 // exactly at tripod feet
+      const shelfL = FK_CX - flask.bR - 4 // starts just left of kolben
+      const shelfR = FK_CX + flask.bR + 4 // ends just right of kolben
+      const shelfW2 = shelfR - shelfL
+      // Thin metal plate
       const sg = c.createLinearGradient(0, shelfY, 0, shelfY + 4)
       sg.addColorStop(0, '#4a4a5a'); sg.addColorStop(1, '#333344')
-      c.fillStyle = sg; c.fillRect(0, shelfY, shelfW, 4)
-      c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(2, shelfY, shelfW - 4, 1)
-      // Shadow under shelf
-      c.fillStyle = 'rgba(0,0,0,0.15)'; c.fillRect(2, shelfY + 4, shelfW - 4, 2)
-      // Wall brackets (2 angled supports)
-      for (const bx of [6, shelfW - 10]) {
-        c.fillStyle = '#3a3a4a'
-        c.beginPath(); c.moveTo(bx, shelfY + 4); c.lineTo(bx, shelfY + 12); c.lineTo(0, shelfY + 12); c.lineTo(0, shelfY + 10); c.lineTo(bx - 3, shelfY + 4); c.closePath(); c.fill()
-      }
+      c.fillStyle = sg; c.fillRect(shelfL, shelfY, shelfW2, 4)
+      c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(shelfL + 1, shelfY, shelfW2 - 2, 1)
+      c.fillStyle = 'rgba(0,0,0,0.12)'; c.fillRect(shelfL + 2, shelfY + 4, shelfW2 - 4, 2)
+      // Single wall bracket on left
+      c.fillStyle = '#3a3a4a'
+      c.beginPath(); c.moveTo(shelfL, shelfY + 4); c.lineTo(shelfL, shelfY + 10); c.lineTo(shelfL - 6, shelfY + 10); c.lineTo(shelfL, shelfY + 4); c.closePath(); c.fill()
 
       // Connection: flask right side → U-tube left start (short horizontal)
       c.fillStyle = '#3a3a4a'; c.fillRect(FK_CX + flask.bR - 2, UT_START - 2, UT_LX - FK_CX - flask.bR + 4, 4)
