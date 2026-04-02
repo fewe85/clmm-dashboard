@@ -56,9 +56,9 @@ function WalletColumn({ wallet, bay, accent }: { wallet: WalletBalance; bay: str
               <span title="Unidentified Cargo" style={{ color: '#ff8c00', cursor: 'help' }}> ?</span>
             )}
           </span>
-          <span className="mono" style={{ color: b.priceUnknown ? '#ff8c00' : 'var(--text-muted)' }}>
+          <span className="mono" style={{ color: b.priceUnknown ? '#ff8c00' : '#b0b8cc' }}>
             {b.amount.toFixed(4)}
-            {!b.priceUnknown && ` (${fmtUsd(b.valueUsd)})`}
+            {!b.priceUnknown && <span style={{ color: '#d0d8ec' }}> ({fmtUsd(b.valueUsd)})</span>}
           </span>
         </div>
       ))}
