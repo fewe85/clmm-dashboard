@@ -213,40 +213,102 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       ctx.globalAlpha = 1
     }
 
-    // ─── PROCESSING LASER — neon violet ────────────────────────────
+    // ─── ROBOT WITH LIGHTSABER ─────────────────────────────────────
     const laserCycle = 4000
     const laserT = (now % laserCycle) / laserCycle
-    const laserY = intakeEnd + 8 + Math.sin(laserT * Math.PI) * (processEnd - intakeEnd - 16)
-    const laser2Y = laserY // single laser reference for collision
+    const swingRange = processEnd - intakeEnd - 20
+    const laserY = intakeEnd + 10 + Math.sin(laserT * Math.PI) * swingRange
+    const laser2Y = laserY
+
+    // Robot position — rides left rail
+    const robotX = railW + 2
+    const robotY = laserY
 
     ctx.save()
-    ctx.globalAlpha = 0.6 + Math.sin(now * 0.008) * 0.3
-    ctx.strokeStyle = '#b44dff'
-    ctx.lineWidth = 1.5
+
+    // Robot body (pixel art style)
+    // Legs
+    ctx.fillStyle = '#3a3a4a'
+    ctx.fillRect(robotX, robotY + 5, 2, 4)
+    ctx.fillRect(robotX + 4, robotY + 5, 2, 4)
+
+    // Body
+    ctx.fillStyle = '#4a4a5a'
+    ctx.fillRect(robotX - 1, robotY - 2, 8, 8)
+    // Body highlight
+    ctx.fillStyle = '#5a5a6a'
+    ctx.fillRect(robotX, robotY - 1, 6, 2)
+
+    // Chest light
+    ctx.fillStyle = '#b44dff'
+    ctx.fillRect(robotX + 2, robotY + 1, 2, 2)
+    ctx.globalAlpha = 0.3 + Math.sin(now * 0.005) * 0.2
+    ctx.fillStyle = 'rgba(180,77,255,0.4)'
+    ctx.fillRect(robotX + 1, robotY, 4, 4)
+    ctx.globalAlpha = 1
+
+    // Head
+    ctx.fillStyle = '#5a5a6a'
+    ctx.fillRect(robotX, robotY - 6, 6, 5)
+    // Eye
+    ctx.fillStyle = '#ff4444'
+    ctx.fillRect(robotX + 3, robotY - 5, 2, 2)
+    // Eye glow
+    ctx.fillStyle = 'rgba(255,68,68,0.3)'
+    ctx.fillRect(robotX + 2, robotY - 6, 4, 4)
+    // Antenna
+    ctx.fillStyle = '#6a6a7a'
+    ctx.fillRect(robotX + 2, robotY - 9, 1, 3)
+    ctx.fillStyle = '#b44dff'
+    ctx.fillRect(robotX + 1, robotY - 10, 3, 2)
+
+    // Arm holding saber (extends right)
+    ctx.fillStyle = '#4a4a5a'
+    ctx.fillRect(robotX + 6, robotY - 1, 4, 2)
+
+    // Lightsaber handle
+    ctx.fillStyle = '#6a6a7a'
+    ctx.fillRect(robotX + 9, robotY - 2, 3, 4)
+    ctx.fillStyle = '#8a8a9a'
+    ctx.fillRect(robotX + 10, robotY - 2, 1, 4)
+
+    // Lightsaber blade — neon violet
+    const bladeStart = robotX + 12
+    const bladeEnd = W - railW - 2
+    const bladeAlpha = 0.7 + Math.sin(now * 0.01) * 0.2
+
+    // Blade glow (wide)
+    const bladeGlow = ctx.createLinearGradient(bladeStart, laserY - 6, bladeStart, laserY + 6)
+    bladeGlow.addColorStop(0, 'transparent')
+    bladeGlow.addColorStop(0.5, `rgba(180,77,255,${0.12 * bladeAlpha})`)
+    bladeGlow.addColorStop(1, 'transparent')
+    ctx.fillStyle = bladeGlow
+    ctx.fillRect(bladeStart, laserY - 6, bladeEnd - bladeStart, 12)
+
+    // Blade core
+    ctx.globalAlpha = bladeAlpha
+    ctx.strokeStyle = '#d494ff'
+    ctx.lineWidth = 2
     ctx.beginPath()
-    ctx.moveTo(railW + 2, laserY)
-    ctx.lineTo(W - railW - 2, laserY)
+    ctx.moveTo(bladeStart, laserY)
+    ctx.lineTo(bladeEnd, laserY)
     ctx.stroke()
 
-    // Laser glow
-    const laserGlow = ctx.createLinearGradient(0, laserY - 8, 0, laserY + 8)
-    laserGlow.addColorStop(0, 'transparent')
-    laserGlow.addColorStop(0.5, 'rgba(180,77,255,0.15)')
-    laserGlow.addColorStop(1, 'transparent')
-    ctx.fillStyle = laserGlow
-    ctx.fillRect(railW, laserY - 8, W - railW * 2, 16)
+    // Blade bright center
+    ctx.strokeStyle = '#e8c0ff'
+    ctx.lineWidth = 0.8
+    ctx.beginPath()
+    ctx.moveTo(bladeStart, laserY)
+    ctx.lineTo(bladeEnd, laserY)
+    ctx.stroke()
 
-    // Emitter nodes
-    for (const ex of [railW + 1, W - railW - 1]) {
-      ctx.beginPath()
-      ctx.arc(ex, laserY, 2.5, 0, Math.PI * 2)
-      ctx.fillStyle = '#b44dff'
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(ex, laserY, 5, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(180,77,255,0.2)'
-      ctx.fill()
-    }
+    // Blade tip glow
+    ctx.beginPath()
+    ctx.arc(bladeEnd, laserY, 3, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(180,77,255,0.2)'
+    ctx.fill()
+
+    ctx.globalAlpha = 1
     ctx.restore()
 
     // ─── COLLECTION ZONE (bottom) ────────────────────────────────
