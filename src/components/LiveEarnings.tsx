@@ -273,7 +273,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const spawnRef = useRef({ last: 0, delay: 2500 })
   const fillRef = useRef(0)
   const dripRef = useRef({ size: 0, growing: true }) // for drop formation
-  const flashRef = useRef<{ t: number; x: number; y: number }[]>([])
+  void 0 // flashRef removed (condensation is now soft glow)
 
   useEffect(() => {
     const el = containerRef.current, cv = canvasRef.current
