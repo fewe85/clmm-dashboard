@@ -180,6 +180,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
           pendingRewards={pendingRewards}
           nextHarvestAt={pool.botState?.nextHarvestAt ?? null}
           harvestThreshold={harvestThreshold}
+          positionValue={pool.positionValueUsd}
         />
       </div>
     </div>

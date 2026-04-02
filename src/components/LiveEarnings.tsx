@@ -13,6 +13,7 @@ interface LiveEarningsProps {
   pendingRewards: number
   nextHarvestAt: string | null
   harvestThreshold: number
+  positionValue: number
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────
@@ -88,8 +89,10 @@ function makeParticle(_h: number): Particle {
   }
 }
 
-/** Geiger counter — blink frequency = earning velocity */
-function RadiationMeter({ ratePerHour }: { ratePerHour: number }) {
+/** Ore Density meter — blink frequency = earning velocity, shows live APR */
+function OreDensityMeter({ ratePerHour, positionValue }: { ratePerHour: number; positionValue: number }) {
+  // Live APR estimate from short-term rate
+  const liveApr = positionValue > 0 ? (ratePerHour * 24 * 365 / positionValue) * 100 : 0
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // Track recent "clicks" for visual decay
   const clicksRef = useRef<{ x: number; t: number; size: number }[]>([])
@@ -180,12 +183,16 @@ function RadiationMeter({ ratePerHour }: { ratePerHour: number }) {
     return () => cancelAnimationFrame(animId)
   }, [ratePerHour])
 
+  // APR tier label
+  const tier = liveApr > 10000 ? 'ULTRA RICH' : liveApr > 3000 ? 'RICH VEIN' : liveApr > 1000 ? 'GOOD' : 'SPARSE'
+  const tierColor = liveApr > 10000 ? '#ff2a6d' : liveApr > 3000 ? '#ffcc00' : liveApr > 1000 ? '#00ff88' : '#9a9ab0'
+
   return (
     <div className="w-full flex-shrink-0 px-1">
       <div className="flex items-center justify-between mb-0.5">
-        <span className="hud-label" style={{ fontSize: '7px', color: '#9a9ab0' }}>RADIATION</span>
-        <span className="mono" style={{ fontSize: '7px', color: ratePerHour > 20 ? '#ff2a6d' : ratePerHour > 5 ? '#ffcc00' : '#00ff88' }}>
-          {ratePerHour > 20 ? 'SPIKE' : ratePerHour > 5 ? 'HIGH' : 'NORMAL'}
+        <span className="hud-label" style={{ fontSize: '7px', color: '#9a9ab0' }}>ORE DENSITY</span>
+        <span className="mono font-bold" style={{ fontSize: '8px', color: tierColor }}>
+          {tier} {liveApr > 0 ? `${liveApr >= 1000 ? `${(liveApr / 1000).toFixed(1)}k` : liveApr.toFixed(0)}%` : ''}
         </span>
       </div>
       <canvas
@@ -196,7 +203,7 @@ function RadiationMeter({ ratePerHour }: { ratePerHour: number }) {
   )
 }
 
-export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold }: LiveEarningsProps) {
+export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold, positionValue }: LiveEarningsProps) {
   const { feesPerHour, rewardsPerHour } = useMemo(() => calcRate(snapshots), [snapshots])
   const totalPerHour = feesPerHour + rewardsPerHour
   const totalPerSecond = totalPerHour / 3600
@@ -828,8 +835,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
       </div>
 
-      {/* Radiation meter — earning velocity visualizer */}
-      <RadiationMeter ratePerHour={totalPerHour} />
+      {/* Ore density meter — earning velocity + live APR */}
+      <OreDensityMeter ratePerHour={totalPerHour} positionValue={positionValue} />
 
       {/* Refinery column — canvas fills all remaining height */}
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 250 }}>
