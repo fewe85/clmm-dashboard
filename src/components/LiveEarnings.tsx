@@ -53,7 +53,7 @@ function drawBelt(c: CanvasRenderingContext2D, y: number, dir: number, now: numb
   g.addColorStop(0, '#4a4a5a'); g.addColorStop(0.5, '#3a3a4a'); g.addColorStop(1, '#2a2a3a')
   c.fillStyle = g; c.fillRect(x, y, w, 8)
   c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(x + 2, y, w - 4, 1)
-  const off = ((now * 0.025 * dir) % 12 + 12) % 12
+  const off = ((now * 0.012 * dir) % 12 + 12) % 12
   c.fillStyle = 'rgba(199,125,255,0.04)'
   for (let sx = 0; sx < w; sx += 12) { const ox = (sx + off) % w; if (ox < w - 6) c.fillRect(x + ox, y + 2, 6, 4) }
   c.fillStyle = 'rgba(0,0,0,0.15)'; c.fillRect(x + 3, y + 8, w - 6, 2)
@@ -370,10 +370,10 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       if (now - spawnRef.current.last > spawnRef.current.delay || partsRef.current.filter(p => p.type === 'stone').length === 0) {
         if (partsRef.current.length < 40) {
           partsRef.current.push({
-            x: 14, y: B1Y - 5, vx: 0.4, vy: 0, size: 7 + Math.random() * 5,
+            x: 14, y: B1Y - 5, vx: 0.2, vy: 0, size: 7 + Math.random() * 5,
             type: 'stone', color: '#b44dff', life: 1, phase: 0,
           })
-          spawnRef.current = { last: now, delay: 2000 + Math.random() * 2000 }
+          spawnRef.current = { last: now, delay: 3000 + Math.random() * 3000 }
         }
       }
       // Gentle bubbling in purple flask liquid (simmering)
@@ -387,7 +387,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       // Path E: Steam in U-tube
       if (Math.random() < 0.05 && partsRef.current.filter(p => p.type === 'steam').length < 12) {
         partsRef.current.push({
-          x: UT_LX + 4, y: UT_START, vx: 0, vy: -0.25 - Math.random() * 0.15,
+          x: UT_LX + 4, y: UT_START, vx: 0, vy: -0.12 - Math.random() * 0.08,
           size: 2 + Math.random(), type: 'steam', color: '#b44dff', life: 1, phase: 0,
         })
       }
@@ -403,7 +403,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             for (let i = 0; i < 4; i++) {
               partsRef.current.push({
                 x: W - 26 + (Math.random() - 0.5) * 6, y: LASER_Y + 4,
-                vx: (Math.random() - 0.5) * 0.5, vy: 0.2 + Math.random() * 0.3,
+                vx: (Math.random() - 0.5) * 0.3, vy: 0.1 + Math.random() * 0.15,
                 size: 2 + Math.random() * 2, type: 'frag', color: '#b44dff', life: 1, phase: 0,
               })
             }
@@ -437,14 +437,14 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         } else if (p.type === 'frag') {
           // Path B→C: fall to band 2, ride left, fall to flask
           if (p.phase === 0) {
-            p.y += p.vy; p.vy += 0.008
-            if (p.y >= B2Y - 2) { p.phase = 1; p.vy = 0; p.vx = -0.4; p.y = B2Y - 3 }
+            p.y += p.vy; p.vy += 0.005
+            if (p.y >= B2Y - 2) { p.phase = 1; p.vy = 0; p.vx = -0.2; p.y = B2Y - 3 }
           } else if (p.phase === 1) {
             p.x += p.vx
-            if (p.x <= FUNNEL_X + 2) { p.phase = 2; p.vx = 0; p.vy = 0.5; p.x = FUNNEL_X }
+            if (p.x <= FUNNEL_X + 2) { p.phase = 2; p.vx = 0; p.vy = 0.25; p.x = FUNNEL_X }
           } else {
             // Path D: fall diagonally through pipe into flask
-            p.y += p.vy; p.vy += 0.008
+            p.y += p.vy; p.vy += 0.005
             // Follow diagonal pipe toward flask center
             const pipeProgress = Math.min(1, (p.y - FUNNEL_Y) / (FK_TOP - FUNNEL_Y))
             p.x = FUNNEL_X + (FK_CX - FUNNEL_X) * pipeProgress
@@ -476,16 +476,16 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           // Path E: 3-phase through U-tube
           if (p.phase === 0) { // rise left
             p.y += p.vy; p.x = UT_LX + 4 + Math.sin(now * 0.003 + p.y) * 1.5
-            if (p.y <= UT_TOP + 4) { p.phase = 1; p.vy = 0; p.vx = 0.3 }
+            if (p.y <= UT_TOP + 4) { p.phase = 1; p.vy = 0; p.vx = 0.15 }
           } else if (p.phase === 1) { // across top
-            p.x += p.vx; p.y = UT_TOP + 4 + Math.sin(now * 0.004 + p.x) * 1
-            if (p.x >= UT_RX + 4) { p.phase = 2; p.vx = 0; p.vy = 0.3 }
+            p.x += p.vx; p.y = UT_TOP + 4 + Math.sin(now * 0.002 + p.x) * 1
+            if (p.x >= UT_RX + 4) { p.phase = 2; p.vx = 0; p.vy = 0.15 }
           } else { // descend right
-            p.y += p.vy; p.vy += 0.004; p.x = UT_RX + 4 + Math.sin(now * 0.003 + p.y) * 1
+            p.y += p.vy; p.vy += 0.002; p.x = UT_RX + 4 + Math.sin(now * 0.003 + p.y) * 1
             if (p.y >= UT_BOT) {
               // Path F: become drop
               partsRef.current.push({
-                x: UT_RX + 5, y: UT_BOT + 5, vx: (Math.random() - 0.5) * 0.15, vy: 0.3 + Math.random() * 0.2,
+                x: UT_RX + 5, y: UT_BOT + 5, vx: (Math.random() - 0.5) * 0.08, vy: 0.15 + Math.random() * 0.1,
                 size: 2.5 + Math.random(), type: 'drop', color: '#00ff88', life: 1, phase: 0,
               })
               continue
@@ -504,7 +504,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
         } else if (p.type === 'drop') {
           // Path F: fall into tank
-          p.y += p.vy; p.vy += 0.012; p.x += p.vx
+          p.y += p.vy; p.vy += 0.006; p.x += p.vx
           if (p.y >= tank.surfY && fillRef.current > 0) {
             for (let i = 0; i < 2; i++) partsRef.current.push({
               x: p.x + (Math.random() - 0.5) * 6, y: tank.surfY,
@@ -550,11 +550,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       // ═══ EFFECT 4: Drop formation at U-tube nozzle ════════
       const drip = dripRef.current
-      drip.size += 0.02
+      drip.size += 0.012
       if (drip.size > 4.5) {
         // Release drop
         partsRef.current.push({
-          x: UT_RX + 4, y: UT_BOT + 6, vx: 0, vy: 0.3,
+          x: UT_RX + 4, y: UT_BOT + 6, vx: 0, vy: 0.15,
           size: 3, type: 'drop', color: '#00ff88', life: 1, phase: 0,
         })
         drip.size = 0
