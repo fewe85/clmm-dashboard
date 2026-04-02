@@ -158,6 +158,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillRect(0, 0, railW, h)
     ctx.fillRect(W - railW, 0, railW, h)
 
+    // Pre-calculate collection dimensions (used by particles too)
+    const collectionH = h - processEnd - 7
+
     // Rail inner highlight
     ctx.fillStyle = 'rgba(180,77,255,0.08)'
     ctx.fillRect(railW, 0, 1, h)
@@ -210,9 +213,62 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       ctx.globalAlpha = 1
     }
 
+    // ─── PROCESSING LASER ──────────────────────────────────────────
+    // Horizontal scanning laser that sweeps up and down
+    const laserCycle = 4000 // ms per full sweep
+    const laserT = (now % laserCycle) / laserCycle
+    const laserY = intakeEnd + 8 + Math.sin(laserT * Math.PI) * (processEnd - intakeEnd - 16)
+
+    // Laser beam
+    ctx.save()
+    ctx.globalAlpha = 0.7 + Math.sin(now * 0.01) * 0.3
+    ctx.strokeStyle = '#ff6b35'
+    ctx.lineWidth = 1.5
+    ctx.beginPath()
+    ctx.moveTo(railW + 2, laserY)
+    ctx.lineTo(W - railW - 2, laserY)
+    ctx.stroke()
+
+    // Laser glow
+    const laserGlow = ctx.createLinearGradient(0, laserY - 6, 0, laserY + 6)
+    laserGlow.addColorStop(0, 'transparent')
+    laserGlow.addColorStop(0.5, 'rgba(255,107,53,0.12)')
+    laserGlow.addColorStop(1, 'transparent')
+    ctx.fillStyle = laserGlow
+    ctx.fillRect(railW, laserY - 6, W - railW * 2, 12)
+
+    // Laser emitter nodes (left + right)
+    for (const ex of [railW + 1, W - railW - 1]) {
+      ctx.beginPath()
+      ctx.arc(ex, laserY, 2.5, 0, Math.PI * 2)
+      ctx.fillStyle = '#ff6b35'
+      ctx.fill()
+      // Emitter glow
+      ctx.beginPath()
+      ctx.arc(ex, laserY, 5, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(255,107,53,0.15)'
+      ctx.fill()
+    }
+    ctx.restore()
+
+    // Second laser — green analysis beam, slightly offset timing
+    const laser2T = ((now + 2000) % laserCycle) / laserCycle
+    const laser2Y = intakeEnd + 8 + Math.sin(laser2T * Math.PI) * (processEnd - intakeEnd - 16)
+
+    ctx.save()
+    ctx.globalAlpha = 0.4 + Math.sin(now * 0.008) * 0.2
+    ctx.strokeStyle = '#00ff88'
+    ctx.lineWidth = 0.8
+    ctx.setLineDash([3, 4])
+    ctx.beginPath()
+    ctx.moveTo(railW + 2, laser2Y)
+    ctx.lineTo(W - railW - 2, laser2Y)
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.restore()
+
     // ─── COLLECTION ZONE (bottom) ────────────────────────────────
-    const collectionTop = processEnd + 3
-    const collectionH = h - collectionTop - 4
+    const _collectionTop = processEnd + 3
     const fillH = collectionH * fillRef.current
     const surfaceY = h - 4 - fillH
 
@@ -279,17 +335,24 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       if (p.phase === 'process') {
         // Shrink original
-        p.size *= 0.97
-        p.opacity *= 0.98
+        p.size *= 0.96
+        p.opacity *= 0.97
 
-        // Update fragments
+        // Update fragments — they fall all the way to the collection zone
         if (p.fragments) {
           for (const f of p.fragments) {
             f.x += f.vx
             f.y += f.vy
-            f.vx *= 0.98
-            f.glow = Math.min(1, f.glow + 0.02)
+            f.vy += 0.01 // slight gravity
+            f.vx *= 0.97
+            f.glow = Math.min(1, f.glow + 0.015)
+            // Fade out when reaching the liquid surface
+            if (f.y > h - 4 - collectionH * fillRef.current) {
+              f.size *= 0.9
+            }
           }
+          // Remove tiny fragments
+          p.fragments = p.fragments.filter(f => f.size > 0.3 && f.y < h)
         }
 
         if (p.y > processEnd || p.size < 1) {
@@ -326,10 +389,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         ctx.restore()
       }
 
-      // Draw fragments
+      // Draw fragments — fall through all zones
       if (p.fragments) {
         for (const f of p.fragments) {
-          if (f.y > processEnd + 10) continue
           const t = f.glow
           // Grey → orange → green
           const r = Math.floor(90 * (1 - t) + 0 * t)
