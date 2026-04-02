@@ -146,7 +146,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       <VerticalRange pool={pool} rangeWidth={pm.rangeWidth} ceMultiplier={pm.ceMultiplier} />
 
       {/* 5. P&L Breakdown (collapsible) */}
-      <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} pm={pm} />
+      <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
 
       {/* 8. Drill Calibration (directly under MISSION DETAILS) */}
       <div
@@ -426,8 +426,8 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
 /* ── P&L Breakdown ───────────────────────────────────────────────────────── */
 
-function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }: {
-  pool: PoolData; totalHarvested: number; feeBps: number; tokenAPrice: number; aptPrice: number; pm: PoolMetrics
+function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice }: {
+  pool: PoolData; totalHarvested: number; feeBps: number; tokenAPrice: number; aptPrice: number
 }) {
   const [showDetails, setShowDetails] = useState(false)
   const botState = pool.botState

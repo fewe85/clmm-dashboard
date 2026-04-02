@@ -6,7 +6,6 @@ import { WalletBox } from './components/WalletBox'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AmbientBg } from './components/AmbientBg'
 import {
-  DEX,
   ELON_POOL_NAME,
 } from './config'
 
