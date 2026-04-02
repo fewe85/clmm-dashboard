@@ -7,12 +7,12 @@
   "totalRebalances": 58,
   "totalFeesHarvestedUsdc": 8.664045,
   "totalFeesHarvestedElon": 85.96893531999999,
-  "totalRewardsHarvested": 169.74857336999995,
+  "totalRewardsHarvested": 175.24964463999996,
   "cachedIncentiveAddress": "0x9856283c70ca0bb2b18f639bbc9f50d050102a9f4de643712c86ece145c4f30a",
   "lastIncentiveCheckAt": "2026-04-02T18:02:01.007Z",
   "lastSwapCost": 0.2204,
   "avgSwapCost": 0.27425,
-  "sigmaDaily": 7.1756,
+  "sigmaDaily": 7.1518,
   "hourlyPriceBuffer": [
     0.10320851772193523,
     0.10322453712316314,
@@ -98,15 +98,10 @@
     0.1004456838916814,
     0.10044357780467784,
     0.10016033301770134,
-    0.10184700681687463
+    0.10184700681687463,
+    0.10283603003782561
   ],
   "earningsSnapshots": [
-    {
-      "t": "2026-04-01T17:10:48.222Z",
-      "feesUsd": 16.395412236825102,
-      "rewardsUsd": 151.4406056043042,
-      "posUsd": 196.8261856908747
-    },
     {
       "t": "2026-04-01T18:11:57.005Z",
       "feesUsd": 16.409443203038546,
@@ -250,6 +245,12 @@
       "feesUsd": 17.616168093662765,
       "rewardsUsd": 172.79609415286225,
       "posUsd": 371.17434710574014
+    },
+    {
+      "t": "2026-04-02T20:10:29.969Z",
+      "feesUsd": 17.778256052430446,
+      "rewardsUsd": 174.4489493363139,
+      "posUsd": 372.3022976312275
     }
   ],
   "harvestedBaseline": {
@@ -261,7 +262,7 @@
   "externalDeposits": 56.88,
   "resetAt": "2026-03-30T16:00:00.000Z",
   "priceAtReset": 0.1035,
-  "nextHarvestAt": "2026-04-02T20:10:21.617Z",
+  "nextHarvestAt": "2026-04-02T21:10:38.297Z",
   "gasUsedApt": 0.17463000000000004,
   "gasAtReset": 0
 }
