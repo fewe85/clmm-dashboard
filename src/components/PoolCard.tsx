@@ -332,68 +332,84 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               additive="sum"
             />
 
-            {/* Mining Cruiser — side profile view, facing right */}
-            {/* x=ufoX is the center of the ship */}
+            {/* BATTLE CRUISER — brutal, massive, imperial side profile */}
 
-            {/* Main hull — long horizontal body */}
+            {/* Lower hull — massive slab */}
             <polygon
-              points={`${ufoX - 22},32 ${ufoX - 18},28 ${ufoX + 14},28 ${ufoX + 18},30 ${ufoX + 22},32 ${ufoX + 22},38 ${ufoX + 18},40 ${ufoX + 14},42 ${ufoX - 18},42 ${ufoX - 22},38`}
-              fill="#3d3d4e" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.2)'} strokeWidth="0.5"
+              points={`${ufoX - 28},36 ${ufoX + 28},36 ${ufoX + 34},38 ${ufoX + 34},46 ${ufoX - 28},46`}
+              fill="#2e2e3e"
+            />
+            {/* Upper hull — tapered forward */}
+            <polygon
+              points={`${ufoX - 28},36 ${ufoX + 28},36 ${ufoX + 34},34 ${ufoX + 38},34 ${ufoX + 38},32 ${ufoX - 24},26 ${ufoX - 28},28`}
+              fill="#3d3d4e" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.15)'} strokeWidth="0.5"
             />
 
-            {/* Bow — pointed nose */}
+            {/* Prow — long aggressive wedge extending right */}
             <polygon
-              points={`${ufoX + 22},32 ${ufoX + 30},34 ${ufoX + 30},36 ${ufoX + 22},38`}
-              fill="#4a4a5a" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.15)'} strokeWidth="0.4"
+              points={`${ufoX + 34},34 ${ufoX + 50},35 ${ufoX + 34},38`}
+              fill="#4a4a5a" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.12)'} strokeWidth="0.4"
             />
-            {/* Bow tip light */}
-            <circle cx={ufoX + 30} cy="35" r="1" fill={danger ? '#ff2a6d' : '#b44dff'} opacity="0.7">
-              <animate attributeName="opacity" values="0.4;0.9;0.4" dur="2s" repeatCount="indefinite" />
-            </circle>
-
-            {/* Bridge — raised section on top */}
+            {/* Prow underside */}
             <polygon
-              points={`${ufoX - 4},28 ${ufoX + 8},28 ${ufoX + 6},22 ${ufoX - 2},22`}
-              fill="#4e4e5e"
+              points={`${ufoX + 34},38 ${ufoX + 50},35 ${ufoX + 50},37 ${ufoX + 34},42`}
+              fill="#333344"
             />
-            {/* Bridge windows */}
-            <rect x={ufoX - 1} y="23" width="6" height="1.5" fill={danger ? 'rgba(255,42,109,0.5)' : 'rgba(126,184,255,0.35)'} />
-            <rect x={ufoX} y="25" width="4" height="1" fill={danger ? 'rgba(255,42,109,0.3)' : 'rgba(126,184,255,0.2)'} />
 
-            {/* Hull detail lines */}
-            <line x1={ufoX - 20} y1="35" x2={ufoX + 20} y2="35" stroke="rgba(199,125,255,0.06)" strokeWidth="0.5" />
-            <line x1={ufoX - 16} y1="32" x2={ufoX + 16} y2="32" stroke="rgba(199,125,255,0.04)" strokeWidth="0.4" />
+            {/* Command tower — stepped pyramid on top */}
+            <rect x={ufoX - 8} y="22" width="14" height="4" fill="#4a4a5a" />
+            <rect x={ufoX - 5} y="19" width="8" height="3" fill="#555566" />
+            <rect x={ufoX - 3} y="17" width="4" height="2" fill="#5a5a6a" />
+            {/* Tower windows */}
+            <rect x={ufoX - 4} y="23" width="10" height="1" fill={danger ? 'rgba(255,42,109,0.5)' : 'rgba(126,184,255,0.3)'} />
 
-            {/* Belly detail — landing bay / cargo */}
-            <rect x={ufoX - 10} y="40" width="12" height="2" fill="#2a2a3a" />
+            {/* Hull armor plates — horizontal lines */}
+            {[30, 33, 40, 43].map(y => (
+              <line key={y} x1={ufoX - 27} y1={y} x2={ufoX + 33} y2={y} stroke="rgba(199,125,255,0.04)" strokeWidth="0.4" />
+            ))}
 
-            {/* Engine block — stern (left side) */}
-            <rect x={ufoX - 24} y="29" width="4" height="12" fill="#2a2a3a" />
-            {/* Engine nozzles — stacked */}
-            {[30, 33, 36, 39].map((ey, i) => (
+            {/* Trench runs — dark grooves along hull */}
+            <rect x={ufoX - 26} y="34" width="58" height="2" fill="#1a1a2a" opacity="0.4" />
+
+            {/* Engine block — massive stern */}
+            <rect x={ufoX - 32} y="27" width="6" height="20" fill="#222233" />
+            {/* 6 engine nozzles */}
+            {[28, 31, 34, 37, 40, 43].map((ey, i) => (
               <g key={i}>
-                <rect x={ufoX - 27} y={ey} width="3" height="2" fill="#333344" />
-                <circle cx={ufoX - 27} cy={ey + 1} r="1" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.6">
-                  <animate attributeName="opacity" values="0.2;0.8;0.2" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin={`${i * 0.15}s`} />
+                <rect x={ufoX - 35} y={ey} width="3" height="2" fill="#1a1a2a" />
+                <circle cx={ufoX - 35} cy={ey + 1} r="1" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.5">
+                  <animate attributeName="opacity" values="0.2;0.7;0.2" dur={danger ? '0.15s' : '0.8s'} repeatCount="indefinite" begin={`${i * 0.12}s`} />
                 </circle>
               </g>
             ))}
-            {/* Engine exhaust glow */}
-            <rect x={ufoX - 30} y="30" width="3" height="10" rx="1" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.08" />
+            {/* Engine exhaust plume */}
+            <rect x={ufoX - 40} y="28" width="5" height="16" rx="1" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.05" />
 
-            {/* Weapons — ventral gun */}
-            <rect x={ufoX + 10} y="42" width="6" height="2" fill="#444455" />
-            <circle cx={ufoX + 16} cy="43" r="0.8" fill="#b44dff" opacity="0.4" />
+            {/* Broadside weapon batteries */}
+            {[ufoX - 16, ufoX - 6, ufoX + 6, ufoX + 16].map((wx, i) => (
+              <g key={i}>
+                {/* Top turrets */}
+                <rect x={wx - 1.5} y="25" width="3" height="3" fill="#444455" />
+                <rect x={wx - 0.5} y="23" width="1" height="2" fill="#555566" />
+                {/* Bottom turrets */}
+                <rect x={wx - 1.5} y="44" width="3" height="2" fill="#444455" />
+              </g>
+            ))}
 
-            {/* Dorsal antenna array */}
-            <line x1={ufoX + 2} y1="22" x2={ufoX + 4} y2="18" stroke="#6a6a7a" strokeWidth="0.8" />
-            <circle cx={ufoX + 4} cy="17.5" r="1" fill="#b44dff" opacity="0.5">
+            {/* Prow lance — big frontal weapon */}
+            <line x1={ufoX + 38} y1="35" x2={ufoX + 50} y2="35" stroke="#555566" strokeWidth="1.5" />
+            <circle cx={ufoX + 50} cy="35" r="1.2" fill={danger ? '#ff2a6d' : '#b44dff'} opacity="0.6">
+              <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
+            </circle>
+
+            {/* Shield/sensor arrays — antenna spikes */}
+            <line x1={ufoX - 2} y1="17" x2={ufoX} y2="13" stroke="#6a6a7a" strokeWidth="0.6" />
+            <circle cx={ufoX} cy="12.5" r="0.8" fill="#b44dff" opacity="0.5">
               <animate attributeName="opacity" values="0.3;0.7;0.3" dur="2.5s" repeatCount="indefinite" />
             </circle>
 
-            {/* Running lights */}
-            <circle cx={ufoX + 20} cy="29" r="0.7" fill="#00ff88" opacity="0.4" />
-            <circle cx={ufoX - 20} cy="29" r="0.7" fill="#ff2a6d" opacity="0.4" />
+            {/* Hull glow trim */}
+            <line x1={ufoX - 27} y1="36" x2={ufoX + 33} y2="36" stroke={danger ? 'rgba(255,42,109,0.1)' : 'rgba(199,125,255,0.08)'} strokeWidth="0.8" />
           </g>
         </svg>
       </div>
