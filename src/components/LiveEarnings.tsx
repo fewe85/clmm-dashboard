@@ -214,7 +214,7 @@ function OreDensityMeter({ positionValue, pendingTotal }: {
 
     draw()
     return () => cancelAnimationFrame(animId)
-  }, [ratePerHour])
+  }, [bestRate])
 
   // APR tier label
   const tier = liveApr > 10000 ? 'ULTRA RICH' : liveApr > 3000 ? 'RICH VEIN' : liveApr > 1000 ? 'GOOD' : 'SPARSE'
