@@ -324,7 +324,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       const flask = drawFlaskSprite(c, FLASK_X, FLASK_Y, Math.min(1, fillRef.current * 2.5), now)
 
       // ═══ SPRITE 4: U-TUBE ═════════════════════════════════
-      const utube = drawUTubeSprite(c, UTUBE_LX, UTUBE_TOP, UTUBE_RX, UTUBE_BOT, UTUBE_START, now)
+      drawUTubeSprite(c, UTUBE_LX, UTUBE_TOP, UTUBE_RX, UTUBE_BOT, UTUBE_START, now)
 
       // Connection line: flask neck → U-tube left
       c.strokeStyle = 'rgba(140,160,200,0.12)'; c.lineWidth = 1
