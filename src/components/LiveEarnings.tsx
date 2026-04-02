@@ -31,7 +31,7 @@ const COL = {
   neonGreen: '#00ff88',
   neonPurple: '#b44dff',
   warn: '#ff6b35',
-  asteroid: ['#9a8a7a', '#ab9580', '#8a7a6e', '#ba9585', '#7d7068'],
+  asteroid: ['#888888', '#999999', '#777777', '#aaaaaa', '#707070'],
   glow: 'rgba(0,255,136,0.15)',
   processGlow: 'rgba(255,107,53,0.08)',
 }
