@@ -332,7 +332,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           r.x = dropRight + Math.sin(r.y * 0.05) * 2 // slight drift
           // Hit liquid?
           if (r.y > surfaceY) { r.size *= 0.85 }
-          if (r.size < 0.3 || r.y > h) { r.phase = 'done'; continue }
+          if (r.size < 0.3 || r.y > h) { r.phase = 'done' as any; continue }
         } else { continue }
 
         // Draw
@@ -364,7 +364,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           ctx.fillStyle = 'rgba(0,255,136,0.08)'; ctx.fill()
         }
 
-        if (r.phase !== 'done') alive.push(r)
+        if ((r.phase as string) !== 'done') alive.push(r)
       }
       rocksRef.current = alive
 
