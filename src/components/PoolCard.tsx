@@ -332,67 +332,58 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
               additive="sum"
             />
 
-            {/* Main hull — flat angular body seen from above */}
-            <polygon
-              points={`${ufoX},18 ${ufoX + 12},30 ${ufoX + 10},40 ${ufoX - 10},40 ${ufoX - 12},30`}
-              fill="#4a4a5a" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.25)'} strokeWidth="0.6"
-            />
-            {/* Hull panel lines */}
-            <line x1={ufoX} y1="20" x2={ufoX} y2="39" stroke="rgba(199,125,255,0.08)" strokeWidth="0.5" />
-            <line x1={ufoX - 6} y1="28" x2={ufoX + 6} y2="28" stroke="rgba(199,125,255,0.06)" strokeWidth="0.5" />
+            {/* Mining Cruiser — broad, heavy, industrial (top-down) */}
 
-            {/* Cockpit window — small trapezoid at front */}
+            {/* Main hull — wide flat rectangle with angled prow */}
             <polygon
-              points={`${ufoX},21 ${ufoX + 4},26 ${ufoX - 4},26`}
-              fill={danger ? 'rgba(255,42,109,0.4)' : 'rgba(100,180,255,0.3)'}
-              stroke={danger ? '#ff2a6d' : 'rgba(126,184,255,0.4)'} strokeWidth="0.4"
-            />
-            {/* Cockpit reflection */}
-            <polygon
-              points={`${ufoX - 1},22 ${ufoX + 2},25 ${ufoX - 2},25`}
-              fill="white" opacity="0.1"
+              points={`${ufoX},16 ${ufoX + 6},22 ${ufoX + 18},26 ${ufoX + 18},44 ${ufoX - 18},44 ${ufoX - 18},26 ${ufoX - 6},22`}
+              fill="#3d3d4e" stroke={danger ? '#ff2a6d' : 'rgba(199,125,255,0.2)'} strokeWidth="0.6"
             />
 
-            {/* Engine block — rear section */}
-            <rect x={ufoX - 8} y="36" width="16" height="4" rx="1" fill="#3a3a4a" />
-            <rect x={ufoX - 6} y="37" width="12" height="2" fill="#555566" opacity="0.5" />
+            {/* Upper deck / bridge tower (raised center) */}
+            <rect x={ufoX - 6} y="22" width="12" height="14" fill="#4a4a5a" />
+            <rect x={ufoX - 5} y="23" width="10" height="4" fill="#555566" />
 
-            {/* Wings — swept back */}
-            <polygon
-              points={`${ufoX - 10},32 ${ufoX - 24},38 ${ufoX - 22},42 ${ufoX - 10},40`}
-              fill="#3a3a4a" stroke="rgba(199,125,255,0.12)" strokeWidth="0.4"
-            />
-            <polygon
-              points={`${ufoX + 10},32 ${ufoX + 24},38 ${ufoX + 22},42 ${ufoX + 10},40`}
-              fill="#3a3a4a" stroke="rgba(199,125,255,0.12)" strokeWidth="0.4"
-            />
-            {/* Wing trim */}
-            <line x1={ufoX - 11} y1="33" x2={ufoX - 22} y2="39" stroke="rgba(199,125,255,0.1)" strokeWidth="0.5" />
-            <line x1={ufoX + 11} y1="33" x2={ufoX + 22} y2="39" stroke="rgba(199,125,255,0.1)" strokeWidth="0.5" />
+            {/* Bridge windows — tiny horizontal slits */}
+            <rect x={ufoX - 4} y="24" width="8" height="1" fill={danger ? 'rgba(255,42,109,0.5)' : 'rgba(126,184,255,0.3)'} />
+            <rect x={ufoX - 3} y="26" width="6" height="0.6" fill={danger ? 'rgba(255,42,109,0.3)' : 'rgba(126,184,255,0.15)'} />
 
-            {/* Thruster exhaust — rear */}
-            <circle cx={ufoX - 4} cy="41" r="1.5" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.7">
-              <animate attributeName="opacity" values="0.3;0.9;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" />
-            </circle>
-            <circle cx={ufoX + 4} cy="41" r="1.5" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.7">
-              <animate attributeName="opacity" values="0.3;0.9;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin="0.15s" />
-            </circle>
-            {/* Thruster glow */}
-            <circle cx={ufoX - 4} cy="41" r="3.5" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.06" />
-            <circle cx={ufoX + 4} cy="41" r="3.5" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.06" />
+            {/* Hull panel lines — horizontal */}
+            {[30, 34, 38].map(y => (
+              <line key={y} x1={ufoX - 17} y1={y} x2={ufoX + 17} y2={y} stroke="rgba(199,125,255,0.05)" strokeWidth="0.5" />
+            ))}
+            {/* Keel line */}
+            <line x1={ufoX} y1="18" x2={ufoX} y2="43" stroke="rgba(199,125,255,0.06)" strokeWidth="0.5" />
 
-            {/* Wingtip engines */}
-            <circle cx={ufoX - 23} cy="40" r="1.2" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.5">
-              <animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.5s" repeatCount="indefinite" />
-            </circle>
-            <circle cx={ufoX + 23} cy="40" r="1.2" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.5">
-              <animate attributeName="opacity" values="0.2;0.7;0.2" dur="1.5s" repeatCount="indefinite" begin="0.5s" />
+            {/* Port + starboard trenches (darker grooves) */}
+            <rect x={ufoX - 16} y="28" width="3" height="14" fill="#2a2a3a" opacity="0.5" />
+            <rect x={ufoX + 13} y="28" width="3" height="14" fill="#2a2a3a" opacity="0.5" />
+
+            {/* Engine bank — wide rear block */}
+            <rect x={ufoX - 16} y="42" width="32" height="4" fill="#2a2a3a" />
+            {/* Individual engine nozzles */}
+            {[-12, -6, 0, 6, 12].map((dx, i) => (
+              <g key={i}>
+                <rect x={ufoX + dx - 2} y="44" width="4" height="2" fill="#333344" />
+                <circle cx={ufoX + dx} cy="46" r="1.2" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.6">
+                  <animate attributeName="opacity" values="0.3;0.8;0.3" dur={danger ? '0.2s' : '1.2s'} repeatCount="indefinite" begin={`${i * 0.2}s`} />
+                </circle>
+              </g>
+            ))}
+            {/* Engine glow — broad */}
+            <rect x={ufoX - 14} y="46" width="28" height="2" rx="1" fill={danger ? '#ff2a6d' : '#00ff88'} opacity="0.06" />
+
+            {/* Prow detail — ram/sensor array */}
+            <polygon points={`${ufoX},16 ${ufoX + 2},20 ${ufoX - 2},20`} fill="#555566" />
+            <circle cx={ufoX} cy="18" r="1" fill="#b44dff" opacity="0.6">
+              <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2.5s" repeatCount="indefinite" />
             </circle>
 
-            {/* Nav light — top */}
-            <circle cx={ufoX} cy="30" r="1" fill="#b44dff" opacity="0.5">
-              <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" />
-            </circle>
+            {/* Dorsal turrets — small bumps */}
+            <rect x={ufoX - 12} y="30" width="3" height="3" fill="#555566" />
+            <rect x={ufoX + 9} y="30" width="3" height="3" fill="#555566" />
+            <circle cx={ufoX - 10.5} cy="30" r="0.8" fill="#b44dff" opacity="0.4" />
+            <circle cx={ufoX + 10.5} cy="30" r="0.8" fill="#b44dff" opacity="0.4" />
           </g>
         </svg>
       </div>
