@@ -13,6 +13,13 @@ const BOT_STATE_FILES: Record<string, string> = {
 }
 
 export default defineConfig({
+  // Exclude public/api from file watching — bot writes state.json there every 60s,
+  // which triggers Vite's full page reload on public/ changes.
+  server: {
+    watch: {
+      ignored: ['**/public/api/**'],
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

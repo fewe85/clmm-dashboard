@@ -124,6 +124,35 @@ body {
   }
 }
 
+/* Range marker glow pulse */
+@keyframes range-glow {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+.range-marker-glow {
+  animation: range-glow 3s ease-in-out infinite;
+}
+
+@keyframes range-danger {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.5); opacity: 1; }
+}
+
+.range-marker-danger {
+  animation: range-danger 1s ease-in-out infinite;
+}
+
+/* Danger zone edge pulse */
+@keyframes danger-edge {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.7; }
+}
+
+.range-danger-pulse {
+  animation: danger-edge 1.5s ease-in-out infinite;
+}
+
 .surface-shimmer {
   position: absolute;
   top: 0;

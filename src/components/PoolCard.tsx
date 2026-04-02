@@ -92,15 +92,23 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         )}
       </div>
 
-      {/* 3. Key Metrics 2×2 */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
+      {/* 3. Key Metrics 2×2 — with glow cards */}
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
           <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Position Value</div>
           <div className="mono text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
             {fmtUsd(pm.positionValue)}
           </div>
         </div>
-        <div>
+        <div
+          className="rounded-xl px-3 py-2.5"
+          style={{
+            background: pm.netProfit >= 0
+              ? 'linear-gradient(135deg, rgba(34,197,94,0.08), var(--bg-primary))'
+              : 'linear-gradient(135deg, rgba(239,68,68,0.08), var(--bg-primary))',
+            border: `1px solid ${pm.netProfit >= 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+          }}
+        >
           <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Net P&L</div>
           <div
             className="mono text-lg font-bold"
@@ -112,13 +120,19 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
             {pm.netProfitPct >= 0 ? '+' : ''}{pm.netProfitPct.toFixed(1)}%
           </div>
         </div>
-        <div>
+        <div className="rounded-xl px-3 py-2.5" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
           <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>Est. Daily</div>
           <div className="mono text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
             {pm.dailyEst > 0 ? fmtUsd(pm.dailyEst) : '—'}
           </div>
         </div>
-        <div>
+        <div
+          className="rounded-xl px-3 py-2.5"
+          style={{
+            background: 'linear-gradient(135deg, rgba(34,197,94,0.06), var(--bg-primary))',
+            border: '1px solid rgba(34,197,94,0.15)',
+          }}
+        >
           <div className="text-xs mb-0.5" style={{ color: 'var(--text-muted)' }}>APR</div>
           <div className="mono text-sm font-semibold" style={{ color: 'var(--accent-green)' }}>
             {(pool.feesApr + pool.rewardsApr) > 0
@@ -140,9 +154,6 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
 
       {/* 5. P&L Breakdown */}
       <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
-
-      {/* 6. Harvest Progress Bar */}
-      <HarvestSection pool={pool} pm={pm} />
 
       {/* 7. Rebalance Stats (one line) */}
       <RebalanceLine pm={pm} pool={pool} />
@@ -174,7 +185,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
   )
 }
 
-/* ── Vertical Range Thermometer ──────────────────────────────────────────── */
+/* ── Range Radar ────────────────────────────────────────────────────────── */
 
 function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   pool: PoolData; rangeWidth: number; ceMultiplier: number
@@ -182,58 +193,116 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   const { priceLower, priceUpper, currentPrice, inRange } = pool
   const range = priceUpper - priceLower
   const position = range > 0 ? ((currentPrice - priceLower) / range) * 100 : 50
-  const clamped = Math.max(2, Math.min(98, position))
+  const clamped = Math.max(3, Math.min(97, position))
 
   const distLower = ((currentPrice - priceLower) / currentPrice) * 100
   const distUpper = ((priceUpper - currentPrice) / currentPrice) * 100
   const nearestPct = Math.min(distLower, distUpper)
   const nearestSide = distLower < distUpper ? 'lower' : 'upper'
-  const edgeColor = nearestPct < 0.5 ? 'var(--accent-red)' : nearestPct < 1 ? 'var(--accent-yellow)' : 'var(--accent-green)'
+  const danger = nearestPct < 0.5
+  const warn = nearestPct < 1.2 && !danger
+
+  // Price history trail from botState hourlyPriceBuffer (last 10 entries)
+  const priceHistory = pool.priceHistory ?? []
+  const trailDots = priceHistory.slice(-10).map(p => {
+    const pct = range > 0 ? ((p - priceLower) / range) * 100 : 50
+    return Math.max(0, Math.min(100, pct))
+  })
 
   return (
-    <div className="flex gap-4 items-stretch py-1">
-      {/* Vertical bar */}
-      <div className="relative rounded-full overflow-hidden flex-shrink-0" style={{ width: 10, height: 80, background: 'var(--bg-primary)' }}>
+    <div className="rounded-xl px-4 py-3" style={{ background: 'var(--bg-primary)', border: '1px solid var(--border)' }}>
+      {/* Labels row */}
+      <div className="flex justify-between text-xs mb-2">
+        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</span>
+        <span className="mono font-semibold" style={{ color: inRange ? 'var(--text-primary)' : 'var(--accent-red)' }}>
+          ${currentPrice.toFixed(4)}
+        </span>
+        <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</span>
+      </div>
+
+      {/* Horizontal range bar */}
+      <div className="relative rounded-full overflow-hidden" style={{ height: 24 }}>
+        {/* Background gradient: red edges, green center */}
         <div
           className="absolute inset-0 rounded-full"
           style={{
             background: inRange
-              ? 'linear-gradient(to top, rgba(239,68,68,0.25), rgba(34,197,94,0.35) 25%, rgba(34,197,94,0.35) 75%, rgba(239,68,68,0.25))'
-              : 'rgba(239,68,68,0.2)',
+              ? 'linear-gradient(to right, rgba(239,68,68,0.35), rgba(239,68,68,0.08) 15%, rgba(34,197,94,0.15) 30%, rgba(34,197,94,0.2) 50%, rgba(34,197,94,0.15) 70%, rgba(239,68,68,0.08) 85%, rgba(239,68,68,0.35))'
+              : 'rgba(239,68,68,0.15)',
           }}
         />
-        {/* Price marker */}
+
+        {/* Danger zone pulse — left */}
+        {(danger || warn) && nearestSide === 'lower' && (
+          <div className="absolute left-0 top-0 bottom-0 rounded-l-full range-danger-pulse"
+            style={{ width: '15%', background: danger ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.2)' }} />
+        )}
+        {/* Danger zone pulse — right */}
+        {(danger || warn) && nearestSide === 'upper' && (
+          <div className="absolute right-0 top-0 bottom-0 rounded-r-full range-danger-pulse"
+            style={{ width: '15%', background: danger ? 'rgba(239,68,68,0.3)' : 'rgba(234,179,8,0.2)' }} />
+        )}
+
+        {/* Price trail dots */}
+        {trailDots.map((pct, i) => (
+          <div
+            key={i}
+            className="absolute top-1/2 rounded-full"
+            style={{
+              left: `${pct}%`,
+              transform: 'translate(-50%, -50%)',
+              width: 3,
+              height: 3,
+              background: 'var(--accent-green)',
+              opacity: 0.1 + (i / trailDots.length) * 0.25,
+            }}
+          />
+        ))}
+
+        {/* Current price marker — glowing orb */}
         <div
-          className="absolute left-0 right-0 rounded-full transition-all duration-500"
+          className="absolute top-1/2 transition-all duration-700 ease-out"
           style={{
-            height: 4,
-            bottom: `${clamped}%`,
-            transform: 'translateY(50%)',
-            background: inRange ? 'var(--accent-green)' : 'var(--accent-red)',
-            boxShadow: inRange
-              ? '0 0 8px rgba(34,197,94,0.8)'
-              : '0 0 8px rgba(239,68,68,0.8)',
+            left: `${clamped}%`,
+            transform: 'translate(-50%, -50%)',
           }}
-        />
+        >
+          {/* Outer glow */}
+          <div
+            className={danger ? 'range-marker-danger' : 'range-marker-glow'}
+            style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              background: danger
+                ? 'radial-gradient(circle, rgba(239,68,68,0.6), transparent 70%)'
+                : warn
+                  ? 'radial-gradient(circle, rgba(234,179,8,0.5), transparent 70%)'
+                  : 'radial-gradient(circle, rgba(34,197,94,0.5), transparent 70%)',
+            }}
+          />
+          {/* Inner dot */}
+          <div
+            className="absolute top-1/2 left-1/2"
+            style={{
+              transform: 'translate(-50%, -50%)',
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: danger ? 'var(--accent-red)' : warn ? 'var(--accent-yellow)' : 'var(--accent-green)',
+              boxShadow: `0 0 6px ${danger ? 'rgba(239,68,68,0.8)' : warn ? 'rgba(234,179,8,0.7)' : 'rgba(34,197,94,0.8)'}`,
+            }}
+          />
+        </div>
       </div>
 
-      {/* Labels column */}
-      <div className="flex flex-col justify-between flex-1" style={{ height: 80 }}>
-        <span className="mono text-xs" style={{ color: 'var(--text-muted)' }}>
-          ${priceUpper.toFixed(4)}
+      {/* Info row */}
+      <div className="flex justify-between items-center mt-2 text-xs">
+        <span style={{ color: danger ? 'var(--accent-red)' : warn ? 'var(--accent-yellow)' : 'var(--accent-green)' }}>
+          <span className="mono font-semibold">{nearestPct.toFixed(1)}%</span> to {nearestSide}
         </span>
-        <div className="space-y-0.5">
-          <div>
-            <span className="mono text-xs font-semibold" style={{ color: edgeColor }}>
-              {nearestPct.toFixed(1)}% to {nearestSide}
-            </span>
-          </div>
-          <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Range ±{(rangeWidth / 2).toFixed(1)}% · CE: {ceMultiplier.toFixed(0)}x
-          </div>
-        </div>
-        <span className="mono text-xs" style={{ color: 'var(--text-muted)' }}>
-          ${priceLower.toFixed(4)}
+        <span style={{ color: 'var(--text-muted)' }}>
+          ±{(rangeWidth / 2).toFixed(1)}% range · {ceMultiplier.toFixed(0)}x CE
         </span>
       </div>
     </div>
@@ -340,43 +409,6 @@ function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
       <span className="mono font-medium" style={{ color: clmmAdv >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
         {fmtSign(clmmAdv)}
       </span>
-    </div>
-  )
-}
-
-/* ── Harvest Progress ────────────────────────────────────────────────────── */
-
-function HarvestSection({ pool, pm }: { pool: PoolData; pm: PoolMetrics }) {
-  const pending = pool.compoundPending ?? 0
-  const threshold = pool.compoundThreshold ?? 0
-  const pct = threshold > 0 ? Math.min((pending / threshold) * 100, 100) : 0
-  const ready = pending >= threshold && threshold > 0
-
-  return (
-    <div>
-      <div className="flex justify-between text-xs mb-1">
-        <span style={{ color: 'var(--text-secondary)' }}>
-          Next Harvest (1% of position)
-          {ready && <span style={{ color: 'var(--accent-green)' }}> — Ready ({(pending / threshold).toFixed(1)}x)</span>}
-        </span>
-        <span className="mono" style={{ color: ready ? 'var(--accent-green)' : 'var(--text-muted)' }}>
-          ${pending.toFixed(2)} / ${threshold.toFixed(2)}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
-        <div
-          className="h-full rounded-full transition-all duration-500"
-          style={{
-            width: `${pct}%`,
-            background: pct >= 100 ? 'var(--accent-green)' : 'var(--accent-blue)',
-          }}
-        />
-      </div>
-      {(pm.dailyEst > 0 || pm.harvestRate7d > 0) && (
-        <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          Earn Rate: <span className="mono">{fmtUsd(pm.dailyEst > 0 ? pm.dailyEst : pm.harvestRate7d)}/day</span> (projected)
-        </div>
-      )}
     </div>
   )
 }

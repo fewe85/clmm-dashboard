@@ -16,6 +16,8 @@ interface Props {
   elonSnapshots: Snapshot[]
   aptClmmVsHodl: number
   elonClmmVsHodl: number
+  totalInvested: number
+  daysRunning: number
 }
 
 type TimeWindow = '24h' | '7d' | '30d' | 'all'
@@ -27,7 +29,7 @@ const WINDOWS: { key: TimeWindow; label: string; ms: number }[] = [
   { key: 'all', label: 'All', ms: Infinity },
 ]
 
-export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl }: Props) {
+export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, elonClmmVsHodl, totalInvested, daysRunning }: Props) {
   const [window, setWindow] = useState<TimeWindow>('all')
   const [mode, setMode] = useState<'profit' | 'vshodl'>('profit')
 
@@ -218,6 +220,46 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
           </AreaChart>
         </ResponsiveContainer>
       </div>
+
+      {/* Projected outperformance rates */}
+      {mode === 'vshodl' && daysRunning > 0 && totalInvested > 0 && <ProjectedRates
+        vsHodl={aptClmmVsHodl + elonClmmVsHodl}
+        invested={totalInvested}
+        days={daysRunning}
+      />}
+    </div>
+  )
+}
+
+function ProjectedRates({ vsHodl, invested, days }: { vsHodl: number; invested: number; days: number }) {
+  const dailyRate = vsHodl / days
+  const projections = [
+    { label: 'Daily', value: dailyRate },
+    { label: 'Monthly', value: dailyRate * 30 },
+    { label: 'Yearly', value: dailyRate * 365 },
+  ]
+  const apr = (vsHodl / invested) * (365 / days) * 100
+
+  return (
+    <div className="flex items-center gap-5 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
+      <div className="flex items-baseline gap-1.5">
+        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Outperformance APR</span>
+        <span className="mono text-sm font-semibold" style={{ color: apr >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+          {apr >= 0 ? '+' : ''}{apr.toFixed(0)}%
+        </span>
+      </div>
+      <div style={{ width: 1, height: 14, background: 'var(--border)' }} />
+      {projections.map(p => (
+        <div key={p.label} className="flex items-baseline gap-1">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{p.label}</span>
+          <span className="mono text-xs font-medium" style={{ color: p.value >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
+            {p.value >= 0 ? '+' : ''}{Math.abs(p.value) >= 1000 ? `$${(p.value / 1000).toFixed(1)}k` : `$${p.value.toFixed(2)}`}
+          </span>
+        </div>
+      ))}
+      <span className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+        ({days.toFixed(1)}d measured)
+      </span>
     </div>
   )
 }
