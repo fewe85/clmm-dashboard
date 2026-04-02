@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { PoolMetrics } from '../hooks/usePoolData'
 import type { PoolData, BotState, RebalanceMetric } from '../types'
+import { LiveEarnings } from './LiveEarnings'
 
 // Pool-specific fee config
 const POOL_FEE_BPS: Record<string, number> = { APT: 5, ELON: 30 }
@@ -41,8 +42,14 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
   const tokenAPrice = pool.currentPrice || (pool.tokenA === 'APT' ? 0.96 : 0.12)
   const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
 
+  const pendingFees = pool.pendingFeesUsd ?? 0
+  const pendingRewards = pool.pendingRewardsUsd ?? 0
+  const harvestThreshold = pool.compoundThreshold ?? 0
+
   return (
-    <div className="card-glow rounded-2xl p-5 space-y-4">
+    <div className="card-glow rounded-2xl p-5 flex gap-4">
+      {/* Left: main content */}
+      <div className="flex-1 space-y-4 min-w-0">
       {/* Stale / Error warnings */}
       {pool.stale && (
         <div className="text-xs px-3 py-1.5 rounded-lg" style={{ background: 'rgba(234,179,8,0.1)', color: 'var(--accent-yellow)' }}>
@@ -150,6 +157,18 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
           Range Optimization {showOpt ? '▾' : '▸'}
         </button>
         {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
+      </div>
+      </div>{/* end left */}
+
+      {/* Right: Live Earnings drip tank */}
+      <div className="flex-shrink-0 hidden md:flex" style={{ borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
+        <LiveEarnings
+          snapshots={pool.botState?.earningsSnapshots ?? []}
+          pendingFees={pendingFees}
+          pendingRewards={pendingRewards}
+          nextHarvestAt={pool.botState?.nextHarvestAt ?? null}
+          harvestThreshold={harvestThreshold}
+        />
       </div>
     </div>
   )

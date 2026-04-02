@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { usePoolData, type PoolMetrics } from './hooks/usePoolData'
 import { PoolCard } from './components/PoolCard'
-import { LiveEarnings } from './components/LiveEarnings'
 import { PerformanceChart } from './components/PerformanceChart'
 import { WalletBox } from './components/WalletBox'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -85,16 +84,8 @@ function AppContent() {
 
       {!isLoading && (
         <div className="space-y-5">
-          {/* Pool Card + Live Earnings side by side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} />
-            <LiveEarnings
-              snapshots={elon.pool?.botState?.earningsSnapshots ?? []}
-              pendingFees={elon.pendingFees}
-              pendingRewards={elon.pendingRewards}
-              nextHarvestAt={elon.pool?.botState?.nextHarvestAt ?? null}
-            />
-          </div>
+          {/* Pool Card with integrated Live Earnings */}
+          <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} />
 
           {/* Wallets */}
           <WalletBox botWallet={botWallet} petraWallet={petraWallet} />

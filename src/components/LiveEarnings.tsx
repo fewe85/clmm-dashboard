@@ -12,12 +12,11 @@ interface LiveEarningsProps {
   pendingFees: number
   pendingRewards: number
   nextHarvestAt: string | null
+  harvestThreshold: number
 }
 
-/** Calculate earning rate ($/hour) from recent snapshots */
 function calcRate(snapshots: Snapshot[]): { feesPerHour: number; rewardsPerHour: number } {
   if (snapshots.length < 3) return { feesPerHour: 0, rewardsPerHour: 0 }
-  // Use last ~6h of data for stable rate
   const recent = snapshots.slice(-6)
   const oldest = recent[0]
   const newest = recent[recent.length - 1]
@@ -29,7 +28,7 @@ function calcRate(snapshots: Snapshot[]): { feesPerHour: number; rewardsPerHour:
   }
 }
 
-export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt }: LiveEarningsProps) {
+export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold }: LiveEarningsProps) {
   const { feesPerHour, rewardsPerHour } = useMemo(() => calcRate(snapshots), [snapshots])
   const totalPerHour = feesPerHour + rewardsPerHour
   const totalPerSecond = totalPerHour / 3600
@@ -39,15 +38,12 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const baseRef = useRef({ value: pendingFees + pendingRewards, time: Date.now() })
   const rafRef = useRef<number>(0)
 
-  // Reset base when real data refreshes
   useEffect(() => {
     baseRef.current = { value: pendingFees + pendingRewards, time: Date.now() }
   }, [pendingFees, pendingRewards])
 
-  // Tick animation
   useEffect(() => {
     if (totalPerSecond <= 0) return
-
     const tick = () => {
       const elapsed = (Date.now() - baseRef.current.time) / 1000
       setDisplayTotal(baseRef.current.value + elapsed * totalPerSecond)
@@ -70,140 +66,96 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     return () => clearInterval(t)
   }, [nextHarvestAt])
 
-  // Split for display
+  const fillPct = harvestThreshold > 0
+    ? Math.min((displayTotal / harvestThreshold) * 100, 100)
+    : 0
   const feesRatio = totalPerHour > 0 ? feesPerHour / totalPerHour : 0
-  const rewardsRatio = 1 - feesRatio
-  const displayFees = displayTotal * feesRatio
-  const displayRewards = displayTotal * rewardsRatio
-
-  // Sparkline from snapshots (total earnings over time)
-  const sparkData = useMemo(() => {
-    if (snapshots.length < 2) return []
-    return snapshots.map(s => s.feesUsd + s.rewardsUsd)
-  }, [snapshots])
 
   if (totalPerHour <= 0) return null
 
+  // Generate deterministic "drops" at different speeds/positions
+  const drops = useMemo(() =>
+    Array.from({ length: 12 }, (_, i) => ({
+      left: 10 + (i * 37 + 13) % 80, // pseudo-random spread
+      delay: (i * 0.7) % 4,
+      duration: 2.5 + (i % 3) * 0.8,
+      size: i % 3 === 0 ? 4 : 3,
+      isReward: i > Math.floor(12 * feesRatio), // color by ratio
+    })),
+  [feesRatio])
+
   return (
-    <div className="card-glow rounded-2xl p-5">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="earning-pulse" />
-          <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
-            Live Earnings
-          </span>
+    <div className="flex flex-col items-center justify-between relative" style={{ width: 100, minHeight: '100%' }}>
+      {/* Rate label */}
+      <div className="text-center mb-1 z-10">
+        <div className="earning-pulse mx-auto mb-1" />
+        <div className="mono text-xs font-semibold" style={{ color: 'var(--accent-green)' }}>
+          ${displayTotal.toFixed(4)}
         </div>
-        <span className="mono text-xs" style={{ color: 'var(--text-muted)' }}>
-          ${totalPerHour.toFixed(4)}/hr
-        </span>
-      </div>
-
-      {/* Main counter */}
-      <div className="text-center mb-4">
-        <div className="mono text-3xl font-bold tracking-tight" style={{ color: 'var(--accent-green)' }}>
-          ${displayTotal.toFixed(6)}
-        </div>
-        <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-          pending fees + rewards
+        <div className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '9px' }}>
+          pending
         </div>
       </div>
 
-      {/* Fee / Reward split bar */}
-      <div className="mb-3">
-        <div className="flex rounded-full overflow-hidden h-2 mb-1.5" style={{ background: 'var(--bg-primary)' }}>
+      {/* Tank container — the drip zone */}
+      <div className="relative flex-1 w-full" style={{ minHeight: 180 }}>
+        {/* Tank outline */}
+        <div
+          className="absolute inset-x-2 top-0 bottom-0 rounded-xl overflow-hidden"
+          style={{
+            border: '1px solid var(--border)',
+            background: 'var(--bg-primary)',
+          }}
+        >
+          {/* Fill level (bottom-up) */}
           <div
-            className="transition-all duration-1000 ease-linear"
+            className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
             style={{
-              width: `${feesRatio * 100}%`,
-              background: 'var(--accent-blue)',
-              minWidth: feesRatio > 0 ? '2px' : '0',
+              height: `${fillPct}%`,
+              background: `linear-gradient(to top, rgba(34,197,94,0.25), rgba(59,130,246,0.15) ${feesRatio * 100}%, rgba(34,197,94,0.25))`,
+              borderTop: fillPct > 2 ? '1px solid rgba(34,197,94,0.3)' : 'none',
             }}
-          />
-          <div
-            className="transition-all duration-1000 ease-linear"
-            style={{
-              width: `${rewardsRatio * 100}%`,
-              background: 'var(--accent-green)',
-              minWidth: rewardsRatio > 0 ? '2px' : '0',
-            }}
-          />
-        </div>
-        <div className="flex justify-between text-xs">
-          <span style={{ color: 'var(--accent-blue)' }}>
-            <span className="mono">${displayFees.toFixed(4)}</span> fees
-          </span>
-          <span style={{ color: 'var(--accent-green)' }}>
-            <span className="mono">${displayRewards.toFixed(4)}</span> rewards
-          </span>
+          >
+            {/* Surface shimmer */}
+            {fillPct > 5 && (
+              <div className="surface-shimmer" />
+            )}
+          </div>
+
+          {/* Falling drops */}
+          {drops.map((d, i) => (
+            <div
+              key={i}
+              className="drop-fall"
+              style={{
+                left: `${d.left}%`,
+                animationDelay: `${d.delay}s`,
+                animationDuration: `${d.duration}s`,
+                width: d.size,
+                height: d.size,
+                background: d.isReward ? 'var(--accent-green)' : 'var(--accent-blue)',
+              }}
+            />
+          ))}
         </div>
       </div>
 
-      {/* Sparkline */}
-      {sparkData.length > 3 && (
-        <div className="mb-3">
-          <Sparkline data={sparkData} />
+      {/* Bottom stats */}
+      <div className="text-center mt-1.5 z-10 space-y-0.5">
+        <div className="mono text-xs" style={{ color: 'var(--text-muted)', fontSize: '9px' }}>
+          <span style={{ color: 'var(--accent-blue)' }}>fees</span>
+          {' + '}
+          <span style={{ color: 'var(--accent-green)' }}>rewards</span>
         </div>
-      )}
-
-      {/* Rate + harvest row */}
-      <div className="flex justify-between items-center text-xs" style={{ color: 'var(--text-muted)' }}>
-        <div>
-          <span className="mono font-semibold" style={{ color: 'var(--text-primary)' }}>
-            ${(totalPerHour * 24).toFixed(2)}
-          </span>
-          /day est.
+        <div className="mono text-xs font-medium" style={{ color: 'var(--text-primary)' }}>
+          ${(totalPerHour * 24).toFixed(2)}/d
         </div>
         {harvestSec !== null && harvestSec > 0 && (
-          <div>
-            harvest in{' '}
-            <span className="mono font-semibold" style={{
-              color: harvestSec < 300 ? 'var(--accent-green)' : 'var(--text-primary)',
-            }}>
-              {Math.floor(harvestSec / 3600)}:{String(Math.floor((harvestSec % 3600) / 60)).padStart(2, '0')}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
-            </span>
+          <div className="mono" style={{ color: harvestSec < 300 ? 'var(--accent-green)' : 'var(--text-muted)', fontSize: '9px' }}>
+            {Math.floor(harvestSec / 60)}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
           </div>
         )}
       </div>
     </div>
-  )
-}
-
-/** Tiny inline sparkline (SVG) */
-function Sparkline({ data }: { data: number[] }) {
-  const w = 280
-  const h = 32
-  const min = Math.min(...data)
-  const max = Math.max(...data)
-  const range = max - min || 1
-
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w
-    const y = h - ((v - min) / range) * (h - 4) - 2
-    return `${x},${y}`
-  }).join(' ')
-
-  // Gradient fill area
-  const areaPoints = `0,${h} ${points} ${w},${h}`
-
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="w-full" style={{ height: '32px' }}>
-      <defs>
-        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent-green)" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="var(--accent-green)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polygon points={areaPoints} fill="url(#spark-fill)" />
-      <polyline
-        points={points}
-        fill="none"
-        stroke="var(--accent-green)"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        opacity="0.7"
-      />
-    </svg>
   )
 }
