@@ -89,40 +89,42 @@ function makeParticle(_h: number): Particle {
   }
 }
 
-/** Ore Density meter — live APR from fastest available data */
-function OreDensityMeter({ ratePerHour, positionValue, pendingTotal, snapshots }: {
-  ratePerHour: number; positionValue: number; pendingTotal: number; snapshots: Snapshot[]
+/** Ore Density meter — live APR purely from pending value deltas */
+function OreDensityMeter({ positionValue, pendingTotal }: {
+  positionValue: number; pendingTotal: number
 }) {
-  // Track pending changes between refreshes for real-time rate
-  const prevPendingRef = useRef({ value: pendingTotal, time: Date.now() })
-  const liveRateRef = useRef(ratePerHour)
+  // History of pending values — each refresh adds a point
+  const historyRef = useRef<{ value: number; time: number }[]>([])
+  const bestRateRef = useRef(0)
 
   useEffect(() => {
-    const prev = prevPendingRef.current
     const now = Date.now()
-    const dt = (now - prev.time) / 3_600_000 // hours
-    const dv = pendingTotal - prev.value
+    const history = historyRef.current
 
-    if (dt > 0.01 && dv > 0) { // at least ~30s and positive change
-      // Blend: 70% new measurement, 30% old to smooth noise
-      liveRateRef.current = liveRateRef.current * 0.3 + (dv / dt) * 0.7
+    // Add new measurement
+    history.push({ value: pendingTotal, time: now })
+
+    // Keep last 10 minutes of data
+    const cutoff = now - 10 * 60_000
+    historyRef.current = history.filter(h => h.time > cutoff)
+
+    // Calculate rate from oldest to newest in window
+    const h = historyRef.current
+    if (h.length >= 2) {
+      const oldest = h[0]
+      const newest = h[h.length - 1]
+      const dt = (newest.time - oldest.time) / 3_600_000 // hours
+      const dv = newest.value - oldest.value
+
+      if (dt > 0.005) { // at least ~20s
+        const newRate = dv > 0 ? dv / dt : 0
+        // Smooth: 60% new, 40% old to reduce jitter but stay responsive
+        bestRateRef.current = bestRateRef.current * 0.4 + newRate * 0.6
+      }
     }
-    prevPendingRef.current = { value: pendingTotal, time: now }
   }, [pendingTotal])
 
-  // Also check last 2 snapshots for fast reaction after rebalance
-  const shortRate = useMemo(() => {
-    if (snapshots.length < 2) return 0
-    const last = snapshots[snapshots.length - 1]
-    const prev = snapshots[snapshots.length - 2]
-    const dt = (new Date(last.t).getTime() - new Date(prev.t).getTime()) / 3_600_000
-    if (dt < 0.3) return 0 // too close, unreliable
-    const dEarn = (last.feesUsd - prev.feesUsd) + (last.rewardsUsd - prev.rewardsUsd)
-    return dEarn > 0 ? dEarn / dt : 0
-  }, [snapshots])
-
-  // Use the most responsive rate: max of live-pending, short-snapshot, and hourly average
-  const bestRate = Math.max(liveRateRef.current, shortRate, ratePerHour)
+  const bestRate = bestRateRef.current
   const liveApr = positionValue > 0 ? (bestRate * 24 * 365 / positionValue) * 100 : 0
   const canvasRef = useRef<HTMLCanvasElement>(null)
   // Track recent "clicks" for visual decay
@@ -866,7 +868,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       </div>
 
       {/* Ore density meter — earning velocity + live APR */}
-      <OreDensityMeter ratePerHour={totalPerHour} positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} snapshots={snapshots} />
+      <OreDensityMeter positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} />
 
       {/* Refinery column — canvas fills all remaining height */}
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 250 }}>
