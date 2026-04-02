@@ -211,7 +211,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   }))
 
   return (
-    <div className="overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', borderRadius: 6, margin: '0 -24px' }}>
+    <div className="overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)', borderRadius: 6, marginRight: -156, marginLeft: -24 }}>
       {/* HUD overlay */}
       <div className="flex justify-between items-center px-3 pt-2">
         <span className="hud-label" style={{ color: inRange ? 'var(--neon-green)' : 'var(--neon-pink)' }}>
