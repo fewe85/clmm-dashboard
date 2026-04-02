@@ -260,80 +260,44 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillStyle = heatGrad
     ctx.fillRect(railW + 15, intakeEnd + 3, W - railW * 2 - 30, processEnd - intakeEnd - 6)
 
-    // ─── ROBOT WITH LIGHTSABER STAFF (horizontal) ─────────────────
+    // ─── ROBOT WITH EYE LASERS ────────────────────────────────────
     const robotX = W / 2
     const robotY = processEnd - 16
-    const staffLen = 46 // half-length each side
 
-    // Gentle idle bob + tilt (like UFO)
+    // Gentle idle bob + tilt
     const bobY = Math.sin(now * 0.0015) * 3 + Math.sin(now * 0.0025) * 1.5
-    const tiltDeg = Math.sin(now * 0.0012) * 2 + Math.sin(now * 0.002) * 1
-    const tiltRad = tiltDeg * Math.PI / 180
+    const rby = robotY + bobY
 
-    // Staff endpoints — horizontal bar held at chest height
-    const staffY = robotY - 10 + bobY
-    const lTipX = robotX - Math.cos(tiltRad) * staffLen
-    const lTipY = staffY - Math.sin(tiltRad) * staffLen
-    const rTipX = robotX + Math.cos(tiltRad) * staffLen
-    const rTipY = staffY + Math.sin(tiltRad) * staffLen
+    // Eye positions
+    const eyeLX = robotX - 4
+    const eyeRX = robotX + 4
+    const eyeY = rby - 28
 
-    // Single blade line for collision
-    const blades = [
-      { ax: lTipX, ay: lTipY, bx: rTipX, by: rTipY },
-    ]
+    // Find nearest asteroid above robot to target
+    let targetX = robotX
+    let targetY = eyeY - 30
+    let hasTarget = false
+    let nearestDist = Infinity
+    for (const p of particlesRef.current) {
+      if (p.phase !== 'intake') continue
+      const dist = Math.sqrt((p.x - robotX) ** 2 + (p.y - eyeY) ** 2)
+      if (p.y < eyeY && dist < nearestDist) {
+        nearestDist = dist
+        targetX = p.x
+        targetY = p.y
+        hasTarget = true
+      }
+    }
+
+    // Collision: any asteroid within laser range of eye-to-target line
+    const blades = hasTarget ? [
+      { ax: eyeLX, ay: eyeY, bx: targetX, by: targetY },
+      { ax: eyeRX, ay: eyeY, bx: targetX, by: targetY },
+    ] : []
 
     ctx.save()
-    const bladeAlpha = 0.7 + Math.sin(now * 0.01) * 0.2
-
-    // Staff glow
-    ctx.beginPath()
-    ctx.moveTo(lTipX, lTipY)
-    ctx.lineTo(rTipX, rTipY)
-    ctx.strokeStyle = 'rgba(180,77,255,0.1)'
-    ctx.lineWidth = 14
-    ctx.lineCap = 'round'
-    ctx.stroke()
-
-    // Staff outer blade
-    ctx.globalAlpha = bladeAlpha
-    ctx.beginPath()
-    ctx.moveTo(lTipX, lTipY)
-    ctx.lineTo(rTipX, rTipY)
-    ctx.strokeStyle = '#d494ff'
-    ctx.lineWidth = 3
-    ctx.stroke()
-
-    // Staff bright core
-    ctx.strokeStyle = '#e8c0ff'
-    ctx.lineWidth = 1.2
-    ctx.beginPath()
-    ctx.moveTo(lTipX, lTipY)
-    ctx.lineTo(rTipX, rTipY)
-    ctx.stroke()
-    ctx.lineCap = 'butt'
-
-    // Tip sparks
-    for (const [tx, ty] of [[lTipX, lTipY], [rTipX, rTipY]]) {
-      ctx.beginPath()
-      ctx.arc(tx, ty, 3, 0, Math.PI * 2)
-      ctx.fillStyle = 'rgba(212,148,255,0.3)'
-      ctx.fill()
-      ctx.beginPath()
-      ctx.arc(tx, ty, 1.5, 0, Math.PI * 2)
-      ctx.fillStyle = '#e8c0ff'
-      ctx.fill()
-    }
-    ctx.globalAlpha = 1
-
-    // Handle (center of staff)
-    ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX - 4, staffY - 3, 8, 6)
-    ctx.fillStyle = '#8a8a9a'
-    ctx.fillRect(robotX - 2, staffY - 2, 4, 4)
 
     // ── Robot body ──
-    const rby = robotY + bobY // all parts bob together
-
     // Legs
     ctx.fillStyle = '#3a3a4a'
     ctx.fillRect(robotX - 10, rby + 3, 6, 12)
@@ -360,21 +324,29 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillRect(robotX - 6, rby - 12, 12, 12)
     ctx.globalAlpha = 1
 
-    // Arms — extend sideways to hold staff
+    // Arms at sides
     ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX - 19, rby - 14, 8, 4)
-    ctx.fillRect(robotX + 11, rby - 14, 8, 4)
+    ctx.fillRect(robotX - 19, rby - 16, 6, 12)
+    ctx.fillRect(robotX + 13, rby - 16, 6, 12)
 
     // Head
     ctx.fillStyle = '#5a5a6a'
     ctx.fillRect(robotX - 9, rby - 33, 18, 15)
+    // Visor
     ctx.fillStyle = '#1a1a2a'
     ctx.fillRect(robotX - 8, rby - 30, 16, 6)
-    ctx.fillStyle = '#ff4444'
-    ctx.fillRect(robotX - 6, rby - 29, 4, 3)
-    ctx.fillRect(robotX + 2, rby - 29, 4, 3)
-    ctx.fillStyle = 'rgba(255,68,68,0.25)'
-    ctx.fillRect(robotX - 8, rby - 30, 16, 6)
+
+    // Eyes — glow brighter when targeting
+    const eyeGlow = hasTarget ? 1.0 : 0.6
+    ctx.fillStyle = `rgba(255,68,68,${eyeGlow})`
+    ctx.fillRect(eyeLX - 2, eyeY - 1, 4, 3)
+    ctx.fillRect(eyeRX - 2, eyeY - 1, 4, 3)
+    // Eye glow halo
+    if (hasTarget) {
+      ctx.fillStyle = 'rgba(255,68,68,0.3)'
+      ctx.fillRect(robotX - 9, rby - 31, 18, 8)
+    }
+
     // Antenna
     ctx.fillStyle = '#6a6a7a'
     ctx.fillRect(robotX, rby - 40, 2, 7)
@@ -386,6 +358,46 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.globalAlpha = 0.5 + Math.sin(now * 0.004) * 0.3
     ctx.fill()
     ctx.globalAlpha = 1
+
+    // ── Eye laser beams (drawn in front of robot) ──
+    if (hasTarget) {
+      // Glow
+      for (const ex of [eyeLX, eyeRX]) {
+        ctx.beginPath()
+        ctx.moveTo(ex, eyeY)
+        ctx.lineTo(targetX, targetY)
+        ctx.strokeStyle = 'rgba(255,68,68,0.06)'
+        ctx.lineWidth = 8
+        ctx.stroke()
+      }
+      // Beam core
+      ctx.globalAlpha = 0.7 + Math.sin(now * 0.02) * 0.3
+      for (const ex of [eyeLX, eyeRX]) {
+        ctx.beginPath()
+        ctx.moveTo(ex, eyeY)
+        ctx.lineTo(targetX, targetY)
+        ctx.strokeStyle = '#ff4444'
+        ctx.lineWidth = 1.5
+        ctx.lineCap = 'round'
+        ctx.stroke()
+      }
+      // Bright center
+      for (const ex of [eyeLX, eyeRX]) {
+        ctx.beginPath()
+        ctx.moveTo(ex, eyeY)
+        ctx.lineTo(targetX, targetY)
+        ctx.strokeStyle = '#ff8888'
+        ctx.lineWidth = 0.6
+        ctx.stroke()
+      }
+      ctx.lineCap = 'butt'
+      // Impact point
+      ctx.beginPath()
+      ctx.arc(targetX, targetY, 5, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(255,68,68,0.15)'
+      ctx.fill()
+      ctx.globalAlpha = 1
+    }
 
     ctx.restore()
 
