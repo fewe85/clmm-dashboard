@@ -44,7 +44,7 @@ function WalletColumn({ wallet, bay, accent }: { wallet: WalletBalance; bay: str
         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Empty bay</div>
       )}
 
-      {wallet.balances.map((b, i) => (
+      {wallet.balances.filter(b => !b.priceUnknown).map((b, i) => (
         <div
           key={i}
           className="flex justify-between text-xs py-0.5"
