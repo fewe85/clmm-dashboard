@@ -143,8 +143,27 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
     ctx.clearRect(0, 0, W, h)
 
-    // ─── BACKGROUND ──────────────────────────────────────────────
-    ctx.fillStyle = COL.bg
+    // ─── BACKGROUND — space / starfield ────────────────────────────
+    ctx.fillStyle = '#020210'
+    ctx.fillRect(0, 0, W, h)
+
+    // Stars (deterministic from seed, drawn each frame for simplicity)
+    for (let i = 0; i < 25; i++) {
+      const sx = ((i * 47 + 13) % (W - 8)) + 4
+      const sy = ((i * 73 + 29) % (h - 8)) + 4
+      const sr = i % 6 === 0 ? 0.9 : 0.4
+      const sa = 0.12 + (i % 4) * 0.06 + Math.sin(now * 0.001 + i) * 0.04
+      ctx.beginPath()
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(255,255,255,${sa})`
+      ctx.fill()
+    }
+
+    // Subtle nebula tint
+    const nebula = ctx.createRadialGradient(W / 2, h * 0.4, 0, W / 2, h * 0.4, h * 0.5)
+    nebula.addColorStop(0, 'rgba(180,77,255,0.03)')
+    nebula.addColorStop(1, 'transparent')
+    ctx.fillStyle = nebula
     ctx.fillRect(0, 0, W, h)
 
     // ─── METAL FRAME ─────────────────────────────────────────────
