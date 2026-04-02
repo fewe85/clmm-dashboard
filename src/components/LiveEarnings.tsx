@@ -88,7 +88,7 @@ function makeParticle(_h: number): Particle {
   }
 }
 
-export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt }: LiveEarningsProps) {
+export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold }: LiveEarningsProps) {
   const { feesPerHour, rewardsPerHour } = useMemo(() => calcRate(snapshots), [snapshots])
   const totalPerHour = feesPerHour + rewardsPerHour
   const totalPerSecond = totalPerHour / 3600
@@ -134,8 +134,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     const currentTotal = baseRef.current.value + elapsed * totalPerSecond
     setDisplayTotal(currentTotal)
 
-    // Fill level
-    const targetFill = Math.min(currentTotal / FILL_TARGET, 1)
+    // Fill level — based on harvest threshold (1% of position)
+    const fillTarget = harvestThreshold > 0 ? harvestThreshold : FILL_TARGET
+    const targetFill = Math.min(currentTotal / fillTarget, 1)
     fillRef.current += (targetFill - fillRef.current) * 0.02
 
     // Zone boundaries
@@ -626,6 +627,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       {/* Bottom stats */}
       <div className="text-center z-10 flex-shrink-0 py-1 space-y-0.5">
+        {harvestThreshold > 0 && (
+          <div className="mono" style={{ fontSize: '8px', color: displayTotal >= harvestThreshold ? '#00ff88' : 'var(--text-muted)' }}>
+            ${displayTotal.toFixed(2)} / ${harvestThreshold.toFixed(2)}
+          </div>
+        )}
         <div className="hud-label" style={{ fontSize: '7px', color: '#00ff88' }}>REFINING RATE</div>
         <div className="mono text-xs font-bold" style={{ color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>
           ${dailyRate.toFixed(2)}/d
