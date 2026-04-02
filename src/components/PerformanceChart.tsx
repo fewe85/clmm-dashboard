@@ -51,7 +51,6 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
     const filteredSnaps = allSnaps.filter(s => new Date(s.t).getTime() >= cutoff)
     if (filteredSnaps.length < 2) return []
 
-    // Baseline: first snapshot per pool
     const baseApt = filteredSnaps.find(s => s.pool === 'apt')
     const baseElon = filteredSnaps.find(s => s.pool === 'elon')
 
@@ -65,7 +64,6 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
       if (snap.pool === 'apt') lastApt = snap
       else lastElon = snap
 
-      // Net Profit: delta(fees + rewards + posValue) since baseline
       let profit = 0
       if (lastApt && baseApt) {
         profit += (lastApt.feesUsd - baseApt.feesUsd) + (lastApt.rewardsUsd - baseApt.rewardsUsd)
@@ -79,13 +77,9 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
       points.push({ time: t, label: fmtDate(new Date(t)), profit, vshodl: 0 })
     }
 
-    // For vsHodl: we can't compute exact per-snapshot HODL returns (no price data).
-    // Use the accurate PoolCard values for the final point, and scale the earnings
-    // curve (profit minus position changes = pure earnings) proportionally.
     if (mode === 'vshodl' && points.length > 0) {
       const currentVsHodl = aptClmmVsHodl + elonClmmVsHodl
 
-      // Pure earnings curve (no position value changes, just fees+rewards delta)
       const earningsPoints: number[] = points.map((_p, i) => {
         let earnings = 0
         if (lastApt && baseApt) {
@@ -101,7 +95,6 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
 
       const finalEarnings = earningsPoints[earningsPoints.length - 1] || 1
       for (let i = 0; i < points.length; i++) {
-        // Scale: earnings proportion × current accurate vsHodl value
         points[i].vshodl = finalEarnings > 0
           ? (earningsPoints[i] / finalEarnings) * currentVsHodl
           : 0
@@ -124,38 +117,51 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
 
   return (
     <div className="card-glow rounded-2xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            {mode === 'profit' ? 'Net Profit (Fees + Rewards - IL - Swaps)' : 'CLMM vs HODL (Outperformance)'}
-          </h3>
-          <div className="flex gap-1">
-            {([['profit', 'P&L'], ['vshodl', 'vs HODL']] as const).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setMode(key)}
-                className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors"
-                style={{
-                  background: mode === key ? 'var(--accent-purple, #8b5cf6)' : 'transparent',
-                  color: mode === key ? 'white' : 'var(--text-muted)',
-                  border: 'none',
-                }}
-              >
-                {label}
-              </button>
-            ))}
+      {/* Header */}
+      <div className="flex items-center justify-between mb-1">
+        <div>
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-bold neon-value" style={{ color: 'var(--lavender)' }}>
+              {mode === 'profit' ? 'MISSION LOG' : 'MISSION PERFORMANCE'}
+            </h3>
+            {/* Mode toggle */}
+            <div className="flex gap-1">
+              {([['profit', 'P&L'], ['vshodl', 'vs HODL']] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setMode(key)}
+                  className="text-xs px-2.5 py-0.5 rounded cursor-pointer"
+                  style={{
+                    background: mode === key ? '#c77dff' : 'transparent',
+                    color: mode === key ? 'white' : 'var(--text-muted)',
+                    border: mode === key ? '1px solid #c77dff' : '1px solid #2a2a3a',
+                    transition: 'all 0.2s',
+                    textShadow: mode === key ? '0 0 4px rgba(199,125,255,0.4)' : 'none',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="hud-label mt-0.5" style={{ fontSize: '8px' }}>
+            {mode === 'profit' ? '(Fees + Rewards - IL - Swaps)' : '(CLMM/HODL)'}
           </div>
         </div>
+
+        {/* Time window buttons */}
         <div className="flex gap-1">
           {WINDOWS.map(w => (
             <button
               key={w.key}
               onClick={() => setWindow(w.key)}
-              className="text-xs px-2 py-0.5 rounded cursor-pointer transition-colors"
+              className="text-xs px-2 py-0.5 rounded cursor-pointer"
               style={{
-                background: window === w.key ? 'var(--accent-blue)' : 'transparent',
-                color: window === w.key ? 'white' : 'var(--text-muted)',
-                border: 'none',
+                background: window === w.key ? 'transparent' : 'transparent',
+                color: window === w.key ? '#00ff88' : 'var(--text-muted)',
+                border: window === w.key ? '1px solid #00ff88' : '1px solid #2a2a3a',
+                boxShadow: window === w.key ? '0 0 6px rgba(0,255,136,0.2)' : 'none',
+                transition: 'all 0.2s',
               }}
             >
               {w.label}
@@ -165,7 +171,7 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
       </div>
 
       {chartData.length <= 2 && (
-        <div className="text-xs mb-1" style={{ color: 'var(--text-muted)' }}>
+        <div className="text-xs mb-1 hud-label" style={{ fontSize: '8px' }}>
           Collecting hourly snapshots — chart fills over time
         </div>
       )}
@@ -175,56 +181,69 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
           <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
             <defs>
               <linearGradient id="gradGreen" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--accent-green)" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="var(--accent-green)" stopOpacity={0} />
+                <stop offset="0%" stopColor="#00ff88" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#00ff88" stopOpacity={0} />
               </linearGradient>
               <linearGradient id="gradRed" x1="0" y1="1" x2="0" y2="0">
-                <stop offset="0%" stopColor="var(--accent-red)" stopOpacity={0.3} />
-                <stop offset="100%" stopColor="var(--accent-red)" stopOpacity={0} />
+                <stop offset="0%" stopColor="#ff2a6d" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#ff2a6d" stopOpacity={0} />
               </linearGradient>
+              <filter id="chartGlow">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="1.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+            <CartesianGrid strokeDasharray="1 6" stroke="var(--border)" strokeOpacity={0.4} />
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+              tick={{ fontSize: 9, fill: '#555', fontFamily: 'JetBrains Mono' }}
               tickLine={false}
               axisLine={false}
             />
             <YAxis
-              tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+              tick={{ fontSize: 9, fill: '#555', fontFamily: 'JetBrains Mono' }}
               tickLine={false}
               axisLine={false}
               tickFormatter={v => `$${(Number(v) || 0).toFixed(2)}`}
               width={55}
               domain={[minVal - padding, maxVal + padding]}
             />
-            <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1.5} strokeOpacity={0.7} />
+            <ReferenceLine y={0} stroke="var(--text-muted)" strokeWidth={1} strokeOpacity={0.4} />
             <Tooltip
               contentStyle={{
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                fontSize: 12,
+                background: '#0d0d22',
+                border: '1px solid #2a2a3a',
+                borderRadius: 6,
+                fontSize: 11,
+                fontFamily: 'JetBrains Mono',
               }}
               labelStyle={{ color: 'var(--text-muted)' }}
-              formatter={(val) => [`$${Number(val).toFixed(2)}`, mode === 'profit' ? 'Net Profit' : 'vs HODL']}
+              formatter={(val) => [`$${Number(val).toFixed(2)}`, mode === 'profit' ? 'Mission Yield' : 'NAV Advantage']}
             />
             <Area
               type="monotone"
               dataKey="value"
               name="Earnings"
-              stroke={lastValue >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'}
+              stroke={lastValue >= 0 ? '#00ff88' : '#ff2a6d'}
               strokeWidth={2}
               fill={lastValue >= 0 ? 'url(#gradGreen)' : 'url(#gradRed)'}
+              filter="url(#chartGlow)"
             />
           </AreaChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Projected outperformance rates */}
+      {/* Bottom stats */}
       {mode === 'vshodl' && daysRunning > 0 && totalInvested > 0 && <ProjectedRates
         vsHodl={aptClmmVsHodl + elonClmmVsHodl}
         invested={totalInvested}
+        days={daysRunning}
+      />}
+      {mode === 'profit' && daysRunning > 0 && lastValue !== 0 && <ProfitRates
+        profit={lastValue}
         days={daysRunning}
       />}
     </div>
@@ -233,35 +252,62 @@ export function PerformanceChart({ aptSnapshots, elonSnapshots, aptClmmVsHodl, e
 
 function ProjectedRates({ vsHodl, invested, days }: { vsHodl: number; invested: number; days: number }) {
   const dailyRate = vsHodl / days
-  const projections = [
-    { label: 'Daily', value: dailyRate },
-    { label: 'Monthly', value: dailyRate * 30 },
-    { label: 'Yearly', value: dailyRate * 365 },
-  ]
   const apr = (vsHodl / invested) * (365 / days) * 100
+  const monthly = dailyRate * 30
+  const yearly = dailyRate * 365
 
   return (
-    <div className="flex items-center gap-5 mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Outperformance APR</span>
-        <span className="mono text-sm font-semibold" style={{ color: apr >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-          {apr >= 0 ? '+' : ''}{apr.toFixed(0)}%
-        </span>
-      </div>
-      <div style={{ width: 1, height: 14, background: 'var(--border)' }} />
-      {projections.map(p => (
-        <div key={p.label} className="flex items-baseline gap-1">
-          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{p.label}</span>
-          <span className="mono text-xs font-medium" style={{ color: p.value >= 0 ? 'var(--accent-green)' : 'var(--accent-red)' }}>
-            {p.value >= 0 ? '+' : ''}{Math.abs(p.value) >= 1000 ? `$${(p.value / 1000).toFixed(1)}k` : `$${p.value.toFixed(2)}`}
-          </span>
-        </div>
-      ))}
-      <span className="text-xs" style={{ color: 'var(--text-muted)', opacity: 0.6 }}>
+    <div className="flex flex-wrap items-center gap-4 mt-3 pt-3" style={{ borderTop: '1px solid #2a2a3a' }}>
+      <Stat label="NAV ADVANTAGE" value={`${apr >= 0 ? '+' : ''}${apr.toFixed(0)}% APR`} positive={apr >= 0} />
+      <Sep />
+      <Stat label="VELOCITY" value={`${dailyRate >= 0 ? '+' : ''}$${Math.abs(dailyRate).toFixed(2)}/d`} positive={dailyRate >= 0} />
+      <Stat label="MONTHLY" value={fmtBig(monthly)} positive={monthly >= 0} />
+      <Stat label="PROJECTED RANGE" value={fmtBig(yearly)} positive={yearly >= 0} />
+      <span className="hud-label" style={{ fontSize: '7px', opacity: 0.5 }}>
         ({days.toFixed(1)}d measured)
       </span>
     </div>
   )
+}
+
+function ProfitRates({ profit, days }: { profit: number; days: number }) {
+  const daily = profit / days
+  const monthly = daily * 30
+  const yearly = daily * 365
+
+  return (
+    <div className="flex flex-wrap items-center gap-4 mt-3 pt-3" style={{ borderTop: '1px solid #2a2a3a' }}>
+      <Stat label="MISSION YIELD" value={`${profit >= 0 ? '+' : ''}$${Math.abs(profit).toFixed(2)}`} positive={profit >= 0} />
+      <Sep />
+      <Stat label="VELOCITY" value={`${daily >= 0 ? '+' : ''}$${Math.abs(daily).toFixed(2)}/d`} positive={daily >= 0} />
+      <Stat label="MONTHLY" value={fmtBig(monthly)} positive={monthly >= 0} />
+      <Stat label="PROJECTED RANGE" value={fmtBig(yearly)} positive={yearly >= 0} />
+      <span className="hud-label" style={{ fontSize: '7px', opacity: 0.5 }}>
+        ({days.toFixed(1)}d measured)
+      </span>
+    </div>
+  )
+}
+
+function Stat({ label, value, positive }: { label: string; value: string; positive: boolean }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className="hud-label" style={{ fontSize: '8px' }}>{label}</span>
+      <span className="mono text-xs font-semibold" style={{ color: positive ? '#00ff88' : '#ff2a6d' }}>
+        {value}
+      </span>
+    </div>
+  )
+}
+
+function Sep() {
+  return <div style={{ width: 1, height: 14, background: '#2a2a3a' }} />
+}
+
+function fmtBig(v: number): string {
+  const sign = v >= 0 ? '+' : '-'
+  const abs = Math.abs(v)
+  return abs >= 1000 ? `${sign}$${(abs / 1000).toFixed(1)}k` : `${sign}$${abs.toFixed(2)}`
 }
 
 function fmtDate(d: Date): string {

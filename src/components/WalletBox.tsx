@@ -15,38 +15,57 @@ function fmtUsd(v: number): string {
   return `$${v.toFixed(4)}`
 }
 
-function WalletColumn({ wallet }: { wallet: WalletBalance }) {
+function WalletColumn({ wallet, bay, accent }: { wallet: WalletBalance; bay: string; accent: string }) {
   return (
-    <div className="flex-1 min-w-0">
+    <div
+      className="flex-1 min-w-0 rounded-lg p-3"
+      style={{
+        background: '#08080f',
+        border: '1px solid #2a2a3a',
+        borderLeft: `2px solid ${accent}`,
+      }}
+    >
       <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-          {wallet.label}
+        {bay.includes('ACTIVE') && (
+          <span className="earning-pulse" style={{ width: 5, height: 5 }} />
+        )}
+        {bay.includes('SECURED') && (
+          <span style={{ fontSize: '9px' }}>🔒</span>
+        )}
+        <span className="hud-label" style={{ color: accent, fontSize: '9px' }}>
+          {bay}
         </span>
-        <span className="mono text-xs" style={{ color: 'var(--text-muted)' }}>
-          {shortenAddr(wallet.address)}
-        </span>
+      </div>
+      <div className="mono text-xs mb-2" style={{ color: 'var(--text-muted)', fontSize: '9px' }}>
+        {shortenAddr(wallet.address)}
       </div>
 
       {wallet.balances.length === 0 && (
-        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>No balances</div>
+        <div className="text-xs" style={{ color: 'var(--text-muted)' }}>Empty bay</div>
       )}
 
       {wallet.balances.map((b, i) => (
-        <div key={i} className="flex justify-between text-xs py-0.5">
-          <span style={{ color: 'var(--text-primary)' }}>
+        <div
+          key={i}
+          className="flex justify-between text-xs py-0.5"
+          style={{ color: b.priceUnknown ? '#ff8c00' : undefined }}
+        >
+          <span style={{ color: b.priceUnknown ? '#ff8c00' : 'var(--text-primary)' }}>
             {b.token}
-            {b.priceUnknown && <span style={{ color: 'var(--accent-yellow)' }}> ?</span>}
+            {b.priceUnknown && (
+              <span title="Unidentified Cargo" style={{ color: '#ff8c00', cursor: 'help' }}> ?</span>
+            )}
           </span>
-          <span className="mono" style={{ color: 'var(--text-muted)' }}>
-            {b.amount < 0.01 ? b.amount.toFixed(4) : b.amount.toFixed(4)}
+          <span className="mono" style={{ color: b.priceUnknown ? '#ff8c00' : 'var(--text-muted)' }}>
+            {b.amount.toFixed(4)}
             {!b.priceUnknown && ` (${fmtUsd(b.valueUsd)})`}
           </span>
         </div>
       ))}
 
-      <div className="mt-1.5 pt-1.5 flex justify-between text-xs" style={{ borderTop: '1px solid var(--border)' }}>
-        <span style={{ color: 'var(--text-muted)' }}>Total</span>
-        <span className="mono font-semibold" style={{ color: 'var(--text-primary)' }}>
+      <div className="mt-1.5 pt-1.5 flex justify-between text-xs" style={{ borderTop: '1px solid #2a2a3a' }}>
+        <span className="hud-label" style={{ fontSize: '8px' }}>Subtotal</span>
+        <span className="mono font-semibold neon-value" style={{ color: 'var(--lavender)' }}>
           {fmtUsd(wallet.totalUsd)}
         </span>
       </div>
@@ -62,15 +81,19 @@ export function WalletBox({ botWallet, petraWallet }: Props) {
   return (
     <div className="card-glow rounded-2xl p-5">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Wallets</h3>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-bold neon-value" style={{ color: 'var(--lavender)' }}>CARGO MANIFEST</h3>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>(Wallets)</span>
+        </div>
         <span className="mono text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>
-          Total: {fmtUsd(totalBoth)}
+          <span className="hud-label" style={{ fontSize: '8px', marginRight: 4 }}>PAYLOAD:</span>
+          {fmtUsd(totalBoth)}
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4" style={{ borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
-        {botWallet && <WalletColumn wallet={botWallet} />}
-        {petraWallet && <WalletColumn wallet={petraWallet} />}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {botWallet && <WalletColumn wallet={botWallet} bay="BAY A — ACTIVE (Bot)" accent="#00ff88" />}
+        {petraWallet && <WalletColumn wallet={petraWallet} bay="VAULT B — SECURED (Petra)" accent="#7eb8ff" />}
       </div>
     </div>
   )
