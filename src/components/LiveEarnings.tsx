@@ -281,7 +281,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     for (const p of particlesRef.current) {
       if (p.phase !== 'intake') continue
       const dist = Math.sqrt((p.x - robotX) ** 2 + (p.y - eyeY) ** 2)
-      if (p.y < eyeY && dist < nearestDist) {
+      if (p.y > intakeEnd && p.y < eyeY && dist < nearestDist) {
         nearestDist = dist
         targetX = p.x
         targetY = p.y
@@ -488,41 +488,23 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         }
       }
 
-      // Dead asteroids — only keep alive if fragments still exist
-      if (p.phase as string === 'done') {
-        if (p.fragments && p.fragments.length > 0) {
-          // just update fragments below
-        } else {
-          continue
+      // Update fragments (for any phase that has them)
+      if (p.fragments) {
+        for (const f of p.fragments) {
+          f.x += f.vx
+          f.y += f.vy
+          f.vy += 0.02
+          f.vx *= 0.98
+          f.glow = Math.min(1, f.glow + 0.03)
+          if (f.x < 8) { f.x = 8; f.vx = Math.abs(f.vx) * 0.5 }
+          if (f.x > W - 8) { f.x = W - 8; f.vx = -Math.abs(f.vx) * 0.5 }
+          if (f.y > surfaceLimit) f.size *= 0.92
         }
+        p.fragments = p.fragments.filter(f => f.size > 0.4 && f.y < h)
       }
 
-      if (p.phase as string === 'done' || p.phase === 'process') {
-
-        // Dots fall down with gravity
-        if (p.fragments) {
-          for (const f of p.fragments) {
-            f.x += f.vx
-            f.y += f.vy
-            f.vy += 0.02
-            f.vx *= 0.98
-            f.glow = Math.min(1, f.glow + 0.03)
-            // Bounce off tube walls
-            if (f.x < 8) { f.x = 8; f.vx = Math.abs(f.vx) * 0.5 }
-            if (f.x > W - 8) { f.x = W - 8; f.vx = -Math.abs(f.vx) * 0.5 }
-            // Shrink when hitting liquid
-            if (f.y > surfaceLimit) f.size *= 0.92
-          }
-          p.fragments = p.fragments.filter(f => f.size > 0.4 && f.y < h)
-        }
-
-        if (!p.fragments || p.fragments.length === 0) {
-          continue // fully dead, remove
-        }
-      }
-
-      // Draw asteroid (intact only)
-      if (p.size > 1) {
+      // Draw intact asteroid
+      if (p.phase === 'intake' && p.size > 1) {
         ctx.save()
         ctx.translate(p.x, p.y)
         ctx.rotate(p.rotation)
@@ -542,18 +524,13 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       if (p.fragments) {
         for (const f of p.fragments) {
           const t = f.glow
-          // Start grey/orange, transition to neon green
           const r = Math.floor(180 * (1 - t))
           const g = Math.floor(120 * (1 - t) + 255 * t)
           const b = Math.floor(80 * (1 - t) + 136 * t)
-
-          // Dot
           ctx.beginPath()
           ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2)
           ctx.fillStyle = `rgba(${r},${g},${b},${0.7 + t * 0.3})`
           ctx.fill()
-
-          // Glow halo when green
           if (t > 0.4) {
             ctx.beginPath()
             ctx.arc(f.x, f.y, f.size + 2, 0, Math.PI * 2)
@@ -563,7 +540,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         }
       }
 
-      if (p.phase !== 'done') alive.push(p)
+      // Keep alive if intake OR has fragments still falling
+      const hasFragments = p.fragments && p.fragments.length > 0
+      if (p.phase === 'intake' || hasFragments) alive.push(p)
     }
     particlesRef.current = alive
 
