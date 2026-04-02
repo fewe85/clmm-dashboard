@@ -306,103 +306,83 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.lineWidth = 0.5
     ctx.strokeRect(railW + 16, 0, W - railW * 2 - 32, 3)
 
-    // ─── MINER DROIDS — intake zone ─────────────────────────────
-    const pickSwing = Math.sin(now * 0.004) // -1 to 1, shared swing
-    const minerY = intakeEnd * 0.55
+    // ─── DRILLING MACHINES — intake zone ───────────────────────────
+    const drillSpin = (now * 0.008) % (Math.PI * 2)
+    const machineY = intakeEnd * 0.4
+    const machineOutY = intakeEnd * 0.75 // where ore comes out
 
-    // Left miner — sits on left wall ledge
-    const lmx = railW + 18
-    // Body
-    ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(lmx - 5, minerY - 4, 10, 9)
-    // Head
-    ctx.fillStyle = '#555566'
-    ctx.fillRect(lmx - 3, minerY - 8, 6, 5)
-    // Helmet light
-    ctx.fillStyle = '#ffcc00'
-    ctx.fillRect(lmx - 1, minerY - 9, 2, 2)
-    ctx.globalAlpha = 0.2 + Math.sin(now * 0.003) * 0.1
-    ctx.fillStyle = 'rgba(255,204,0,0.3)'
-    ctx.fillRect(lmx - 3, minerY - 10, 6, 4)
-    ctx.globalAlpha = 1
-    // Eye
-    ctx.fillStyle = '#00ff88'
-    ctx.fillRect(lmx + 1, minerY - 7, 2, 1)
-    // Legs
-    ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(lmx - 4, minerY + 5, 3, 4)
-    ctx.fillRect(lmx + 1, minerY + 5, 3, 4)
-    // Pickaxe arm — swings
-    const lpAngle = (-30 + pickSwing * 40) * Math.PI / 180
-    const lpLen = 14
-    const lpEndX = lmx + 6 + Math.sin(lpAngle) * lpLen
-    const lpEndY = minerY - 2 - Math.cos(lpAngle) * lpLen
-    // Handle
-    ctx.strokeStyle = '#6a6a7a'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(lmx + 5, minerY - 2)
-    ctx.lineTo(lpEndX, lpEndY)
-    ctx.stroke()
-    // Pick head
-    ctx.strokeStyle = '#8a8a9a'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(lpEndX - 3, lpEndY - 1)
-    ctx.lineTo(lpEndX + 3, lpEndY + 2)
-    ctx.stroke()
-    // Spark on down-swing
-    if (pickSwing > 0.7) {
-      ctx.fillStyle = 'rgba(255,204,0,0.5)'
-      ctx.beginPath()
-      ctx.arc(lpEndX + 2, lpEndY + 2, 2, 0, Math.PI * 2)
-      ctx.fill()
-    }
+    for (const side of ['left', 'right'] as const) {
+      const mx = side === 'left' ? railW + 6 : W - railW - 6
+      const dir = side === 'left' ? 1 : -1
 
-    // Right miner — mirrored, offset swing
-    const pickSwing2 = Math.sin(now * 0.004 + 1.5)
-    const rmx = W - railW - 18
-    // Body
-    ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(rmx - 5, minerY - 4, 10, 9)
-    // Head
-    ctx.fillStyle = '#555566'
-    ctx.fillRect(rmx - 3, minerY - 8, 6, 5)
-    // Helmet light
-    ctx.fillStyle = '#ffcc00'
-    ctx.fillRect(rmx - 1, minerY - 9, 2, 2)
-    ctx.globalAlpha = 0.2 + Math.sin(now * 0.003 + 1) * 0.1
-    ctx.fillStyle = 'rgba(255,204,0,0.3)'
-    ctx.fillRect(rmx - 3, minerY - 10, 6, 4)
-    ctx.globalAlpha = 1
-    // Eye
-    ctx.fillStyle = '#00ff88'
-    ctx.fillRect(rmx - 3, minerY - 7, 2, 1)
-    // Legs
-    ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(rmx - 4, minerY + 5, 3, 4)
-    ctx.fillRect(rmx + 1, minerY + 5, 3, 4)
-    // Pickaxe — swings opposite direction
-    const rpAngle = (30 - pickSwing2 * 40) * Math.PI / 180
-    const rpEndX = rmx - 6 + Math.sin(rpAngle) * lpLen
-    const rpEndY = minerY - 2 - Math.cos(rpAngle) * lpLen
-    ctx.strokeStyle = '#6a6a7a'
-    ctx.lineWidth = 1.5
-    ctx.beginPath()
-    ctx.moveTo(rmx - 5, minerY - 2)
-    ctx.lineTo(rpEndX, rpEndY)
-    ctx.stroke()
-    ctx.strokeStyle = '#8a8a9a'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(rpEndX + 3, rpEndY - 1)
-    ctx.lineTo(rpEndX - 3, rpEndY + 2)
-    ctx.stroke()
-    if (pickSwing2 > 0.7) {
-      ctx.fillStyle = 'rgba(255,204,0,0.5)'
+      // Wall mount bracket
+      ctx.fillStyle = '#2a2a3a'
+      ctx.fillRect(mx - 3 * dir, machineY - 12, 6, 30)
+      // Mount bolts
+      ctx.fillStyle = '#1a1a2a'
       ctx.beginPath()
-      ctx.arc(rpEndX - 2, rpEndY + 2, 2, 0, Math.PI * 2)
+      ctx.arc(mx, machineY - 8, 2, 0, Math.PI * 2)
       ctx.fill()
+      ctx.beginPath()
+      ctx.arc(mx, machineY + 12, 2, 0, Math.PI * 2)
+      ctx.fill()
+
+      // Machine housing
+      ctx.fillStyle = '#444455'
+      ctx.fillRect(mx - 2 + dir * 2, machineY - 8, 18 * dir, 20)
+      ctx.fillStyle = '#555566'
+      ctx.fillRect(mx + dir * 4, machineY - 6, 12 * dir, 4)
+
+      // Drill bit — rotating
+      const drillX = mx + dir * 20
+      const drillR = 6
+      ctx.save()
+      ctx.translate(drillX, machineY + 2)
+      ctx.rotate(drillSpin * (side === 'left' ? 1 : -1))
+      // Drill spiral
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2
+        ctx.beginPath()
+        ctx.moveTo(0, 0)
+        ctx.lineTo(Math.cos(a) * drillR, Math.sin(a) * drillR)
+        ctx.strokeStyle = '#8a8a9a'
+        ctx.lineWidth = 1.2
+        ctx.stroke()
+      }
+      // Drill center
+      ctx.beginPath()
+      ctx.arc(0, 0, 2.5, 0, Math.PI * 2)
+      ctx.fillStyle = '#6a6a7a'
+      ctx.fill()
+      ctx.restore()
+
+      // Drill glow
+      ctx.beginPath()
+      ctx.arc(drillX, machineY + 2, drillR + 2, 0, Math.PI * 2)
+      ctx.fillStyle = `rgba(255,170,0,${0.04 + Math.sin(now * 0.006) * 0.02})`
+      ctx.fill()
+
+      // Output chute — angled down toward center
+      const chuteEndX = mx + dir * 14
+      ctx.fillStyle = '#3a3a4a'
+      ctx.beginPath()
+      ctx.moveTo(mx + dir * 6, machineY + 10)
+      ctx.lineTo(chuteEndX, machineOutY)
+      ctx.lineTo(chuteEndX + dir * 5, machineOutY)
+      ctx.lineTo(mx + dir * 10, machineY + 10)
+      ctx.closePath()
+      ctx.fill()
+      ctx.strokeStyle = 'rgba(199,125,255,0.1)'
+      ctx.lineWidth = 0.5
+      ctx.stroke()
+
+      // Status LED
+      ctx.fillStyle = '#00ff88'
+      ctx.globalAlpha = 0.4 + Math.sin(now * 0.005 + (side === 'left' ? 0 : 1.5)) * 0.3
+      ctx.beginPath()
+      ctx.arc(mx + dir * 5, machineY - 6, 1.5, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.globalAlpha = 1
     }
 
     // Processing zone — subtle heat glow
@@ -712,11 +692,17 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
 
     // ─── PARTICLES ───────────────────────────────────────────────
-    // Spawn asteroids — always keep some alive
+    // Spawn asteroids from machine chute outputs
     if (now - lastSpawnRef.current > nextSpawnDelay.current || particlesRef.current.length === 0) {
       if (particlesRef.current.length < 12) {
         const p = makeParticle(h)
-        p.y = 5 // start visible inside canvas
+        // Spawn from left or right machine chute
+        const fromLeft = Math.random() > 0.5
+        const spawnBaseX = fromLeft ? railW + 20 : W - railW - 20
+        p.x = spawnBaseX + (Math.random() - 0.5) * 10
+        p.y = machineOutY + Math.random() * 5
+        p.vy = 0.3 + Math.random() * 0.3
+        p.vx = (fromLeft ? 1 : -1) * (0.1 + Math.random() * 0.2) // drift toward center
         particlesRef.current.push(p)
         lastSpawnRef.current = now
         nextSpawnDelay.current = 1000 + Math.random() * 1500
