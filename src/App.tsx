@@ -4,6 +4,7 @@ import { PoolCard } from './components/PoolCard'
 import { PerformanceChart } from './components/PerformanceChart'
 import { WalletBox } from './components/WalletBox'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { AmbientBg } from './components/AmbientBg'
 import {
   DEX,
   ELON_POOL_NAME,
@@ -27,8 +28,11 @@ function AppContent() {
 
   const isLoading = loading && !elon.pool
 
+  const netProfit = elon.netProfit
+
   return (
-    <div className="min-h-screen p-3 md:p-6 max-w-[960px] mx-auto">
+    <div className="min-h-screen p-3 md:p-6 max-w-[960px] mx-auto relative" style={{ zIndex: 1 }}>
+      <AmbientBg profit={netProfit} />
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>

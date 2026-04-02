@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { PoolMetrics } from '../hooks/usePoolData'
 import type { PoolData, BotState, RebalanceMetric } from '../types'
 import { LiveEarnings } from './LiveEarnings'
+import { RebalanceHeartbeat } from './RebalanceHeartbeat'
 
 // Pool-specific fee config
 const POOL_FEE_BPS: Record<string, number> = { APT: 5, ELON: 30 }
@@ -25,14 +26,6 @@ function fmtSign(v: number): string {
   return `${v >= 0 ? '+' : '-'}${fmtUsd(v)}`
 }
 
-function fmtTime(iso: string | null): string {
-  if (!iso) return '—'
-  const diff = Date.now() - new Date(iso).getTime()
-  const h = Math.floor(diff / 3_600_000)
-  const m = Math.floor((diff % 3_600_000) / 60_000)
-  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h ago`
-  return `${h}h ${m}m ago`
-}
 
 export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp }: PoolCardProps) {
   const [showOpt, setShowOpt] = useState(false)
@@ -155,8 +148,13 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 5. P&L Breakdown */}
       <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
 
-      {/* 7. Rebalance Stats (one line) */}
-      <RebalanceLine pm={pm} pool={pool} />
+      {/* 7. Rebalance Heartbeat */}
+      <RebalanceHeartbeat
+        metrics={pm.metrics}
+        totalRebalances={pm.totalRebalances}
+        lastRebalanceAt={pool.botState?.lastRebalanceAt ?? null}
+        swapCostTotal={calcSwapCostTotal(pool, pm)}
+      />
 
       {/* 8. Range Optimization (collapsed) */}
       <div>
@@ -413,35 +411,17 @@ function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
   )
 }
 
-/* ── Rebalance One-liner ─────────────────────────────────────────────────── */
+/* ── Helpers ─────────────────────────────────────────────────────────────── */
 
-function RebalanceLine({ pm, pool }: { pm: PoolMetrics; pool: PoolData }) {
-  const total = pm.totalRebalances
-  if (total <= 0) return null
-
-  const lastReb = pool.botState?.lastRebalanceAt ?? null
-  const botState = pool.botState
+function calcSwapCostTotal(pool: PoolData, pm: PoolMetrics): number {
   const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
-  const tokenAPrice = pool.currentPrice || (pool.tokenA === 'APT' ? 0.96 : 0.12)
+  const tokenAPrice = pool.currentPrice || 0.1
   const positionValue = pool.amountA * tokenAPrice + pool.amountB
-  const avgC = botState?.avgSwapCost || 0
-  const hasMeasured = avgC > 0
-  const costPerReb = hasMeasured
+  const avgC = pool.botState?.avgSwapCost || 0
+  const costPerReb = avgC > 0
     ? (avgC / 100) * positionValue
     : positionValue * (feeBps / 10000) * 2
-  const swapCost = total * costPerReb
-
-  const parts = [
-    `Total: ${total}`,
-    `Last: ${fmtTime(lastReb)}`,
-    `Swap Costs: ~$${swapCost.toFixed(2)}`,
-  ]
-
-  return (
-    <div className="text-xs mono" style={{ color: 'var(--text-muted)' }}>
-      {parts.join(' · ')}
-    </div>
-  )
+  return Math.max(0, pm.totalRebalances) * costPerReb
 }
 
 /* ── Range Optimization (collapsible) ────────────────────────────────────── */

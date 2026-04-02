@@ -131,7 +131,7 @@ body {
 }
 
 .range-marker-glow {
-  animation: range-glow 3s ease-in-out infinite;
+  animation: range-glow 3s ease-in-out infinite, range-wobble 4s ease-in-out infinite;
 }
 
 @keyframes range-danger {
@@ -140,7 +140,16 @@ body {
 }
 
 .range-marker-danger {
-  animation: range-danger 1s ease-in-out infinite;
+  animation: range-danger 1s ease-in-out infinite, range-wobble 1.5s ease-in-out infinite;
+}
+
+/* Physics-like wobble for range orb */
+@keyframes range-wobble {
+  0%, 100% { margin-left: 0; margin-top: 0; }
+  20% { margin-left: 1.5px; margin-top: -0.5px; }
+  40% { margin-left: -1px; margin-top: 0.8px; }
+  60% { margin-left: 0.8px; margin-top: -1px; }
+  80% { margin-left: -1.2px; margin-top: 0.3px; }
 }
 
 /* Danger zone edge pulse */
