@@ -244,9 +244,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     const rightAngle = spreadAngle   // right blade goes right (mirrored)
 
     const robotX = W / 2
-    const robotY = processEnd - 12
-    const bladeLen = 42
-    const handY = robotY - 10
+    const robotY = processEnd - 16
+    const bladeLen = 48
+    const handY = robotY - 14
 
     // Left blade
     const lTipX = robotX + Math.sin(leftAngle) * bladeLen
@@ -306,67 +306,67 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
     ctx.globalAlpha = 1
 
-    // ── Robot body (2x scale) ──
+    // ── Robot body (3x scale) ──
     // Legs
     ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(robotX - 7, robotY + 2, 4, 8)
-    ctx.fillRect(robotX + 3, robotY + 2, 4, 8)
+    ctx.fillRect(robotX - 10, robotY + 3, 6, 12)
+    ctx.fillRect(robotX + 4, robotY + 3, 6, 12)
     // Feet
     ctx.fillStyle = '#2a2a3a'
-    ctx.fillRect(robotX - 8, robotY + 8, 6, 3)
-    ctx.fillRect(robotX + 2, robotY + 8, 6, 3)
+    ctx.fillRect(robotX - 12, robotY + 13, 9, 4)
+    ctx.fillRect(robotX + 3, robotY + 13, 9, 4)
 
     // Body
     ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX - 9, robotY - 12, 18, 15)
+    ctx.fillRect(robotX - 14, robotY - 18, 28, 22)
     ctx.fillStyle = '#5a5a6a'
-    ctx.fillRect(robotX - 8, robotY - 11, 16, 4)
+    ctx.fillRect(robotX - 12, robotY - 16, 24, 6)
     // Shoulder plates
     ctx.fillStyle = '#3a3a4a'
-    ctx.fillRect(robotX - 11, robotY - 12, 4, 6)
-    ctx.fillRect(robotX + 7, robotY - 12, 4, 6)
+    ctx.fillRect(robotX - 17, robotY - 18, 6, 9)
+    ctx.fillRect(robotX + 11, robotY - 18, 6, 9)
 
     // Chest light
     ctx.fillStyle = '#b44dff'
-    ctx.fillRect(robotX - 2, robotY - 6, 4, 4)
+    ctx.fillRect(robotX - 3, robotY - 9, 6, 6)
     ctx.globalAlpha = 0.3 + Math.sin(now * 0.005) * 0.2
     ctx.fillStyle = 'rgba(180,77,255,0.4)'
-    ctx.fillRect(robotX - 4, robotY - 8, 8, 8)
+    ctx.fillRect(robotX - 6, robotY - 12, 12, 12)
     ctx.globalAlpha = 1
 
     // Head
     ctx.fillStyle = '#5a5a6a'
-    ctx.fillRect(robotX - 6, robotY - 22, 12, 10)
+    ctx.fillRect(robotX - 9, robotY - 33, 18, 15)
     // Visor
     ctx.fillStyle = '#1a1a2a'
-    ctx.fillRect(robotX - 5, robotY - 20, 10, 4)
+    ctx.fillRect(robotX - 8, robotY - 30, 16, 6)
     // Eyes
     ctx.fillStyle = '#ff4444'
-    ctx.fillRect(robotX - 4, robotY - 19, 3, 2)
-    ctx.fillRect(robotX + 1, robotY - 19, 3, 2)
+    ctx.fillRect(robotX - 6, robotY - 29, 4, 3)
+    ctx.fillRect(robotX + 2, robotY - 29, 4, 3)
     ctx.fillStyle = 'rgba(255,68,68,0.25)'
-    ctx.fillRect(robotX - 5, robotY - 20, 10, 4)
+    ctx.fillRect(robotX - 8, robotY - 30, 16, 6)
     // Antenna
     ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX, robotY - 27, 1, 5)
+    ctx.fillRect(robotX, robotY - 40, 2, 7)
     ctx.fillStyle = '#b44dff'
-    ctx.fillRect(robotX - 1, robotY - 29, 3, 3)
+    ctx.fillRect(robotX - 1, robotY - 43, 4, 4)
     ctx.beginPath()
-    ctx.arc(robotX + 0.5, robotY - 29, 2, 0, Math.PI * 2)
+    ctx.arc(robotX + 1, robotY - 43, 3, 0, Math.PI * 2)
     ctx.fillStyle = '#b44dff'
     ctx.globalAlpha = 0.5 + Math.sin(now * 0.004) * 0.3
     ctx.fill()
     ctx.globalAlpha = 1
 
-    // Arms (extend to sides toward handles)
+    // Arms
     ctx.fillStyle = '#4a4a5a'
-    ctx.fillRect(robotX - 13, robotY - 11, 4, 3)
-    ctx.fillRect(robotX + 9, robotY - 11, 4, 3)
+    ctx.fillRect(robotX - 19, robotY - 16, 6, 4)
+    ctx.fillRect(robotX + 13, robotY - 16, 6, 4)
 
     // Handles
     ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX - 5, handY - 3, 3, 6)
-    ctx.fillRect(robotX + 2, handY - 3, 3, 6)
+    ctx.fillRect(robotX - 7, handY - 4, 4, 8)
+    ctx.fillRect(robotX + 3, handY - 4, 4, 8)
 
     ctx.restore()
 
