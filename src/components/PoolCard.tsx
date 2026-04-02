@@ -72,7 +72,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 2. Token Price + 24h Change */}
       <div className="flex items-baseline gap-2">
         <span className="hud-label">{pool.tokenA}</span>
-        <span className="mono text-lg font-bold neon-value" style={{ color: 'var(--neon-yellow)' }}>
+        <span className="mono text-lg font-bold neon-value" style={{ color: 'var(--lavender)' }}>
           ${tokenAPrice.toFixed(4)}
         </span>
         {priceChange24h != null && priceChange24h !== 0 && (
@@ -89,7 +89,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-lg px-3 py-2.5" style={{ background: '#050510', border: '1px solid var(--border)' }}>
           <div className="hud-label mb-0.5">Position Value</div>
-          <div className="mono text-xl font-bold neon-value" style={{ color: 'var(--neon-yellow)' }}>
+          <div className="mono text-xl font-bold neon-value" style={{ color: 'var(--lavender)' }}>
             {fmtUsd(pm.positionValue)}
           </div>
         </div>
@@ -122,8 +122,8 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         <div
           className="rounded-lg px-3 py-2.5"
           style={{
-            background: 'linear-gradient(135deg, rgba(57,255,20,0.05), #050510)',
-            border: '1px solid rgba(57,255,20,0.15)',
+            background: 'linear-gradient(135deg, rgba(184,169,255,0.05), #050510)',
+            border: '1px solid rgba(184,169,255,0.15)',
           }}
         >
           <div className="hud-label mb-0.5">APR</div>
@@ -183,7 +183,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
   )
 }
 
-/* ── Neon Power Bar — Range Indicator ───────────────────────────────────── */
+/* ── Space Range — UFO navigating through asteroid field ────────────────── */
 
 function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   pool: PoolData; rangeWidth: number; ceMultiplier: number
@@ -191,7 +191,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   const { priceLower, priceUpper, currentPrice, inRange } = pool
   const range = priceUpper - priceLower
   const position = range > 0 ? ((currentPrice - priceLower) / range) * 100 : 50
-  const clamped = Math.max(2, Math.min(98, position))
+  const clamped = Math.max(4, Math.min(96, position))
 
   const distLower = ((currentPrice - priceLower) / currentPrice) * 100
   const distUpper = ((priceUpper - currentPrice) / currentPrice) * 100
@@ -200,87 +200,135 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
   const danger = nearestPct < 0.5
   const warn = nearestPct < 1.2 && !danger
 
-  const orbColor = danger ? '#ff2a6d' : warn ? '#ffaa00' : '#39ff14'
-  const orbGlow = danger ? 'rgba(255,42,109,0.6)' : warn ? 'rgba(255,170,0,0.5)' : 'rgba(57,255,20,0.5)'
+  const ufoX = 4 + (clamped / 100) * 292
 
-  // Tick marks (10 segments)
-  const ticks = Array.from({ length: 11 }, (_, i) => i * 10)
+  // Deterministic stars
+  const stars = Array.from({ length: 30 }, (_, i) => ({
+    x: (i * 47 + 13) % 300,
+    y: (i * 31 + 7) % 48,
+    r: i % 5 === 0 ? 1 : 0.5,
+    a: 0.2 + (i % 4) * 0.15,
+  }))
 
   return (
-    <div className="rounded-lg p-3" style={{ background: '#050510', border: '1px solid var(--border)' }}>
-      {/* HUD label */}
-      <div className="flex justify-between items-center mb-2">
+    <div className="rounded-lg overflow-hidden" style={{ background: '#020208', border: '1px solid var(--border)' }}>
+      {/* HUD overlay */}
+      <div className="flex justify-between items-center px-3 pt-2">
         <span className="hud-label" style={{ color: inRange ? 'var(--neon-green)' : 'var(--neon-pink)' }}>
-          {inRange ? 'IN RANGE' : 'OUT OF RANGE'}
+          {inRange ? 'IN RANGE' : 'WARNING'}
         </span>
-        <span className="hud-label">±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x CE</span>
+        <span className="hud-label" style={{ color: 'var(--lavender)' }}>
+          ±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x CE
+        </span>
       </div>
 
       {/* Price labels */}
-      <div className="flex justify-between text-xs mb-1">
+      <div className="flex justify-between text-xs px-3 mt-1">
         <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceLower.toFixed(4)}</span>
-        <span className="mono font-bold neon-value" style={{ color: 'var(--neon-yellow)' }}>${currentPrice.toFixed(4)}</span>
+        <span className="mono font-bold neon-value" style={{ color: 'var(--lavender)' }}>${currentPrice.toFixed(4)}</span>
         <span className="mono" style={{ color: 'var(--text-muted)' }}>${priceUpper.toFixed(4)}</span>
       </div>
 
-      {/* Power bar SVG */}
-      <svg viewBox="0 0 300 36" className="w-full" style={{ height: '36px' }}>
-        <defs>
-          <linearGradient id="bar-bg" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.2" />
-            <stop offset="15%" stopColor="#ff2a6d" stopOpacity="0.05" />
-            <stop offset="35%" stopColor="#39ff14" stopOpacity="0.08" />
-            <stop offset="50%" stopColor="#39ff14" stopOpacity="0.12" />
-            <stop offset="65%" stopColor="#39ff14" stopOpacity="0.08" />
-            <stop offset="85%" stopColor="#ff2a6d" stopOpacity="0.05" />
-            <stop offset="100%" stopColor="#ff2a6d" stopOpacity="0.2" />
-          </linearGradient>
-          <filter id="orb-glow">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
+      {/* Space scene SVG */}
+      <div className="px-2 py-1">
+        <svg viewBox="0 0 300 48" className="w-full" style={{ height: '48px' }}>
+          <defs>
+            <filter id="ufo-glow">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <radialGradient id="nebula-left" cx="0" cy="0.5" r="0.4">
+              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+            <radialGradient id="nebula-right" cx="1" cy="0.5" r="0.4">
+              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.15" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+            <radialGradient id="nebula-center" cx="0.5" cy="0.5" r="0.35">
+              <stop offset="0%" stopColor="#b8a9ff" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+          </defs>
 
-        {/* Bar background */}
-        <rect x="4" y="10" width="292" height="16" rx="3" fill="url(#bar-bg)" stroke="var(--border)" strokeWidth="0.5" />
+          {/* Space background — nebula zones */}
+          <rect width="300" height="48" fill="#020208" />
+          <rect width="300" height="48" fill="url(#nebula-left)" />
+          <rect width="300" height="48" fill="url(#nebula-right)" />
+          <rect width="300" height="48" fill="url(#nebula-center)" />
 
-        {/* Tick marks */}
-        {ticks.map(pct => {
-          const x = 4 + (pct / 100) * 292
-          return <line key={pct} x1={x} y1={8} x2={x} y2={28} stroke="var(--border)" strokeWidth="0.4" />
-        })}
+          {/* Stars */}
+          {stars.map((s, i) => (
+            <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="white" opacity={s.a}>
+              {i % 7 === 0 && <animate attributeName="opacity" values={`${s.a};${s.a * 2};${s.a}`} dur="3s" repeatCount="indefinite" />}
+            </circle>
+          ))}
 
-        {/* Center line */}
-        <line x1="150" y1="6" x2="150" y2="30" stroke="rgba(57,255,20,0.15)" strokeWidth="0.8" strokeDasharray="2,2" />
+          {/* Range boundaries — asteroid belts */}
+          <line x1="4" y1="0" x2="4" y2="48" stroke="#ff2a6d" strokeWidth="1" opacity="0.3" />
+          <line x1="296" y1="0" x2="296" y2="48" stroke="#ff2a6d" strokeWidth="1" opacity="0.3" />
 
-        {/* Danger zone flicker — left */}
-        {(danger || warn) && nearestSide === 'lower' && (
-          <rect x="4" y="10" width="44" height="16" rx="3" fill={danger ? '#ff2a6d' : '#ffaa00'} opacity="0.15" className="range-danger-pulse" />
-        )}
-        {/* Danger zone flicker — right */}
-        {(danger || warn) && nearestSide === 'upper' && (
-          <rect x="252" y="10" width="44" height="16" rx="3" fill={danger ? '#ff2a6d' : '#ffaa00'} opacity="0.15" className="range-danger-pulse" />
-        )}
+          {/* Danger zones pulsing */}
+          {(danger || warn) && nearestSide === 'lower' && (
+            <rect x="0" y="0" width="30" height="48" fill="#ff2a6d" opacity="0.08" className="range-danger-pulse" />
+          )}
+          {(danger || warn) && nearestSide === 'upper' && (
+            <rect x="270" y="0" width="30" height="48" fill="#ff2a6d" opacity="0.08" className="range-danger-pulse" />
+          )}
 
-        {/* Orb glow */}
-        <circle cx={4 + (clamped / 100) * 292} cy="18" r="10" fill={orbGlow} opacity="0.3" filter="url(#orb-glow)" />
+          {/* Center safe zone indicator */}
+          <line x1="150" y1="0" x2="150" y2="48" stroke="#b8a9ff" strokeWidth="0.3" strokeDasharray="2,4" opacity="0.3" />
 
-        {/* Orb core */}
-        <circle cx={4 + (clamped / 100) * 292} cy="18" r="5" fill={orbColor} filter="url(#orb-glow)">
-          <animate attributeName="r" values="4;5.5;4" dur={danger ? '0.8s' : '3s'} repeatCount="indefinite" />
-        </circle>
+          {/* UFO beam (tractor beam below) */}
+          <polygon
+            points={`${ufoX - 6},28 ${ufoX + 6},28 ${ufoX + 12},46 ${ufoX - 12},46`}
+            fill={danger ? '#ff2a6d' : '#b8a9ff'}
+            opacity="0.06"
+          />
 
-        {/* Orb inner bright spot */}
-        <circle cx={4 + (clamped / 100) * 292} cy="17" r="2" fill="white" opacity="0.5" />
-      </svg>
+          {/* UFO body */}
+          <g transform={`translate(${ufoX}, 22)`} filter="url(#ufo-glow)">
+            {/* Saucer body */}
+            <ellipse cx="0" cy="0" rx="10" ry="3.5"
+              fill={danger ? '#ff2a6d' : warn ? '#e0c3fc' : '#b8a9ff'}
+              opacity="0.9"
+            />
+            {/* Dome */}
+            <ellipse cx="0" cy="-2" rx="5" ry="4"
+              fill={danger ? '#ff5588' : '#d4c4ff'}
+              opacity="0.7"
+            />
+            {/* Cockpit light */}
+            <circle cx="0" cy="-3" r="1.5" fill="white" opacity="0.6" />
+            {/* Engine lights */}
+            <circle cx="-6" cy="1" r="1" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.8">
+              <animate attributeName="opacity" values="0.4;1;0.4" dur={danger ? '0.3s' : '1.5s'} repeatCount="indefinite" />
+            </circle>
+            <circle cx="6" cy="1" r="1" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.8">
+              <animate attributeName="opacity" values="0.4;1;0.4" dur={danger ? '0.3s' : '1.5s'} repeatCount="indefinite" begin="0.2s" />
+            </circle>
+            {/* Hover wobble */}
+            <animateTransform
+              attributeName="transform"
+              type="translate"
+              values={`${ufoX} 22; ${ufoX} 20; ${ufoX} 22`}
+              dur={danger ? '0.5s' : '3s'}
+              repeatCount="indefinite"
+              additive="replace"
+            />
+          </g>
+        </svg>
+      </div>
 
       {/* Distance label */}
-      <div className="flex justify-center mt-1">
-        <span className="mono text-xs font-semibold" style={{ color: orbColor, textShadow: `0 0 8px ${orbGlow}` }}>
+      <div className="flex justify-center pb-2">
+        <span className="mono text-xs font-semibold" style={{
+          color: danger ? '#ff2a6d' : warn ? '#e0c3fc' : '#39ff14',
+          textShadow: danger ? '0 0 8px rgba(255,42,109,0.6)' : '0 0 8px rgba(57,255,20,0.4)',
+        }}>
           {nearestPct.toFixed(1)}% to {nearestSide}
         </span>
       </div>

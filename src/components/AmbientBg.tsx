@@ -31,7 +31,7 @@ export function AmbientBg({ profit }: AmbientBgProps) {
     function spawnStream() {
       if (streams.length >= MAX_STREAMS) return
       const horizontal = Math.random() > 0.3
-      const hues = ['255, 170, 0', '57, 255, 20', '194, 74, 255']
+      const hues = ['184, 169, 255', '57, 255, 20', '194, 74, 255']
       const hue = hues[Math.floor(Math.random() * hues.length)]
       if (horizontal) {
         streams.push({
@@ -67,7 +67,7 @@ export function AmbientBg({ profit }: AmbientBgProps) {
           const wave = Math.sin(x * 0.01 + t * 0.5) * Math.cos(y * 0.01 + t * 0.3) * 0.03
           ctx!.beginPath()
           ctx!.arc(x, y, 0.6, 0, Math.PI * 2)
-          ctx!.fillStyle = `rgba(255, 170, 0, ${dotAlpha + wave})`
+          ctx!.fillStyle = `rgba(184, 169, 255, ${dotAlpha + wave})`
           ctx!.fill()
         }
       }
@@ -108,7 +108,7 @@ export function AmbientBg({ profit }: AmbientBgProps) {
 
       // Vignette — profit-reactive
       const intensity = Math.min(Math.abs(profit) / 50, 1) * 0.25
-      const hue = profit >= 0 ? '255, 208, 0' : '255, 42, 109'
+      const hue = profit >= 0 ? '184, 169, 255' : '255, 42, 109'
       const grad = ctx!.createRadialGradient(w / 2, h * 0.3, 0, w / 2, h * 0.3, w * 0.7)
       grad.addColorStop(0, `rgba(${hue}, ${0.02 * intensity})`)
       grad.addColorStop(1, 'transparent')

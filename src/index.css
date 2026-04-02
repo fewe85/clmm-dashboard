@@ -11,19 +11,21 @@
   --text-secondary: #8892b0;
   --text-muted: #4a5280;
 
-  --neon-cyan: #00d4ff;
+  --neon-cyan: #7eb8ff;
   --neon-green: #39ff14;
   --neon-pink: #ff2a6d;
   --neon-purple: #c24aff;
-  --neon-yellow: #ffaa00;
-  --neon-amber: #ff8800;
-  --neon-gold: #ffd000;
+  --neon-yellow: #e0c3fc;
+  --neon-amber: #b8a9ff;
+  --neon-gold: #d4c4ff;
+  --lavender: #b8a9ff;
+  --lavender-glow: rgba(184, 169, 255, 0.5);
 
   /* Legacy compat aliases */
   --accent-green: var(--neon-green);
   --accent-red: var(--neon-pink);
   --accent-blue: var(--neon-cyan);
-  --accent-yellow: var(--neon-yellow);
+  --accent-yellow: var(--lavender);
 }
 
 body {
@@ -70,16 +72,16 @@ body::after {
   border: 1px solid var(--border);
   position: relative;
   box-shadow:
-    0 0 1px rgba(255, 170, 0, 0.12),
-    0 0 15px rgba(255, 136, 0, 0.03),
+    0 0 1px rgba(184, 169, 255, 0.12),
+    0 0 15px rgba(184, 169, 255, 0.03),
     0 4px 30px rgba(0, 0, 0, 0.5);
   transition: box-shadow 0.3s ease;
 }
 
 .card-glow:hover {
   box-shadow:
-    0 0 1px rgba(255, 170, 0, 0.25),
-    0 0 20px rgba(255, 136, 0, 0.06),
+    0 0 1px rgba(184, 169, 255, 0.25),
+    0 0 20px rgba(184, 169, 255, 0.06),
     0 8px 40px rgba(0, 0, 0, 0.6);
 }
 
@@ -97,17 +99,17 @@ body::after {
 .card-glow::before {
   top: -1px;
   left: -1px;
-  border-top: 2px solid var(--neon-yellow);
-  border-left: 2px solid var(--neon-yellow);
-  filter: drop-shadow(0 0 3px rgba(255, 170, 0, 0.5));
+  border-top: 2px solid var(--lavender);
+  border-left: 2px solid var(--lavender);
+  filter: drop-shadow(0 0 3px var(--lavender-glow));
 }
 
 .card-glow::after {
   bottom: -1px;
   right: -1px;
-  border-bottom: 2px solid var(--neon-yellow);
-  border-right: 2px solid var(--neon-yellow);
-  filter: drop-shadow(0 0 3px rgba(255, 170, 0, 0.5));
+  border-bottom: 2px solid var(--lavender);
+  border-right: 2px solid var(--lavender);
+  filter: drop-shadow(0 0 3px var(--lavender-glow));
 }
 
 /* ── In Range Badge ─────────────────────────────────────────────── */
@@ -140,7 +142,7 @@ body::after {
 
 /* ── Neon text glow ─────────────────────────────────────────────── */
 .neon-value {
-  text-shadow: 0 0 7px rgba(255, 208, 0, 0.4), 0 0 20px rgba(255, 170, 0, 0.12);
+  text-shadow: 0 0 7px rgba(184, 169, 255, 0.5), 0 0 20px rgba(184, 169, 255, 0.15);
 }
 
 .neon-green-value {
@@ -164,12 +166,12 @@ body::after {
   0%, 100% {
     transform: scale(1);
     opacity: 1;
-    box-shadow: 0 0 0 0 rgba(255, 208, 0, 0.5);
+    box-shadow: 0 0 0 0 var(--lavender-glow);
   }
   50% {
     transform: scale(1.2);
     opacity: 0.8;
-    box-shadow: 0 0 0 4px rgba(255, 208, 0, 0);
+    box-shadow: 0 0 0 4px rgba(184, 169, 255, 0);
   }
 }
 
@@ -177,8 +179,23 @@ body::after {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--neon-gold);
+  background: var(--lavender);
   animation: earning-pulse 2s ease-in-out infinite;
+}
+
+/* Ore shapes for mining drip */
+@keyframes ore-fall {
+  0% { top: -6px; opacity: 0; transform: rotate(0deg); }
+  10% { opacity: 0.9; }
+  85% { opacity: 0.6; }
+  100% { top: calc(100% - 6px); opacity: 0; transform: rotate(180deg); }
+}
+
+.ore-fall {
+  position: absolute;
+  opacity: 0;
+  animation: ore-fall 3s ease-in infinite;
+  filter: drop-shadow(0 0 3px currentColor);
 }
 
 /* ── Falling drops ──────────────────────────────────────────────── */
@@ -222,7 +239,7 @@ body::after {
   left: -20%;
   right: -20%;
   height: 2px;
-  background: linear-gradient(90deg, transparent, var(--neon-gold), transparent);
+  background: linear-gradient(90deg, transparent, var(--lavender), transparent);
   animation: surface-shimmer 3s ease-in-out infinite;
 }
 

@@ -74,13 +74,14 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   if (totalPerHour <= 0) return null
 
   // Generate deterministic "drops" at different speeds/positions
-  const drops = useMemo(() =>
-    Array.from({ length: 14 }, (_, i) => ({
-      left: 8 + (i * 31 + 17) % 84,
-      delay: (i * 0.6) % 4,
-      duration: 2 + (i % 4) * 0.6,
-      size: i % 4 === 0 ? 4 : 3,
-      isReward: i > Math.floor(14 * feesRatio),
+  // Ore types: diamond, crystal, nugget
+  const ores = useMemo(() =>
+    Array.from({ length: 12 }, (_, i) => ({
+      left: 10 + (i * 29 + 13) % 80,
+      delay: (i * 0.7) % 4.5,
+      duration: 2.5 + (i % 3) * 0.7,
+      shape: i % 3, // 0=diamond, 1=crystal, 2=nugget
+      isReward: i > Math.floor(12 * feesRatio),
     })),
   [feesRatio])
 
@@ -89,11 +90,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       {/* Rate label */}
       <div className="text-center mb-1 z-10">
         <div className="earning-pulse mx-auto mb-1" />
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-gold)' }}>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
           ${displayTotal.toFixed(4)}
         </div>
         <div className="hud-label" style={{ fontSize: '8px' }}>
-          pending
+          mining
         </div>
       </div>
 
@@ -103,15 +104,15 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         <div
           className="absolute inset-x-2 top-0 bottom-0 rounded-lg overflow-hidden"
           style={{
-            border: '1px solid rgba(255,170,0,0.12)',
+            border: '1px solid rgba(184,169,255,0.12)',
             background: '#050510',
           }}
         >
           {/* Grid overlay */}
           <div className="absolute inset-0" style={{
             backgroundImage: `
-              linear-gradient(rgba(255,170,0,0.04) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,170,0,0.04) 1px, transparent 1px)
+              linear-gradient(rgba(184,169,255,0.04) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(184,169,255,0.04) 1px, transparent 1px)
             `,
             backgroundSize: '12px 12px',
           }} />
@@ -121,8 +122,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
             style={{
               height: `${fillPct}%`,
-              background: `linear-gradient(to top, rgba(255,170,0,0.3), rgba(194,74,255,0.12) ${feesRatio * 100}%, rgba(255,208,0,0.2))`,
-              borderTop: fillPct > 2 ? '1px solid rgba(255,208,0,0.4)' : 'none',
+              background: `linear-gradient(to top, rgba(184,169,255,0.3), rgba(194,74,255,0.15) ${feesRatio * 100}%, rgba(184,169,255,0.2))`,
+              borderTop: fillPct > 2 ? '1px solid rgba(184,169,255,0.4)' : 'none',
             }}
           >
             {/* Surface shimmer */}
@@ -131,21 +132,32 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             )}
           </div>
 
-          {/* Falling drops — neon colors */}
-          {drops.map((d, i) => (
-            <div
+          {/* Falling ores */}
+          {ores.map((o, i) => (
+            <svg
               key={i}
-              className="drop-fall"
+              className="ore-fall"
               style={{
-                left: `${d.left}%`,
-                animationDelay: `${d.delay}s`,
-                animationDuration: `${d.duration}s`,
-                width: d.size,
-                height: d.size,
-                background: d.isReward ? 'var(--neon-gold)' : 'var(--neon-purple)',
-                color: d.isReward ? 'var(--neon-gold)' : 'var(--neon-purple)',
+                left: `${o.left}%`,
+                animationDelay: `${o.delay}s`,
+                animationDuration: `${o.duration}s`,
+                color: o.isReward ? 'var(--lavender)' : 'var(--neon-purple)',
+                width: o.shape === 0 ? 7 : 6,
+                height: o.shape === 0 ? 9 : 7,
               }}
-            />
+              viewBox="0 0 10 12"
+            >
+              {o.shape === 0 ? (
+                /* Diamond */
+                <polygon points="5,0 10,5 5,12 0,5" fill="currentColor" opacity="0.8" />
+              ) : o.shape === 1 ? (
+                /* Crystal */
+                <polygon points="3,0 7,0 9,5 7,12 3,12 1,5" fill="currentColor" opacity="0.7" />
+              ) : (
+                /* Nugget */
+                <polygon points="2,2 8,0 10,4 8,8 2,10 0,6" fill="currentColor" opacity="0.7" />
+              )}
+            </svg>
           ))}
         </div>
       </div>
@@ -155,9 +167,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         <div className="hud-label" style={{ fontSize: '8px' }}>
           <span style={{ color: 'var(--neon-purple)' }}>fees</span>
           {' + '}
-          <span style={{ color: 'var(--neon-gold)' }}>rewards</span>
+          <span style={{ color: 'var(--lavender)' }}>rewards</span>
         </div>
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--neon-gold)' }}>
+        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
           ${(totalPerHour * 24).toFixed(2)}/d
         </div>
         {harvestSec !== null && harvestSec > 0 && (

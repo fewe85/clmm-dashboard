@@ -64,7 +64,7 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
     <div className="rounded-xl overflow-hidden" style={{ background: '#050510', border: '1px solid var(--border)' }}>
       {/* Oscilloscope label */}
       <div className="flex justify-between items-center px-3 pt-2">
-        <span className="hud-label" style={{ color: 'var(--neon-yellow)', opacity: 0.6 }}>Rebalance Activity</span>
+        <span className="hud-label" style={{ color: 'var(--lavender)', opacity: 0.6 }}>Rebalance Activity</span>
         <span className="hud-label" style={{ opacity: 0.4 }}>7d</span>
       </div>
 
