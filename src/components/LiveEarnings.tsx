@@ -74,10 +74,10 @@ function makeShape(size: number): number[][] {
 function makeParticle(_h: number): Particle {
   const size = 5 + Math.random() * 10
   return {
-    x: 15 + Math.random() * (W - 30),
+    x: 20 + Math.random() * (W - 40),
     y: -size,
-    vx: (Math.random() - 0.5) * 0.3,
-    vy: 0.6 + Math.random() * 0.8,
+    vx: (Math.random() - 0.5) * 0.15,
+    vy: 0.3 + Math.random() * 0.4,
     size,
     rotation: Math.random() * Math.PI * 2,
     rotSpeed: (Math.random() - 0.5) * 0.03,
@@ -413,6 +413,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       p.x += p.vx
       p.y += p.vy
       p.rotation += p.rotSpeed
+      // Keep inside tube rails
+      if (p.x < 10 + p.size) { p.x = 10 + p.size; p.vx = Math.abs(p.vx) }
+      if (p.x > W - 10 - p.size) { p.x = W - 10 - p.size; p.vx = -Math.abs(p.vx) }
 
       // Asteroid hits either lightsaber blade → shatter into dots
       if (p.phase === 'intake') {
@@ -454,6 +457,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             f.vy += 0.015
             f.vx *= 0.99
             f.glow = Math.min(1, f.glow + 0.01)
+            // Bounce off tube walls
+            if (f.x < 8) { f.x = 8; f.vx = Math.abs(f.vx) * 0.5 }
+            if (f.x > W - 8) { f.x = W - 8; f.vx = -Math.abs(f.vx) * 0.5 }
             // Shrink when hitting liquid
             if (f.y > surfaceLimit) f.size *= 0.92
           }
