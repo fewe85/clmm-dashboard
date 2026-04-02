@@ -139,7 +139,7 @@ function NextHarvestTimer({ elon }: { elon: PoolMetrics }) {
 
   return (
     <div className="flex items-baseline gap-1.5">
-      <span style={{ color: 'var(--text-muted)' }}>EXTRACTION IN</span>
+      <span style={{ color: '#8892b0' }}>EXTRACTION IN</span>
       {parts.map((p, i) => (
         <span key={p.name} className="mono font-semibold" style={{ color: p.color }}>
           {i > 0 && <span style={{ color: 'var(--text-muted)' }}> · </span>}
@@ -155,7 +155,7 @@ function SummaryItem({ label, value, color, sub, muted }: {
 }) {
   return (
     <div className="flex items-baseline gap-1.5">
-      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ color: '#8892b0' }}>{label}</span>
       <span className="mono font-semibold" style={{ color: color || (muted ? 'var(--text-muted)' : 'var(--text-primary)') }}>
         {value}
       </span>

@@ -161,7 +161,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         <button
           onClick={() => setShowOpt(!showOpt)}
           className="text-xs font-medium cursor-pointer w-full text-left py-1"
-          style={{ color: 'var(--text-muted)', background: 'none', border: 'none' }}
+          style={{ color: '#c77dff', background: 'none', border: 'none' }}
         >
           DRILL CALIBRATION {showOpt ? '▾' : '▸'}
         </button>
