@@ -320,7 +320,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
             {/* Hover bob */}
             <animateTransform
               attributeName="transform" type="translate"
-              values="0 0; 0 -3; 0 1; 0 -2; 0 0"
+              values="0 0; 0 -7; 0 3; 0 -5; 0 0"
               dur={danger ? '0.6s' : '4s'}
               repeatCount="indefinite"
             />
