@@ -454,18 +454,15 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }:
 
   return (
     <div className="space-y-0">
-      {/* MISSION PROFIT — always visible, clickable to expand details */}
+      {/* MISSION PROFIT — standalone */}
       <div
-        className="flex justify-between px-2 py-1.5 cursor-pointer"
+        className="flex justify-between px-2 py-1.5"
         style={{
           borderTop: '2px double #2a2a3a',
           background: 'rgba(255,255,255,0.03)',
         }}
-        onClick={() => setShowDetails(!showDetails)}
       >
-        <span className="mono font-bold" style={{ color: '#b0b8cc', fontSize: '11px' }}>
-          MISSION PROFIT (Net) <span style={{ color: '#555', fontSize: '9px' }}>{showDetails ? '▾' : '▸'}</span>
-        </span>
+        <span className="mono font-bold" style={{ color: '#b0b8cc', fontSize: '11px' }}>MISSION PROFIT (Net)</span>
         <span
           className={`mono font-bold ${netPnl >= 0 ? 'pnl-glow-green' : ''}`}
           style={{
@@ -477,7 +474,18 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }:
         </span>
       </div>
 
-      {/* Detail rows — collapsible */}
+      {/* NAV ADVANTAGE — standalone */}
+      <ClmmVsHodl pool={pool} botState={botState} tokenAPrice={tokenAPrice} aptPrice={aptPrice} />
+
+      {/* MISSION DETAILS — collapsible dropdown */}
+      <div
+        className="flex items-center gap-1 px-2 py-1 cursor-pointer"
+        style={{ borderTop: '1px solid #1a1a2a' }}
+        onClick={() => setShowDetails(!showDetails)}
+      >
+        <span className="mono" style={{ color: '#555', fontSize: '9px' }}>{showDetails ? '▾' : '▸'}</span>
+        <span className="hud-label" style={{ fontSize: '8px', color: '#666' }}>MISSION DETAILS</span>
+      </div>
       {showDetails && (
         <div>
           {rows.map((r, i) => {
@@ -508,9 +516,6 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }:
           })}
         </div>
       )}
-
-      {/* NAV ADVANTAGE */}
-      <ClmmVsHodl pool={pool} botState={botState} tokenAPrice={tokenAPrice} aptPrice={aptPrice} />
     </div>
   )
 }
