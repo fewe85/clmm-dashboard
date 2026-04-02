@@ -483,8 +483,8 @@ function PnlSection({ pool, totalHarvested, feeBps, tokenAPrice, aptPrice, pm }:
         style={{ borderTop: '1px solid #1a1a2a' }}
         onClick={() => setShowDetails(!showDetails)}
       >
-        <span className="mono" style={{ color: '#555', fontSize: '9px' }}>{showDetails ? '▾' : '▸'}</span>
-        <span className="hud-label" style={{ fontSize: '8px', color: '#666' }}>MISSION DETAILS</span>
+        <span className="mono" style={{ color: '#c77dff', fontSize: '9px' }}>{showDetails ? '▾' : '▸'}</span>
+        <span className="hud-label" style={{ fontSize: '9px', color: '#c77dff' }}>MISSION DETAILS</span>
       </div>
       {showDetails && (
         <div>
