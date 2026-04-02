@@ -156,17 +156,20 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         swapCostTotal={calcSwapCostTotal(pool, pm)}
       />
 
-      {/* 8. Range Optimization (collapsed) */}
-      <div>
-        <button
-          onClick={() => setShowOpt(!showOpt)}
-          className="text-xs font-medium cursor-pointer w-full text-left py-1"
-          style={{ color: '#c77dff', background: 'none', border: 'none' }}
-        >
-          DRILL CALIBRATION {showOpt ? '▾' : '▸'}
-        </button>
-        {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
+      {/* 8. Drill Calibration (collapsed, same style as MISSION DETAILS) */}
+      <div
+        className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer"
+        style={{
+          background: 'rgba(199,125,255,0.12)',
+          borderTop: '1px solid rgba(199,125,255,0.2)',
+          borderBottom: '1px solid rgba(199,125,255,0.2)',
+        }}
+        onClick={() => setShowOpt(!showOpt)}
+      >
+        <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showOpt ? '▾' : '▸'}</span>
+        <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>DRILL CALIBRATION</span>
       </div>
+      {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
       </div>{/* end left */}
 
       {/* Right: Live Earnings drip tank */}
