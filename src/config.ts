@@ -7,7 +7,7 @@ export const REFRESH_INTERVAL = 120_000 // 2 min
 
 // ─── ELON/USDC Pool (single pool since 2026-04-02 migration) ────────────────
 // APT/USDC pool closed, all capital migrated to ELON/USDC
-export const ELON_POOL_NAME = 'ELON/USDC'
+export const ELON_POOL_NAME = 'MINE: ELON/USDC'
 export const ELON_INVESTED = 347  // 216 (ELON) + 131 (APT migrated) baseline from 2026-03-30
 export const ELON_BOT_START = '2026-03-30T16:00:00.000Z'  // P&L measurement reset
 
