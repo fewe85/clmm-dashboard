@@ -104,14 +104,14 @@ function drawFlask(c: CanvasRenderingContext2D, cx: number, topY: number, fill: 
     const lH = bR * 1.6 * fill, lTop = bCY + bR - lH
     c.save(); c.beginPath(); c.arc(cx, bCY, bR - 1.5, 0, Math.PI * 2); c.clip()
     const lg = c.createLinearGradient(0, lTop, 0, bCY + bR)
-    lg.addColorStop(0, 'rgba(0,255,136,0.3)'); lg.addColorStop(1, 'rgba(0,255,136,0.5)')
+    lg.addColorStop(0, 'rgba(180,77,255,0.3)'); lg.addColorStop(1, 'rgba(180,77,255,0.5)')
     c.fillStyle = lg; c.fillRect(cx - bR, lTop, bR * 2, lH + 4)
     c.beginPath()
     for (let sx = cx - bR + 3; sx < cx + bR - 3; sx += 2) {
       const wy = lTop + Math.sin(sx * 0.1 + now * 0.003) * 1
       if (sx === cx - bR + 3) c.moveTo(sx, wy); else c.lineTo(sx, wy)
     }
-    c.strokeStyle = 'rgba(0,255,136,0.35)'; c.lineWidth = 0.7; c.stroke()
+    c.strokeStyle = 'rgba(180,77,255,0.4)'; c.lineWidth = 0.7; c.stroke()
     c.restore()
   }
   c.beginPath(); c.arc(cx, bCY, bR * 0.35, 0, Math.PI * 2)
@@ -394,7 +394,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
               partsRef.current.push({
                 x: W - 26 + (Math.random() - 0.5) * 6, y: LASER_Y + 4,
                 vx: (Math.random() - 0.5) * 0.5, vy: 0.2 + Math.random() * 0.3,
-                size: 2 + Math.random() * 2, type: 'frag', color: '#cc7733', life: 1, phase: 0,
+                size: 2 + Math.random() * 2, type: 'frag', color: '#b44dff', life: 1, phase: 0,
               })
             }
             for (let i = 0; i < 3; i++) partsRef.current.push({
@@ -403,10 +403,26 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             })
             continue
           }
-          c.beginPath(); c.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2)
+          // Draw irregular rock shape
+          const s = p.size / 2
+          c.beginPath()
+          c.moveTo(p.x - s, p.y - s * 0.3)
+          c.lineTo(p.x - s * 0.4, p.y - s)
+          c.lineTo(p.x + s * 0.5, p.y - s * 0.7)
+          c.lineTo(p.x + s, p.y - s * 0.1)
+          c.lineTo(p.x + s * 0.7, p.y + s * 0.6)
+          c.lineTo(p.x + s * 0.1, p.y + s)
+          c.lineTo(p.x - s * 0.6, p.y + s * 0.5)
+          c.closePath()
           c.fillStyle = '#b44dff'; c.fill()
-          c.fillStyle = 'rgba(180,77,255,0.06)'; c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2); c.fill()
-          c.fillStyle = 'rgba(255,255,255,0.08)'; c.beginPath(); c.arc(p.x - 1, p.y - 1, p.size * 0.25, 0, Math.PI * 2); c.fill()
+          // Shadow
+          c.fillStyle = 'rgba(0,0,0,0.2)'; c.fill()
+          c.fillStyle = '#b44dff'; c.fill()
+          // Highlight
+          c.fillStyle = 'rgba(212,148,255,0.15)'
+          c.beginPath(); c.arc(p.x - s * 0.3, p.y - s * 0.3, s * 0.35, 0, Math.PI * 2); c.fill()
+          // Glow
+          c.fillStyle = 'rgba(180,77,255,0.05)'; c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2); c.fill()
 
         } else if (p.type === 'frag') {
           // Path B→C: fall to band 2, ride left, fall to flask
@@ -426,18 +442,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
             if (dist < flask.bR) p.life -= 0.02
           }
           if (p.life <= 0 || p.y > flask.bCY + flask.bR + 10) continue
-          // Color: bright orange on band 2, transitions toward green near flask
-          const t = Math.min(1, (1 - p.life) * 2)
-          const fr = Math.floor(255 * (1 - t * 0.8))
-          const fg = Math.floor(140 + 115 * t)
-          const fb = Math.floor(50 + 86 * t)
+          // Color: purple fragments
           c.beginPath(); c.arc(p.x, p.y, p.size * 0.45, 0, Math.PI * 2)
-          c.fillStyle = `rgba(${fr},${fg},${fb},${Math.max(0.3, p.life)})`; c.fill()
-          // Orange glow
-          if (t < 0.5) {
-            c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-            c.fillStyle = 'rgba(255,140,50,0.04)'; c.fill()
-          }
+          c.fillStyle = `rgba(180,77,255,${Math.max(0.4, p.life)})`; c.fill()
+          c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+          c.fillStyle = 'rgba(180,77,255,0.04)'; c.fill()
 
         } else if (p.type === 'spark') {
           p.x += p.vx; p.y += p.vy; p.life -= 0.025
