@@ -413,7 +413,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
     // ─── CRUSHING GEARS — two interlocking half-visible gears ─────
     const gearY = (intakeEnd + processEnd) / 2 // centered on zone boundary
-    const gearR = 28 // radius — large, extends beyond walls
+    const gearR = 42 // radius — big enough that teeth almost touch at center
     const gearSpin = (now * 0.001) % (Math.PI * 2)
     const teeth = 10
     const toothDepth = 6
@@ -426,7 +426,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.save()
 
     for (const side of ['left', 'right'] as const) {
-      const gx = side === 'left' ? railW - 4 : W - railW + 4
+      const gx = side === 'left' ? W / 2 - gearR - 1 : W / 2 + gearR + 1
       const dir = side === 'left' ? 1 : -1
       const spin = gearSpin * dir
 
