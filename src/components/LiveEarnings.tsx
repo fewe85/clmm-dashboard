@@ -45,11 +45,11 @@ function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   )
 }
 
-// Particle
+// ─── Particle ─────────────────────────────────────────────────────────────
 interface P {
   x: number; y: number; vx: number; vy: number; size: number; rot: number
   type: 'stone' | 'frag' | 'bubble' | 'drop'
-  shape: number[][]; color: number; life: number
+  shape: number[][]; t: number; life: number
 }
 function mkShape(s: number): number[][] {
   const n = 5 + Math.floor(Math.random() * 3)
@@ -57,6 +57,14 @@ function mkShape(s: number): number[][] {
     const a = (i / n) * Math.PI * 2, r = s * (0.4 + Math.random() * 0.6)
     return [Math.cos(a) * r, Math.sin(a) * r]
   })
+}
+
+// ─── Neon line helper ─────────────────────────────────────────────────────
+function neonStroke(c: CanvasRenderingContext2D, color: string, glowColor: string, width: number) {
+  // Glow pass
+  c.strokeStyle = glowColor; c.lineWidth = width + 4; c.stroke()
+  // Core pass
+  c.strokeStyle = color; c.lineWidth = width; c.stroke()
 }
 
 export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold, positionValue }: LiveEarningsProps) {
@@ -71,13 +79,13 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   useEffect(() => {
     if (!nextHarvestAt) return
     const u = () => setHarvestSec(Math.max(0, (new Date(nextHarvestAt).getTime() - Date.now()) / 1000))
-    u(); const t = setInterval(u, 1000); return () => clearInterval(t)
+    u(); const iv = setInterval(u, 1000); return () => clearInterval(iv)
   }, [nextHarvestAt])
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const partsRef = useRef<P[]>([])
-  const spawnRef = useRef({ last: 0, delay: 2000 })
+  const spawnRef = useRef({ last: 0, delay: 2500 })
   const fillRef = useRef(0)
   const splashRef = useRef<{ x: number; y: number; t: number }[]>([])
 
@@ -105,212 +113,207 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       c.clearRect(0, 0, W, H)
 
+      // Hologram flicker
+      c.globalAlpha = 0.96 + Math.sin(now * 0.02) * 0.04
+
+      // Colors
+      const PURPLE = '#b44dff'
+      const PURPLEG = 'rgba(180,77,255,0.08)'
+      const GREEN = '#00ff88'
+      const GREENG = 'rgba(0,255,136,0.08)'
+      const RED = '#ff3366'
+      const REDG = 'rgba(255,51,102,0.08)'
+      const ORANGE = '#ff6b35'
+
       // ═══ LAYOUT ═══════════════════════════════════════════
-      const BELT_Y = H * 0.08          // belt surface Y
-      const LASER_Y = H * 0.18         // laser beam Y
-      const FLASK_TOP = H * 0.26       // round flask starts
-      const FLASK_CY = H * 0.36        // flask center Y
-      const FLASK_R = 18               // flask bulb radius
+      const BELT_Y = H * 0.10
+      const BELT_H = 4
+      const BELT_L = 8, BELT_R = W - 8
+      const LASER_X = BELT_R - 10
+      const LASER_TOP = BELT_Y + BELT_H + 3
+      const LASER_BOT = H * 0.22
+      const FUNNEL_TOP = LASER_BOT + 2
+      const FUNNEL_BOT = H * 0.27
+      const FLASK_CX = CX
+      const FLASK_CY = H * 0.40
+      const FLASK_R = 20
+      const FLASK_NECK_TOP = FUNNEL_BOT + 2
       const FLASK_BOT = FLASK_CY + FLASK_R + 2
-      const COND_START_Y = FLASK_CY - 4 // condenser exits flask side
-      const COND_END_X = W - 22        // condenser end X (right side)
-      const COND_END_Y = H * 0.52      // condenser drip point
-      const TUBE_Y = H * 0.56          // reagent tubes top
+      const COND_SX = FLASK_CX + FLASK_R - 3
+      const COND_SY = FLASK_CY - 6
+      const COND_EX = W - 16
+      const COND_EY = H * 0.56
+      const TUBE_Y = H * 0.60
       const TUBE_H = H * 0.08
-      const BASIN_TOP = H * 0.68
+      const BASIN_TOP = H * 0.72
       const BASIN_H = H - BASIN_TOP - 3
 
       // ═══ BACKGROUND ═══════════════════════════════════════
-      c.fillStyle = '#0a0a18'; c.fillRect(0, 0, W, H)
-      c.strokeStyle = 'rgba(199,125,255,0.01)'; c.lineWidth = 0.5
-      for (let y = 0; y < H; y += 14) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke() }
-      for (let x = 0; x < W; x += 14) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, H); c.stroke() }
+      c.fillStyle = '#08080f'; c.fillRect(0, 0, W, H)
 
-      // ═══ 1. CRUSHER HOPPER + CONVEYOR BELT + LASER ═════════
-      const beltL = 10
-      const hopperW = 36
-      c.fillStyle = '#3a3a4a'
-      c.beginPath(); c.moveTo(beltL + 4 - hopperW / 2 + 10, 2); c.lineTo(beltL + 4 - 4, BELT_Y - 2); c.lineTo(beltL + 4 + 8, BELT_Y - 2); c.lineTo(beltL + 4 + hopperW / 2 + 10, 2); c.closePath(); c.fill()
-      c.fillStyle = '#1a1a2a'
-      c.beginPath(); c.moveTo(beltL + 4 - hopperW / 2 + 14, 4); c.lineTo(beltL + 4 - 2, BELT_Y - 3); c.lineTo(beltL + 4 + 6, BELT_Y - 3); c.lineTo(beltL + 4 + hopperW / 2 + 6, 4); c.closePath(); c.fill()
-      // Hopper jaws
-      const jaw = Math.sin(now * 0.005)
-      c.fillStyle = '#6a6a7a'
-      c.fillRect(beltL + 4 - 2 - jaw, BELT_Y - 5, 4, 3)
-      c.fillRect(beltL + 4 + 2 + jaw, BELT_Y - 5, 4, 3)
-      if (jaw > 0.5) { c.fillStyle = 'rgba(255,170,0,0.35)'; c.beginPath(); c.arc(beltL + 4 + 2, BELT_Y - 2, 2, 0, Math.PI * 2); c.fill() }
-
-      // Belt surface
-      const beltR = W - 10, beltH = 5
-      c.fillStyle = '#333344'; c.fillRect(beltL, BELT_Y, beltR - beltL, beltH)
-      // Moving segments
-      const segSpd = (now * 0.03) % 10
-      c.fillStyle = 'rgba(199,125,255,0.06)'
-      for (let sx = beltL; sx < beltR; sx += 10) {
-        const ox = sx + segSpd; if (ox < beltR - 2) c.fillRect(ox, BELT_Y + 1, 5, beltH - 2)
-      }
-      // Belt shadow
-      c.fillStyle = 'rgba(0,0,0,0.15)'; c.fillRect(beltL + 2, BELT_Y + beltH, beltR - beltL - 4, 2)
-      // Rollers
-      const rollSpin = (now * 0.006) % (Math.PI * 2)
-      for (const rx of [beltL + 3, beltR - 3]) {
-        c.save(); c.translate(rx, BELT_Y + beltH / 2); c.rotate(rollSpin)
-        c.beginPath(); c.arc(0, 0, 4, 0, Math.PI * 2); c.fillStyle = '#3a3a4a'; c.fill()
-        c.fillStyle = '#555566'; c.fillRect(-0.5, -3.5, 1, 7) // spoke
-        c.beginPath(); c.arc(0, 0, 1.5, 0, Math.PI * 2); c.fillStyle = '#4a4a5a'; c.fill()
-        c.restore()
+      // ═══ 1. CONVEYOR BELT (wireframe) ═════════════════════
+      const dashOff = (now * 0.03) % 20
+      // Top rail
+      c.beginPath(); c.moveTo(BELT_L, BELT_Y); c.lineTo(BELT_R, BELT_Y)
+      c.setLineDash([5, 3]); c.lineDashOffset = -dashOff
+      neonStroke(c, PURPLE, PURPLEG, 1.5)
+      c.setLineDash([])
+      // Bottom rail
+      c.beginPath(); c.moveTo(BELT_L, BELT_Y + BELT_H); c.lineTo(BELT_R, BELT_Y + BELT_H)
+      c.setLineDash([5, 3]); c.lineDashOffset = -dashOff
+      neonStroke(c, PURPLE, PURPLEG, 1)
+      c.setLineDash([])
+      // Rollers (wireframe circles)
+      const rollAngle = (now * 0.006) % (Math.PI * 2)
+      for (const rx of [BELT_L + 4, BELT_R - 4]) {
+        c.beginPath(); c.arc(rx, BELT_Y + BELT_H / 2, 4, 0, Math.PI * 2)
+        neonStroke(c, PURPLE, PURPLEG, 1)
+        // Spoke
+        c.beginPath()
+        c.moveTo(rx + Math.cos(rollAngle) * 3, BELT_Y + BELT_H / 2 + Math.sin(rollAngle) * 3)
+        c.lineTo(rx - Math.cos(rollAngle) * 3, BELT_Y + BELT_H / 2 - Math.sin(rollAngle) * 3)
+        neonStroke(c, PURPLE, PURPLEG, 0.5)
       }
 
-      // Laser beam (vertical, at belt right end)
-      const laserX = beltR - 8
-      const lPulse = 0.7 + Math.sin(now * 0.005) * 0.3
-      // Glow
-      c.fillStyle = `rgba(255,51,102,${0.04 * lPulse})`
-      c.fillRect(laserX - 6, BELT_Y + beltH + 2, 12, LASER_Y - BELT_Y - beltH + 8)
-      // Beam
-      c.globalAlpha = lPulse
-      c.strokeStyle = '#ff3366'; c.lineWidth = 2
-      c.beginPath(); c.moveTo(laserX, BELT_Y + beltH + 3); c.lineTo(laserX, LASER_Y + 8); c.stroke()
-      c.strokeStyle = '#ff8899'; c.lineWidth = 0.6
-      c.beginPath(); c.moveTo(laserX, BELT_Y + beltH + 3); c.lineTo(laserX, LASER_Y + 8); c.stroke()
-      c.globalAlpha = 1
-      // Emitter (top)
-      c.fillStyle = '#ff3366'; c.beginPath(); c.arc(laserX, BELT_Y + beltH + 2, 2.5, 0, Math.PI * 2); c.fill()
-      c.fillStyle = 'rgba(255,51,102,0.12)'; c.beginPath(); c.arc(laserX, BELT_Y + beltH + 2, 5, 0, Math.PI * 2); c.fill()
+      // ═══ LASER (vertical, at belt right) ══════════════════
+      const lp = 0.7 + Math.sin(now * 0.005) * 0.3
+      c.globalAlpha = lp
+      c.beginPath(); c.moveTo(LASER_X, LASER_TOP); c.lineTo(LASER_X, LASER_BOT)
+      neonStroke(c, RED, REDG, 1.5)
+      c.globalAlpha = 0.96 + Math.sin(now * 0.02) * 0.04
+      // Emitter dot
+      c.beginPath(); c.arc(LASER_X, LASER_TOP - 1, 2.5, 0, Math.PI * 2)
+      c.fillStyle = RED; c.fill()
 
-      // ═══ 2. DISTILLATION APPARATUS ════════════════════════
-      const GL = 'rgba(140,160,190,0.2)' // glass color
-      const GLH = 'rgba(255,255,255,0.04)' // glass highlight
-
-      // Round flask (left side)
-      c.strokeStyle = GL; c.lineWidth = 1.2
+      // ═══ FUNNEL (wireframe V) ═════════════════════════════
       c.beginPath()
+      c.moveTo(LASER_X - 12, FUNNEL_TOP); c.lineTo(CX, FUNNEL_BOT)
+      c.lineTo(LASER_X + 12, FUNNEL_TOP)
+      neonStroke(c, PURPLE, PURPLEG, 1.2)
+
+      // ═══ 2. DISTILLATION FLASK (wireframe, centered) ═════
       // Neck
-      c.moveTo(CX - 12, FLASK_TOP); c.lineTo(CX - 5, FLASK_TOP)
-      c.lineTo(CX - 5, FLASK_CY - FLASK_R + 4)
+      c.beginPath()
+      c.moveTo(CX - 5, FLASK_NECK_TOP); c.lineTo(CX - 5, FLASK_CY - FLASK_R + 6)
+      neonStroke(c, PURPLE, PURPLEG, 1.2)
+      c.beginPath()
+      c.moveTo(CX + 5, FLASK_NECK_TOP); c.lineTo(CX + 5, FLASK_CY - FLASK_R + 6)
+      neonStroke(c, PURPLE, PURPLEG, 1.2)
       // Bulb
-      c.arc(CX - 12, FLASK_CY, FLASK_R, -Math.PI * 0.35, Math.PI * 0.85, false)
-      c.lineTo(CX - 12 - FLASK_R * 0.2, FLASK_CY - FLASK_R + 4)
-      c.lineTo(CX - 19, FLASK_TOP)
-      c.lineTo(CX - 12, FLASK_TOP)
-      c.stroke()
-      // Highlight
-      c.strokeStyle = GLH; c.lineWidth = 1
-      c.beginPath(); c.arc(CX - 15, FLASK_CY - 4, FLASK_R * 0.5, -0.8, 0.4); c.stroke()
+      c.beginPath(); c.arc(FLASK_CX, FLASK_CY, FLASK_R, -Math.PI * 0.78, Math.PI * 1.78)
+      neonStroke(c, GREEN, GREENG, 1.5)
 
-      // Liquid in flask (fills from bottom)
-      const flkFill = Math.min(1, fillRef.current * 3)
+      // Liquid level in flask
+      const flkFill = Math.min(1, fillRef.current * 2.5)
       if (flkFill > 0.05) {
-        const liqH = FLASK_R * 1.4 * flkFill
-        const liqTop = FLASK_CY + FLASK_R - 2 - liqH
+        const liqH = FLASK_R * 1.5 * flkFill
+        const liqTop = FLASK_CY + FLASK_R - liqH
         c.save()
-        c.beginPath(); c.arc(CX - 12, FLASK_CY, FLASK_R - 2, 0, Math.PI * 2); c.clip()
-        const lG = c.createLinearGradient(0, liqTop, 0, FLASK_CY + FLASK_R)
-        lG.addColorStop(0, 'rgba(0,255,136,0.15)'); lG.addColorStop(1, 'rgba(0,255,136,0.3)')
-        c.fillStyle = lG; c.fillRect(CX - 12 - FLASK_R, liqTop, FLASK_R * 2, liqH + 4)
-        c.restore()
-        // Liquid surface wave
-        c.strokeStyle = 'rgba(0,255,136,0.3)'; c.lineWidth = 0.8
+        c.beginPath(); c.arc(FLASK_CX, FLASK_CY, FLASK_R - 1.5, 0, Math.PI * 2); c.clip()
+        c.fillStyle = `rgba(0,255,136,${0.08 + flkFill * 0.12})`
+        c.fillRect(FLASK_CX - FLASK_R, liqTop, FLASK_R * 2, liqH + 4)
+        // Surface wave
         c.beginPath()
-        for (let x = CX - 12 - FLASK_R + 4; x < CX - 12 + FLASK_R - 4; x += 2) {
+        for (let x = FLASK_CX - FLASK_R + 3; x < FLASK_CX + FLASK_R - 3; x += 2) {
           const wy = liqTop + Math.sin(x * 0.12 + now * 0.003) * 1
-          if (x === CX - 12 - FLASK_R + 4) c.moveTo(x, wy); else c.lineTo(x, wy)
+          if (x === FLASK_CX - FLASK_R + 3) c.moveTo(x, wy); else c.lineTo(x, wy)
         }
-        c.stroke()
+        c.strokeStyle = 'rgba(0,255,136,0.35)'; c.lineWidth = 0.8; c.stroke()
+        c.restore()
       }
-      // Flask glow
-      c.beginPath(); c.arc(CX - 12, FLASK_CY, FLASK_R * 0.5, 0, Math.PI * 2)
-      c.fillStyle = `rgba(0,255,136,${0.02 + Math.sin(now * 0.003) * 0.01})`; c.fill()
 
-      // Flame under flask
+      // Flame under flask (wireframe zigzag)
       for (let i = 0; i < 3; i++) {
-        const fx = CX - 16 + i * 4, fh = 3 + Math.sin(now * 0.01 + i * 2) * 1.5
-        c.fillStyle = `rgba(255,120,0,${0.3 + Math.sin(now * 0.012 + i) * 0.15})`
-        c.beginPath(); c.moveTo(fx - 1.5, FLASK_BOT + 1); c.lineTo(fx, FLASK_BOT + 1 - fh); c.lineTo(fx + 1.5, FLASK_BOT + 1); c.fill()
-        c.fillStyle = `rgba(255,220,80,${0.2 + Math.sin(now * 0.015 + i) * 0.1})`
-        c.beginPath(); c.moveTo(fx - 0.8, FLASK_BOT + 1); c.lineTo(fx, FLASK_BOT + 1 - fh * 0.5); c.lineTo(fx + 0.8, FLASK_BOT + 1); c.fill()
+        const fx = CX - 6 + i * 6
+        const fh = 5 + Math.sin(now * 0.012 + i * 2) * 2
+        const fa = 0.5 + Math.sin(now * 0.015 + i) * 0.3
+        c.globalAlpha = fa
+        c.beginPath(); c.moveTo(fx - 2, FLASK_BOT + 3); c.lineTo(fx, FLASK_BOT + 3 - fh); c.lineTo(fx + 2, FLASK_BOT + 3)
+        c.strokeStyle = ORANGE; c.lineWidth = 1.2; c.stroke()
+        c.globalAlpha = 0.96 + Math.sin(now * 0.02) * 0.04
       }
-      c.fillStyle = '#3a3a4a'; c.fillRect(CX - 20, FLASK_BOT + 1, 16, 2)
+      // Heater base wireframe
+      c.beginPath(); c.moveTo(CX - 14, FLASK_BOT + 3); c.lineTo(CX + 14, FLASK_BOT + 3)
+      neonStroke(c, 'rgba(255,107,53,0.4)', 'rgba(255,107,53,0.05)', 1)
 
-      // Condenser tube (from flask right side, angling down-right)
-      c.strokeStyle = GL; c.lineWidth = 1.2
+      // ═══ CONDENSER TUBE (diagonal wireframe + coil) ═══════
+      // Outer tube (two parallel lines)
+      c.beginPath(); c.moveTo(COND_SX, COND_SY); c.lineTo(COND_EX, COND_EY)
+      neonStroke(c, GREEN, GREENG, 1.2)
+      c.beginPath(); c.moveTo(COND_SX, COND_SY + 5); c.lineTo(COND_EX, COND_EY + 5)
+      neonStroke(c, GREEN, GREENG, 0.8)
+      // Cooling coil (zigzag)
+      const condDx = COND_EX - COND_SX, condDy = COND_EY - COND_SY
+      const condLen = Math.sqrt(condDx * condDx + condDy * condDy)
       c.beginPath()
-      c.moveTo(CX - 12 + FLASK_R - 2, COND_START_Y)
-      c.lineTo(COND_END_X, COND_END_Y)
-      c.stroke()
-      // Outer tube (parallel)
-      c.beginPath()
-      c.moveTo(CX - 12 + FLASK_R - 2, COND_START_Y + 4)
-      c.lineTo(COND_END_X, COND_END_Y + 4)
-      c.stroke()
-      // Cooling coil (zigzag between tubes)
-      c.strokeStyle = 'rgba(100,140,200,0.12)'; c.lineWidth = 0.6
-      const condLen = Math.sqrt((COND_END_X - (CX - 12 + FLASK_R)) ** 2 + (COND_END_Y - COND_START_Y) ** 2)
-      const condAngle = Math.atan2(COND_END_Y - COND_START_Y, COND_END_X - (CX - 12 + FLASK_R))
-      c.beginPath()
-      for (let d = 0; d < condLen; d += 4) {
+      c.strokeStyle = 'rgba(100,180,255,0.12)'; c.lineWidth = 0.6
+      for (let d = 0; d < condLen; d += 3) {
         const t = d / condLen
-        const bx = (CX - 12 + FLASK_R - 2) + t * (COND_END_X - (CX - 12 + FLASK_R - 2))
-        const by = COND_START_Y + t * (COND_END_Y - COND_START_Y) + 2
-        const zigY = Math.sin(d * 0.8) * 2
-        const px = bx + Math.sin(condAngle + Math.PI / 2) * zigY
-        const py = by + Math.cos(condAngle + Math.PI / 2) * zigY
-        if (d === 0) c.moveTo(px, py); else c.lineTo(px, py)
+        const bx = COND_SX + t * condDx, by = COND_SY + t * condDy + 2.5
+        const zig = Math.sin(d * 0.9) * 2.5
+        const nx = -condDy / condLen, ny = condDx / condLen
+        if (d === 0) c.moveTo(bx + nx * zig, by + ny * zig)
+        else c.lineTo(bx + nx * zig, by + ny * zig)
       }
       c.stroke()
-      // Drip point
-      c.fillStyle = '#3a3a4a'; c.fillRect(COND_END_X - 2, COND_END_Y + 2, 5, 4)
+      // Drip nozzle
+      c.beginPath(); c.arc(COND_EX, COND_EY + 6, 2, 0, Math.PI * 2)
+      neonStroke(c, GREEN, GREENG, 0.8)
 
-      // ═══ 3. REAGENT TUBES ═════════════════════════════════
-      const tubeW = 8, tubeGap = 6, tubeCount = 3
-      const tubeStartX = CX - ((tubeCount * tubeW + (tubeCount - 1) * tubeGap) / 2)
-      for (let i = 0; i < tubeCount; i++) {
-        const tx = tubeStartX + i * (tubeW + tubeGap)
-        const fill = [0.8, 0.5, 0.3][i] * Math.min(1, fillRef.current * 2)
+      // ═══ 3. REAGENT TUBES (wireframe) ═════════════════════
+      const tubeW = 8, tubeGap = 5, tubeN = 3
+      const tubeSX = CX - ((tubeN * tubeW + (tubeN - 1) * tubeGap) / 2)
+      for (let i = 0; i < tubeN; i++) {
+        const tx = tubeSX + i * (tubeW + tubeGap)
+        const tf = [0.7, 0.45, 0.25][i] * Math.min(1, fillRef.current * 2)
         // Tube outline
-        c.strokeStyle = GL; c.lineWidth = 0.8
         c.beginPath()
-        c.moveTo(tx, TUBE_Y); c.lineTo(tx, TUBE_Y + TUBE_H - 3)
-        c.arc(tx + tubeW / 2, TUBE_Y + TUBE_H - 3, tubeW / 2, Math.PI, 0, true)
+        c.moveTo(tx, TUBE_Y); c.lineTo(tx, TUBE_Y + TUBE_H - tubeW / 2)
+        c.arc(tx + tubeW / 2, TUBE_Y + TUBE_H - tubeW / 2, tubeW / 2, Math.PI, 0, true)
         c.lineTo(tx + tubeW, TUBE_Y)
-        c.stroke()
-        // Tube rim
-        c.strokeStyle = 'rgba(140,160,190,0.25)'; c.lineWidth = 1.5
-        c.beginPath(); c.moveTo(tx - 1, TUBE_Y); c.lineTo(tx + tubeW + 1, TUBE_Y); c.stroke()
+        neonStroke(c, GREEN, GREENG, 0.8)
+        // Rim
+        c.beginPath(); c.moveTo(tx - 1, TUBE_Y); c.lineTo(tx + tubeW + 1, TUBE_Y)
+        neonStroke(c, GREEN, GREENG, 1)
         // Fill
-        if (fill > 0) {
-          const fH = (TUBE_H - 3) * fill
-          c.fillStyle = `rgba(0,255,136,${0.2 + fill * 0.15})`
-          c.fillRect(tx + 1, TUBE_Y + TUBE_H - 3 - fH, tubeW - 2, fH)
-          // Glow
-          c.fillStyle = `rgba(0,255,136,${0.03 + Math.sin(now * 0.003 + i) * 0.02})`
-          c.fillRect(tx, TUBE_Y + TUBE_H - 3 - fH - 2, tubeW, fH + 4)
+        if (tf > 0) {
+          const fH = (TUBE_H - tubeW / 2) * tf
+          c.fillStyle = `rgba(0,255,136,${0.12 + tf * 0.1 + Math.sin(now * 0.003 + i) * 0.03})`
+          c.fillRect(tx + 1, TUBE_Y + TUBE_H - tubeW / 2 - fH, tubeW - 2, fH)
         }
       }
 
-      // ═══ 4. BASIN ═════════════════════════════════════════
+      // ═══ 4. BASIN (wireframe tank) ════════════════════════
       const fillH = BASIN_H * fillRef.current, surfY = H - 3 - fillH
-      c.fillStyle = '#0a0a14'; c.fillRect(10, BASIN_TOP, W - 20, BASIN_H)
+      // Tank outline (U shape)
+      c.beginPath()
+      c.moveTo(10, BASIN_TOP); c.lineTo(10, H - 3); c.lineTo(W - 10, H - 3); c.lineTo(W - 10, BASIN_TOP)
+      neonStroke(c, GREEN, GREENG, 1.5)
+      // Rim
+      c.beginPath(); c.moveTo(8, BASIN_TOP); c.lineTo(W - 8, BASIN_TOP)
+      neonStroke(c, GREEN, GREENG, 1.2)
+      // Liquid
       if (fillH > 2) {
-        const lG = c.createLinearGradient(0, surfY, 0, H)
-        lG.addColorStop(0, 'rgba(0,255,136,0.25)'); lG.addColorStop(1, 'rgba(0,255,136,0.4)')
-        c.fillStyle = lG; c.fillRect(11, surfY, W - 22, fillH + 2)
+        c.fillStyle = `rgba(0,255,136,${0.12 + fillRef.current * 0.18})`
+        c.fillRect(11, surfY, W - 22, fillH + 2)
+        // Wave
         c.beginPath(); c.moveTo(11, surfY)
         for (let x = 11; x < W - 11; x += 2) c.lineTo(x, surfY + Math.sin(x * 0.08 + now * 0.002) * 1.2)
-        c.lineTo(W - 11, surfY); c.strokeStyle = 'rgba(0,255,136,0.5)'; c.lineWidth = 0.8; c.stroke()
-        c.fillStyle = 'rgba(255,255,255,0.03)'; c.fillRect(14, surfY + 2, 16, 1.5)
-        const gG = c.createLinearGradient(0, surfY - 6, 0, surfY)
+        c.lineTo(W - 11, surfY)
+        c.strokeStyle = 'rgba(0,255,136,0.45)'; c.lineWidth = 0.8; c.stroke()
+        // Glow up
+        const gG = c.createLinearGradient(0, surfY - 8, 0, surfY)
         gG.addColorStop(0, 'transparent'); gG.addColorStop(1, 'rgba(0,255,136,0.04)')
-        c.fillStyle = gG; c.fillRect(11, surfY - 6, W - 22, 6)
+        c.fillStyle = gG; c.fillRect(11, surfY - 8, W - 22, 8)
       }
-      c.strokeStyle = '#2a2a3a'; c.lineWidth = 1.5; c.strokeRect(9.5, BASIN_TOP - 0.5, W - 19, BASIN_H + 1)
-      c.fillStyle = '#444455'; c.fillRect(8, BASIN_TOP - 2, W - 16, 3)
+
+      c.globalAlpha = 1
 
       // ═══ SPLASHES ═════════════════════════════════════════
       splashRef.current = splashRef.current.filter(s => {
         const age = (now - s.t) / 1000; if (age > 0.4) return false
         for (let i = 0; i < 3; i++) {
-          c.beginPath(); c.arc(s.x + (Math.random() - 0.5) * 8 * age * 3, s.y - age * 8 * (1 + i * 0.4), 1 * (1 - age * 2.5), 0, Math.PI * 2)
+          c.beginPath(); c.arc(s.x + (Math.random() - 0.5) * 8 * age * 3, s.y - age * 8 * (1 + i * 0.3), 1 * (1 - age * 2.5), 0, Math.PI * 2)
           c.fillStyle = `rgba(0,255,136,${(1 - age * 2.5) * 0.4})`; c.fill()
         }
         return true
@@ -322,106 +325,104 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         if (partsRef.current.length < 30) {
           const sz = 5 + Math.random() * 7
           partsRef.current.push({
-            x: beltL + 6 + (Math.random() - 0.5) * 4, y: BELT_Y - sz * 0.5 - 1,
-            vx: 0.4, vy: 0, size: sz, rot: Math.random() * Math.PI * 2,
-            type: 'stone', shape: mkShape(sz), color: 0, life: 1,
+            x: BELT_L + 8, y: BELT_Y - sz * 0.3,
+            vx: 0.35, vy: 0, size: sz, rot: Math.random() * Math.PI * 2,
+            type: 'stone', shape: mkShape(sz), t: 0, life: 1,
           })
-          spawnRef.current.last = now
-          spawnRef.current.delay = 2000 + Math.random() * 2000
+          spawnRef.current = { last: now, delay: 2000 + Math.random() * 2000 }
         }
       }
-      // Spawn bubbles
-      if (Math.random() < 0.025 && partsRef.current.filter(p => p.type === 'bubble').length < 5) {
+      // Spawn bubbles in flask
+      if (Math.random() < 0.02 && partsRef.current.filter(p => p.type === 'bubble').length < 5) {
         partsRef.current.push({
-          x: CX - 12 + (Math.random() - 0.5) * FLASK_R * 1.2,
+          x: FLASK_CX + (Math.random() - 0.5) * FLASK_R,
           y: FLASK_CY + FLASK_R - 4, vx: 0, vy: -0.2 - Math.random() * 0.3,
-          size: 1.5 + Math.random() * 2.5, rot: 0, type: 'bubble',
-          shape: [], color: 0, life: 1,
+          size: 1.5 + Math.random() * 2, rot: 0, type: 'bubble', shape: [], t: 0, life: 1,
         })
       }
 
       const alive: P[] = []
       for (const p of partsRef.current) {
         if (p.type === 'stone') {
-          p.x += p.vx // move with belt
-          // Reached laser?
-          if (p.x >= laserX - 3) {
+          p.x += p.vx
+          if (p.x >= LASER_X - 3) {
             // Flash
-            c.fillStyle = 'rgba(255,255,255,0.5)'; c.beginPath(); c.arc(p.x, BELT_Y + beltH + 4, p.size + 5, 0, Math.PI * 2); c.fill()
-            // Spawn fragments
+            c.fillStyle = 'rgba(255,100,100,0.4)'; c.beginPath(); c.arc(LASER_X, BELT_Y + BELT_H + 6, 8, 0, Math.PI * 2); c.fill()
+            // Fragments
             for (let i = 0; i < 6; i++) {
               partsRef.current.push({
-                x: p.x + (Math.random() - 0.5) * 6, y: LASER_Y + Math.random() * 4,
-                vx: (Math.random() - 0.5) * 1, vy: 0.3 + Math.random() * 0.4,
-                size: 2 + Math.random() * 2.5, rot: Math.random() * Math.PI * 2,
-                type: 'frag', shape: mkShape(3), color: 0.15, life: 1,
+                x: LASER_X + (Math.random() - 0.5) * 8,
+                y: LASER_BOT + Math.random() * 6,
+                vx: (Math.random() - 0.5) * 0.8, vy: 0.3 + Math.random() * 0.4,
+                size: 2 + Math.random() * 2, rot: Math.random() * Math.PI * 2,
+                type: 'frag', shape: mkShape(3), t: 0.1, life: 1,
               })
             }
-            continue // stone destroyed
+            continue
           }
-          // Draw on belt
+          // Draw wireframe stone
           c.save(); c.translate(p.x, p.y); c.rotate(p.rot)
-          c.fillStyle = 'rgba(0,0,0,0.2)'; c.beginPath()
-          c.moveTo(p.shape[0][0] + 1, p.shape[0][1] + 1)
-          for (let i = 1; i < p.shape.length; i++) c.lineTo(p.shape[i][0] + 1, p.shape[i][1] + 1)
-          c.closePath(); c.fill()
-          c.fillStyle = '#b44dff'; c.beginPath()
-          c.moveTo(p.shape[0][0], p.shape[0][1])
+          c.beginPath(); c.moveTo(p.shape[0][0], p.shape[0][1])
           for (let i = 1; i < p.shape.length; i++) c.lineTo(p.shape[i][0], p.shape[i][1])
-          c.closePath(); c.fill()
-          c.fillStyle = 'rgba(255,255,255,0.1)'; c.beginPath(); c.arc(-p.size * 0.2, -p.size * 0.2, p.size * 0.3, 0, Math.PI * 2); c.fill()
+          c.closePath(); neonStroke(c, PURPLE, PURPLEG, 1.2)
           c.restore()
 
         } else if (p.type === 'frag') {
           p.y += p.vy; p.vy += 0.008; p.x += p.vx; p.vx *= 0.99; p.rot += 0.03
-          p.color = Math.min(1, p.color + 0.004)
-          // Funnel toward flask
-          if (p.y > FLASK_TOP - 5) p.x += ((CX - 12) - p.x) * 0.04
-          // Enter flask
-          if (p.y > FLASK_CY && Math.abs(p.x - (CX - 12)) < FLASK_R) { p.life -= 0.03; p.size *= 0.97 }
-          // Become drop at condenser output
-          if (p.y > COND_END_Y - 5 && p.color > 0.7 && p.x > CX + 5) {
-            p.type = 'drop'; p.x = COND_END_X; p.y = COND_END_Y + 6; p.vy = 0.4; p.vx = 0; p.size = 2 + Math.random() * 1.5
+          p.t = Math.min(1, p.t + 0.004)
+          // Funnel toward flask neck
+          if (p.y > FUNNEL_TOP) p.x += (CX - p.x) * 0.03
+          // Inside flask bulb → fade
+          if (p.y > FLASK_CY - FLASK_R + 5 && Math.abs(p.x - CX) < FLASK_R * 0.8) {
+            p.life -= 0.02; p.size *= 0.98
+          }
+          if (p.life <= 0 || p.y > FLASK_BOT + 5) {
+            // Chance to become a drop at condenser
+            if (Math.random() < 0.4) {
+              partsRef.current.push({
+                x: COND_EX, y: COND_EY + 8,
+                vx: 0, vy: 0.3, size: 2 + Math.random() * 1.5, rot: 0,
+                type: 'drop', shape: [], t: 1, life: 1,
+              })
+            }
             continue
           }
-          if (p.life <= 0 || p.y > FLASK_BOT + 10) continue
-
-          const t = p.color
-          const r = Math.floor(180 * (1 - t) + 0 * t)
+          // Draw — color transitions purple → green
+          const t = p.t
+          const r = Math.floor(180 * (1 - t))
           const g = Math.floor(77 * (1 - t) + 255 * t)
           const b = Math.floor(255 * (1 - t) + 136 * t)
+          const col = `rgb(${r},${g},${b})`
+          const glow = `rgba(${r},${g},${b},0.08)`
           c.save(); c.translate(p.x, p.y); c.rotate(p.rot)
-          c.fillStyle = `rgba(${r},${g},${b},${p.life})`
-          c.beginPath()
           const sc = p.size * (1 - t * 0.3) / 3
-          c.moveTo(p.shape[0][0] * sc, p.shape[0][1] * sc)
+          c.beginPath(); c.moveTo(p.shape[0][0] * sc, p.shape[0][1] * sc)
           for (let i = 1; i < p.shape.length; i++) c.lineTo(p.shape[i][0] * sc, p.shape[i][1] * sc)
-          c.closePath(); c.fill()
-          if (t > 0.5) { c.beginPath(); c.arc(0, 0, p.size, 0, Math.PI * 2); c.fillStyle = `rgba(0,255,136,${(t - 0.5) * 0.08})`; c.fill() }
+          c.closePath(); neonStroke(c, col, glow, 1)
           c.restore()
 
         } else if (p.type === 'bubble') {
-          p.y += p.vy; p.x += Math.sin(now * 0.005 + p.x) * 0.1; p.life -= 0.006
-          if (p.life <= 0 || p.y < FLASK_CY - FLASK_R + 6) continue
+          p.y += p.vy; p.x += Math.sin(now * 0.005 + p.x) * 0.1; p.life -= 0.005
+          if (p.life <= 0 || p.y < FLASK_CY - FLASK_R + 8) continue
           c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          c.strokeStyle = `rgba(0,255,136,${p.life * 0.25})`; c.lineWidth = 0.5; c.stroke()
+          c.strokeStyle = `rgba(0,255,136,${p.life * 0.2})`; c.lineWidth = 0.6; c.stroke()
 
         } else if (p.type === 'drop') {
           p.y += p.vy; p.vy += 0.015
-          if (p.y >= surfY && fillH > 0) { splashRef.current.push({ x: p.x, y: surfY, t: now }); p.size *= 0.4 }
+          if (p.y >= surfY && fillH > 0) { splashRef.current.push({ x: p.x, y: surfY, t: now }); p.size *= 0.3 }
           if (p.size < 0.3 || p.y > H) continue
+          // Neon drop
           c.beginPath(); c.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-          c.fillStyle = 'rgba(0,255,136,0.8)'; c.fill()
-          c.beginPath(); c.arc(p.x - p.size * 0.25, p.y - p.size * 0.25, p.size * 0.35, 0, Math.PI * 2)
-          c.fillStyle = 'rgba(255,255,255,0.2)'; c.fill()
-          c.beginPath(); c.arc(p.x, p.y, p.size + 2, 0, Math.PI * 2)
+          c.fillStyle = 'rgba(0,255,136,0.7)'; c.fill()
+          c.beginPath(); c.arc(p.x, p.y, p.size + 2.5, 0, Math.PI * 2)
           c.fillStyle = 'rgba(0,255,136,0.06)'; c.fill()
+          c.beginPath(); c.arc(p.x - p.size * 0.2, p.y - p.size * 0.2, p.size * 0.3, 0, Math.PI * 2)
+          c.fillStyle = 'rgba(255,255,255,0.15)'; c.fill()
         }
         alive.push(p)
       }
       partsRef.current = alive
 
-      c.strokeStyle = 'rgba(199,125,255,0.05)'; c.lineWidth = 1; c.strokeRect(0.5, 0.5, W - 1, H - 1)
       requestAnimationFrame(loop)
     }
     loop(); return () => { run = false }
