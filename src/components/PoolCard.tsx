@@ -240,16 +240,26 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <radialGradient id="nebula-left" cx="0" cy="0.5" r="0.35">
-              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.18" />
+            <radialGradient id="nebula-left" cx="0.05" cy="0.5" r="0.5">
+              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.2" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
-            <radialGradient id="nebula-right" cx="1" cy="0.5" r="0.35">
-              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.18" />
+            <radialGradient id="nebula-right" cx="0.95" cy="0.5" r="0.5">
+              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.2" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
-            <radialGradient id="nebula-center" cx="0.5" cy="0.5" r="0.4">
-              <stop offset="0%" stopColor="#c77dff" stopOpacity="0.07" />
+            <radialGradient id="nebula-center" cx="0.5" cy="0.5" r="0.6">
+              <stop offset="0%" stopColor="#c77dff" stopOpacity="0.08" />
+              <stop offset="70%" stopColor="#1a0a30" stopOpacity="0.04" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+            {/* Dust clouds scattered across width */}
+            <radialGradient id="dust1" cx="0.25" cy="0.3" r="0.2">
+              <stop offset="0%" stopColor="#c77dff" stopOpacity="0.06" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+            <radialGradient id="dust2" cx="0.75" cy="0.7" r="0.2">
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.05" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
             <linearGradient id="beam-grad" x1="0" y1="0" x2="0" y2="1">
@@ -263,6 +273,8 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
           <rect width="300" height="70" fill="url(#nebula-left)" />
           <rect width="300" height="70" fill="url(#nebula-right)" />
           <rect width="300" height="70" fill="url(#nebula-center)" />
+          <rect width="300" height="70" fill="url(#dust1)" />
+          <rect width="300" height="70" fill="url(#dust2)" />
 
           {/* Stars */}
           {stars.map((s, i) => (
