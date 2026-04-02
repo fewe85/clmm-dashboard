@@ -14,12 +14,12 @@
   --neon-cyan: #7eb8ff;
   --neon-green: #39ff14;
   --neon-pink: #ff2a6d;
-  --neon-purple: #c24aff;
-  --neon-yellow: #e0c3fc;
-  --neon-amber: #b8a9ff;
-  --neon-gold: #d4c4ff;
-  --lavender: #b8a9ff;
-  --lavender-glow: rgba(184, 169, 255, 0.5);
+  --neon-purple: #c77dff;
+  --neon-yellow: #d9a6ff;
+  --neon-amber: #c77dff;
+  --neon-gold: #d9a6ff;
+  --lavender: #c77dff;
+  --lavender-glow: rgba(199, 125, 255, 0.5);
 
   /* Legacy compat aliases */
   --accent-green: var(--neon-green);
@@ -72,16 +72,16 @@ body::after {
   border: 1px solid var(--border);
   position: relative;
   box-shadow:
-    0 0 1px rgba(184, 169, 255, 0.12),
-    0 0 15px rgba(184, 169, 255, 0.03),
+    0 0 1px rgba(199, 125, 255, 0.12),
+    0 0 15px rgba(199, 125, 255, 0.03),
     0 4px 30px rgba(0, 0, 0, 0.5);
   transition: box-shadow 0.3s ease;
 }
 
 .card-glow:hover {
   box-shadow:
-    0 0 1px rgba(184, 169, 255, 0.25),
-    0 0 20px rgba(184, 169, 255, 0.06),
+    0 0 1px rgba(199, 125, 255, 0.25),
+    0 0 20px rgba(199, 125, 255, 0.06),
     0 8px 40px rgba(0, 0, 0, 0.6);
 }
 
@@ -142,7 +142,7 @@ body::after {
 
 /* ── Neon text glow ─────────────────────────────────────────────── */
 .neon-value {
-  text-shadow: 0 0 7px rgba(184, 169, 255, 0.5), 0 0 20px rgba(184, 169, 255, 0.15);
+  text-shadow: 0 0 7px rgba(199, 125, 255, 0.5), 0 0 20px rgba(199, 125, 255, 0.15);
 }
 
 .neon-green-value {
@@ -171,7 +171,7 @@ body::after {
   50% {
     transform: scale(1.2);
     opacity: 0.8;
-    box-shadow: 0 0 0 4px rgba(184, 169, 255, 0);
+    box-shadow: 0 0 0 4px rgba(199, 125, 255, 0);
   }
 }
 

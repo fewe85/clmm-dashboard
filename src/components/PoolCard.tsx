@@ -122,8 +122,8 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         <div
           className="rounded-lg px-3 py-2.5"
           style={{
-            background: 'linear-gradient(135deg, rgba(184,169,255,0.05), #050510)',
-            border: '1px solid rgba(184,169,255,0.15)',
+            background: 'linear-gradient(135deg, rgba(199,125,255,0.05), #050510)',
+            border: '1px solid rgba(199,125,255,0.15)',
           }}
         >
           <div className="hud-label mb-0.5">APR</div>
@@ -231,94 +231,146 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
 
       {/* Space scene SVG */}
       <div className="px-2 py-1">
-        <svg viewBox="0 0 300 48" className="w-full" style={{ height: '48px' }}>
+        <svg viewBox="0 0 300 70" className="w-full" style={{ height: '70px' }}>
           <defs>
             <filter id="ufo-glow">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+              <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="blur" />
               <feMerge>
                 <feMergeNode in="blur" />
                 <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
-            <radialGradient id="nebula-left" cx="0" cy="0.5" r="0.4">
-              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.15" />
+            <radialGradient id="nebula-left" cx="0" cy="0.5" r="0.35">
+              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.18" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
-            <radialGradient id="nebula-right" cx="1" cy="0.5" r="0.4">
-              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.15" />
+            <radialGradient id="nebula-right" cx="1" cy="0.5" r="0.35">
+              <stop offset="0%" stopColor="#ff2a6d" stopOpacity="0.18" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
-            <radialGradient id="nebula-center" cx="0.5" cy="0.5" r="0.35">
-              <stop offset="0%" stopColor="#b8a9ff" stopOpacity="0.06" />
+            <radialGradient id="nebula-center" cx="0.5" cy="0.5" r="0.4">
+              <stop offset="0%" stopColor="#c77dff" stopOpacity="0.07" />
               <stop offset="100%" stopColor="transparent" />
             </radialGradient>
+            <linearGradient id="beam-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#c77dff" stopOpacity="0.2" />
+              <stop offset="100%" stopColor="#c77dff" stopOpacity="0" />
+            </linearGradient>
           </defs>
 
-          {/* Space background — nebula zones */}
-          <rect width="300" height="48" fill="#020208" />
-          <rect width="300" height="48" fill="url(#nebula-left)" />
-          <rect width="300" height="48" fill="url(#nebula-right)" />
-          <rect width="300" height="48" fill="url(#nebula-center)" />
+          {/* Space background */}
+          <rect width="300" height="70" fill="#020208" />
+          <rect width="300" height="70" fill="url(#nebula-left)" />
+          <rect width="300" height="70" fill="url(#nebula-right)" />
+          <rect width="300" height="70" fill="url(#nebula-center)" />
 
           {/* Stars */}
           {stars.map((s, i) => (
-            <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="white" opacity={s.a}>
-              {i % 7 === 0 && <animate attributeName="opacity" values={`${s.a};${s.a * 2};${s.a}`} dur="3s" repeatCount="indefinite" />}
+            <circle key={i} cx={s.x} cy={s.y * 70 / 48} r={s.r} fill="white" opacity={s.a}>
+              {i % 7 === 0 && <animate attributeName="opacity" values={`${s.a};${s.a * 2.5};${s.a}`} dur={`${2 + i % 3}s`} repeatCount="indefinite" />}
             </circle>
           ))}
 
-          {/* Range boundaries — asteroid belts */}
-          <line x1="4" y1="0" x2="4" y2="48" stroke="#ff2a6d" strokeWidth="1" opacity="0.3" />
-          <line x1="296" y1="0" x2="296" y2="48" stroke="#ff2a6d" strokeWidth="1" opacity="0.3" />
+          {/* Range boundary lines — glowing red edges */}
+          <line x1="6" y1="0" x2="6" y2="70" stroke="#ff2a6d" strokeWidth="1.5" opacity="0.25" />
+          <line x1="294" y1="0" x2="294" y2="70" stroke="#ff2a6d" strokeWidth="1.5" opacity="0.25" />
+          {/* Small asteroids at edges */}
+          <circle cx="8" cy="15" r="2" fill="#444" opacity="0.5" />
+          <circle cx="10" cy="50" r="1.5" fill="#555" opacity="0.4" />
+          <circle cx="292" cy="25" r="2.5" fill="#444" opacity="0.5" />
+          <circle cx="290" cy="55" r="1.5" fill="#555" opacity="0.4" />
 
-          {/* Danger zones pulsing */}
+          {/* Danger zones */}
           {(danger || warn) && nearestSide === 'lower' && (
-            <rect x="0" y="0" width="30" height="48" fill="#ff2a6d" opacity="0.08" className="range-danger-pulse" />
+            <rect x="0" y="0" width="35" height="70" fill="#ff2a6d" opacity="0.1" className="range-danger-pulse" />
           )}
           {(danger || warn) && nearestSide === 'upper' && (
-            <rect x="270" y="0" width="30" height="48" fill="#ff2a6d" opacity="0.08" className="range-danger-pulse" />
+            <rect x="265" y="0" width="35" height="70" fill="#ff2a6d" opacity="0.1" className="range-danger-pulse" />
           )}
 
-          {/* Center safe zone indicator */}
-          <line x1="150" y1="0" x2="150" y2="48" stroke="#b8a9ff" strokeWidth="0.3" strokeDasharray="2,4" opacity="0.3" />
+          {/* Center safe zone */}
+          <line x1="150" y1="0" x2="150" y2="70" stroke="#c77dff" strokeWidth="0.4" strokeDasharray="3,5" opacity="0.2" />
 
-          {/* UFO beam (tractor beam below) */}
+          {/* Tractor beam */}
           <polygon
-            points={`${ufoX - 6},28 ${ufoX + 6},28 ${ufoX + 12},46 ${ufoX - 12},46`}
-            fill={danger ? '#ff2a6d' : '#b8a9ff'}
-            opacity="0.06"
+            points={`${ufoX - 8},40 ${ufoX + 8},40 ${ufoX + 18},68 ${ufoX - 18},68`}
+            fill="url(#beam-grad)"
+            opacity={danger ? '0.15' : '0.1'}
           />
+          {/* Beam scan lines */}
+          {[44, 50, 56, 62].map(y => (
+            <line key={y} x1={ufoX - 8 - (y - 40) * 0.5} y1={y} x2={ufoX + 8 + (y - 40) * 0.5} y2={y}
+              stroke="#c77dff" strokeWidth="0.3" opacity="0.15" />
+          ))}
 
-          {/* UFO body */}
-          <g transform={`translate(${ufoX}, 22)`} filter="url(#ufo-glow)">
-            {/* Saucer body */}
-            <ellipse cx="0" cy="0" rx="10" ry="3.5"
-              fill={danger ? '#ff2a6d' : warn ? '#e0c3fc' : '#b8a9ff'}
-              opacity="0.9"
-            />
-            {/* Dome */}
-            <ellipse cx="0" cy="-2" rx="5" ry="4"
-              fill={danger ? '#ff5588' : '#d4c4ff'}
-              opacity="0.7"
-            />
-            {/* Cockpit light */}
-            <circle cx="0" cy="-3" r="1.5" fill="white" opacity="0.6" />
-            {/* Engine lights */}
-            <circle cx="-6" cy="1" r="1" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.8">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur={danger ? '0.3s' : '1.5s'} repeatCount="indefinite" />
-            </circle>
-            <circle cx="6" cy="1" r="1" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.8">
-              <animate attributeName="opacity" values="0.4;1;0.4" dur={danger ? '0.3s' : '1.5s'} repeatCount="indefinite" begin="0.2s" />
-            </circle>
-            {/* Hover wobble */}
+          {/* UFO */}
+          <g filter="url(#ufo-glow)">
             <animateTransform
-              attributeName="transform"
-              type="translate"
-              values={`${ufoX} 22; ${ufoX} 20; ${ufoX} 22`}
+              attributeName="transform" type="translate"
+              values={`0 0; 0 -2.5; 0 0`}
               dur={danger ? '0.5s' : '3s'}
               repeatCount="indefinite"
-              additive="replace"
             />
+
+            {/* Saucer rim — metallic with purple tint */}
+            <ellipse cx={ufoX} cy="33" rx="16" ry="4"
+              fill={danger ? '#cc2255' : '#9055cc'}
+              stroke={danger ? '#ff2a6d' : '#c77dff'}
+              strokeWidth="0.8"
+              opacity="0.95"
+            />
+
+            {/* Saucer body — lighter top */}
+            <ellipse cx={ufoX} cy="31" rx="14" ry="5"
+              fill={danger ? '#dd4477' : '#a366dd'}
+              opacity="0.9"
+            />
+
+            {/* Dome — glass bubble */}
+            <ellipse cx={ufoX} cy="27" rx="7" ry="6"
+              fill={danger ? '#ff6699' : '#d4aaff'}
+              opacity="0.6"
+            />
+            <ellipse cx={ufoX} cy="26" rx="5" ry="4.5"
+              fill={danger ? '#ffaacc' : '#e8ccff'}
+              opacity="0.35"
+            />
+
+            {/* Cockpit window — bright highlight */}
+            <ellipse cx={ufoX} cy="25.5" rx="3" ry="2.5"
+              fill={danger ? '#ff88aa' : '#f0ddff'}
+              opacity="0.7"
+            />
+            <ellipse cx={ufoX - 0.5} cy="24.5" rx="1.5" ry="1"
+              fill="white" opacity="0.5"
+            />
+
+            {/* Engine pods — left */}
+            <circle cx={ufoX - 12} cy="34" r="2.5"
+              fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.7"
+            >
+              <animate attributeName="opacity" values="0.3;0.9;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" />
+            </circle>
+            <circle cx={ufoX - 12} cy="34" r="4" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.1">
+              <animate attributeName="r" values="3;5;3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" />
+            </circle>
+
+            {/* Engine pods — right */}
+            <circle cx={ufoX + 12} cy="34" r="2.5"
+              fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.7"
+            >
+              <animate attributeName="opacity" values="0.3;0.9;0.3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin="0.15s" />
+            </circle>
+            <circle cx={ufoX + 12} cy="34" r="4" fill={danger ? '#ff2a6d' : '#39ff14'} opacity="0.1">
+              <animate attributeName="r" values="3;5;3" dur={danger ? '0.2s' : '1s'} repeatCount="indefinite" begin="0.15s" />
+            </circle>
+
+            {/* Window lights along rim */}
+            {[-8, -4, 0, 4, 8].map((dx, i) => (
+              <circle key={i} cx={ufoX + dx} cy="33" r="0.8" fill="#ffe066" opacity="0.6">
+                <animate attributeName="opacity" values="0.3;0.8;0.3" dur="2s" repeatCount="indefinite" begin={`${i * 0.3}s`} />
+              </circle>
+            ))}
           </g>
         </svg>
       </div>

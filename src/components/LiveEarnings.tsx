@@ -33,7 +33,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   const totalPerHour = feesPerHour + rewardsPerHour
   const totalPerSecond = totalPerHour / 3600
 
-  // Smooth animated counter
   const [displayTotal, setDisplayTotal] = useState(pendingFees + pendingRewards)
   const baseRef = useRef({ value: pendingFees + pendingRewards, time: Date.now() })
   const rafRef = useRef<number>(0)
@@ -53,7 +52,6 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     return () => cancelAnimationFrame(rafRef.current)
   }, [totalPerSecond])
 
-  // Harvest countdown
   const [harvestSec, setHarvestSec] = useState<number | null>(null)
   useEffect(() => {
     if (!nextHarvestAt) return
@@ -73,63 +71,90 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
   if (totalPerHour <= 0) return null
 
-  // Generate deterministic "drops" at different speeds/positions
-  // Ore types: diamond, crystal, nugget
   const ores = useMemo(() =>
     Array.from({ length: 12 }, (_, i) => ({
       left: 10 + (i * 29 + 13) % 80,
       delay: (i * 0.7) % 4.5,
       duration: 2.5 + (i % 3) * 0.7,
-      shape: i % 3, // 0=diamond, 1=crystal, 2=nugget
+      shape: i % 3,
       isReward: i > Math.floor(12 * feesRatio),
     })),
   [feesRatio])
 
+  // Stars for the shaft background
+  const shaftStars = useMemo(() =>
+    Array.from({ length: 15 }, (_, i) => ({
+      x: 10 + (i * 41 + 7) % 80,
+      y: 5 + (i * 37 + 11) % 90,
+      r: i % 4 === 0 ? 0.8 : 0.4,
+    })),
+  [])
+
   return (
-    <div className="flex flex-col items-center justify-between relative" style={{ width: 100, minHeight: '100%' }}>
-      {/* Rate label */}
+    <div className="flex flex-col items-center justify-between relative" style={{ width: 110, minHeight: '100%' }}>
+      {/* Header — mining status */}
       <div className="text-center mb-1 z-10">
         <div className="earning-pulse mx-auto mb-1" />
         <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
           ${displayTotal.toFixed(4)}
         </div>
-        <div className="hud-label" style={{ fontSize: '8px' }}>
-          mining
+        <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.7 }}>
+          ORE MINED
         </div>
       </div>
 
-      {/* Tank container — the drip zone */}
-      <div className="relative flex-1 w-full" style={{ minHeight: 180 }}>
-        {/* Tank outline with grid */}
+      {/* Mining shaft */}
+      <div className="relative flex-1 w-full" style={{ minHeight: 200 }}>
         <div
-          className="absolute inset-x-2 top-0 bottom-0 rounded-lg overflow-hidden"
+          className="absolute inset-x-1 top-0 bottom-0 rounded-lg overflow-hidden"
           style={{
-            border: '1px solid rgba(184,169,255,0.12)',
-            background: '#050510',
+            border: '1px solid rgba(199,125,255,0.15)',
+            background: '#020208',
           }}
         >
-          {/* Grid overlay */}
-          <div className="absolute inset-0" style={{
-            backgroundImage: `
-              linear-gradient(rgba(184,169,255,0.04) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(184,169,255,0.04) 1px, transparent 1px)
-            `,
-            backgroundSize: '12px 12px',
-          }} />
+          {/* Space background with stars */}
+          {shaftStars.map((s, i) => (
+            <div key={i} className="absolute rounded-full" style={{
+              left: `${s.x}%`, top: `${s.y}%`,
+              width: s.r * 2, height: s.r * 2,
+              background: 'white',
+              opacity: 0.15 + (i % 3) * 0.1,
+            }} />
+          ))}
 
-          {/* Fill level (bottom-up) — neon gradient */}
+          {/* Shaft frame lines — metallic edges */}
+          <div className="absolute top-0 bottom-0 left-0" style={{ width: 2, background: 'linear-gradient(to bottom, rgba(199,125,255,0.2), rgba(199,125,255,0.05))' }} />
+          <div className="absolute top-0 bottom-0 right-0" style={{ width: 2, background: 'linear-gradient(to bottom, rgba(199,125,255,0.2), rgba(199,125,255,0.05))' }} />
+
+          {/* Horizontal struts */}
+          {[20, 40, 60, 80].map(pct => (
+            <div key={pct} className="absolute left-0 right-0" style={{
+              top: `${pct}%`, height: 1,
+              background: 'rgba(199,125,255,0.06)',
+            }} />
+          ))}
+
+          {/* Fill level — ore collection at bottom */}
           <div
             className="absolute bottom-0 left-0 right-0 transition-all duration-[2000ms] ease-linear"
             style={{
               height: `${fillPct}%`,
-              background: `linear-gradient(to top, rgba(184,169,255,0.3), rgba(194,74,255,0.15) ${feesRatio * 100}%, rgba(184,169,255,0.2))`,
-              borderTop: fillPct > 2 ? '1px solid rgba(184,169,255,0.4)' : 'none',
+              background: 'linear-gradient(to top, rgba(199,125,255,0.35), rgba(194,74,255,0.2) 50%, rgba(199,125,255,0.08))',
+              borderTop: fillPct > 2 ? '1px solid rgba(199,125,255,0.5)' : 'none',
             }}
           >
-            {/* Surface shimmer */}
-            {fillPct > 5 && (
-              <div className="surface-shimmer" />
+            {/* Ore pile texture — small gem shapes in the fill */}
+            {fillPct > 8 && (
+              <svg className="absolute bottom-0 left-0 right-0" viewBox="0 0 100 20" style={{ height: '20px', opacity: 0.3 }}>
+                <polygon points="10,20 15,12 20,20" fill="#c77dff" />
+                <polygon points="25,20 28,14 31,20" fill="#a855f7" />
+                <polygon points="40,20 46,10 52,20" fill="#d9a6ff" />
+                <polygon points="60,20 64,13 68,20" fill="#c77dff" />
+                <polygon points="75,20 80,11 85,20" fill="#a855f7" />
+                <polygon points="90,20 93,15 96,20" fill="#d9a6ff" />
+              </svg>
             )}
+            {fillPct > 5 && <div className="surface-shimmer" />}
           </div>
 
           {/* Falling ores */}
@@ -141,22 +166,21 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
                 left: `${o.left}%`,
                 animationDelay: `${o.delay}s`,
                 animationDuration: `${o.duration}s`,
-                color: o.isReward ? 'var(--lavender)' : 'var(--neon-purple)',
-                width: o.shape === 0 ? 7 : 6,
-                height: o.shape === 0 ? 9 : 7,
+                color: o.isReward ? '#c77dff' : '#a855f7',
+                width: o.shape === 0 ? 8 : 7,
+                height: o.shape === 0 ? 10 : 8,
               }}
               viewBox="0 0 10 12"
             >
               {o.shape === 0 ? (
-                /* Diamond */
-                <polygon points="5,0 10,5 5,12 0,5" fill="currentColor" opacity="0.8" />
+                <polygon points="5,0 10,5 5,12 0,5" fill="currentColor" opacity="0.9" />
               ) : o.shape === 1 ? (
-                /* Crystal */
-                <polygon points="3,0 7,0 9,5 7,12 3,12 1,5" fill="currentColor" opacity="0.7" />
+                <polygon points="3,0 7,0 9,5 7,12 3,12 1,5" fill="currentColor" opacity="0.8" />
               ) : (
-                /* Nugget */
-                <polygon points="2,2 8,0 10,4 8,8 2,10 0,6" fill="currentColor" opacity="0.7" />
+                <polygon points="2,2 8,0 10,4 8,8 2,10 0,6" fill="currentColor" opacity="0.8" />
               )}
+              {/* Sparkle on each ore */}
+              <circle cx="5" cy="4" r="1" fill="white" opacity="0.4" />
             </svg>
           ))}
         </div>
@@ -164,10 +188,10 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       {/* Bottom stats */}
       <div className="text-center mt-1.5 z-10 space-y-0.5">
-        <div className="hud-label" style={{ fontSize: '8px' }}>
-          <span style={{ color: 'var(--neon-purple)' }}>fees</span>
+        <div className="hud-label" style={{ fontSize: '7px' }}>
+          <span style={{ color: '#a855f7' }}>fees</span>
           {' + '}
-          <span style={{ color: 'var(--lavender)' }}>rewards</span>
+          <span style={{ color: '#c77dff' }}>rewards</span>
         </div>
         <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>
           ${(totalPerHour * 24).toFixed(2)}/d
