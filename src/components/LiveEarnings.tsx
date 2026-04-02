@@ -472,9 +472,10 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           const dist = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)
           if (dist < p.size + 12) { hit = true; break }
         }
-        if ((hit && p.y > robotY - 25) || p.y > robotY - 5) {
-          p.phase = 'process'
-          // Spawn small dot particles
+        if (hit) {
+          // Destroyed! Create fragments and mark done immediately
+          p.phase = 'done' as any
+          p.size = 0
           const dotCount = 6 + Math.floor(Math.random() * 5)
           p.fragments = Array.from({ length: dotCount }, () => ({
             x: p.x + (Math.random() - 0.5) * p.size * 0.8,
@@ -487,10 +488,16 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         }
       }
 
-      if (p.phase === 'process') {
-        // Asteroid destroyed instantly
-        p.size = 0
-        p.opacity = 0
+      // Dead asteroids — only keep alive if fragments still exist
+      if (p.phase as string === 'done') {
+        if (p.fragments && p.fragments.length > 0) {
+          // just update fragments below
+        } else {
+          continue
+        }
+      }
+
+      if (p.phase as string === 'done' || p.phase === 'process') {
 
         // Dots fall down with gravity
         if (p.fragments) {
@@ -509,14 +516,12 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           p.fragments = p.fragments.filter(f => f.size > 0.4 && f.y < h)
         }
 
-        if (p.size < 0.5 && (!p.fragments || p.fragments.length === 0)) {
-          p.phase = 'done'
+        if (!p.fragments || p.fragments.length === 0) {
+          continue // fully dead, remove
         }
       }
 
-      if (p.phase as string === 'done') continue
-
-      // Draw asteroid (intact or shrinking)
+      // Draw asteroid (intact only)
       if (p.size > 1) {
         ctx.save()
         ctx.translate(p.x, p.y)
