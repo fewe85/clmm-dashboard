@@ -434,9 +434,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           t = Math.max(0, Math.min(1, t))
           const cx = blade.ax + t * dx, cy = blade.ay + t * dy
           const dist = Math.sqrt((p.x - cx) ** 2 + (p.y - cy) ** 2)
-          if (dist < p.size + 5) { hit = true; break }
+          if (dist < p.size + 12) { hit = true; break }
         }
-        if (hit && p.y > robotY - 20) {
+        if ((hit && p.y > robotY - 25) || p.y > robotY - 5) {
           p.phase = 'process'
           // Spawn small dot particles
           const dotCount = 6 + Math.floor(Math.random() * 5)
