@@ -205,14 +205,15 @@ function drawUTube(c: CanvasRenderingContext2D, lx: number, rx: number, topY: nu
   for (const [jx, jy] of [[lx, startY], [rx, botY]] as [number, number][]) {
     c.fillStyle = '#3a3a4a'; c.fillRect(jx - 1, jy - 1, tw + 4, 3)
   }
-  // Cooling coil — continuous S-wave wrapping the right tube
-  c.strokeStyle = 'rgba(0,204,255,0.15)'; c.lineWidth = 1.2
+  // Cooling coil — subtle thin spiral wrapping tightly around tube
+  c.strokeStyle = 'rgba(0,204,255,0.12)'; c.lineWidth = 0.8
+  const tubeCX = rx + tw / 2 + 1
   c.beginPath()
-  let first = true
-  for (let y = topY + tw + 6; y < botY - 4; y += 5) {
-    const xOff = Math.sin(y * 0.3) * 4 // oscillates left-right of tube
-    const px = rx + tw / 2 + 1 + xOff
-    if (first) { c.moveTo(px, y); first = false } else c.lineTo(px, y)
+  let coilFirst = true
+  for (let y = topY + bendH + 4; y < botY - 4; y += 1) {
+    const xOff = Math.sin(y * 0.35) * 3 // tight, small amplitude
+    if (coilFirst) { c.moveTo(tubeCX + xOff, y); coilFirst = false }
+    else c.lineTo(tubeCX + xOff, y)
   }
   c.stroke()
   // Nozzle
