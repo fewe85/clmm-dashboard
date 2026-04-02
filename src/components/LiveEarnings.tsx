@@ -233,65 +233,73 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     }
 
     // ─── ROBOT WITH LIGHTSABER ─────────────────────────────────────
-    // Robot stands on the zone 2/3 separator, swings blade left↔right
-    const swingCycle = 3000
+    // Robot stands centered on zone 2/3 separator, swings blade as arc
+    const swingCycle = 2500
     const swingT = (now % swingCycle) / swingCycle
-    // Swing angle: 0 = right, PI = left, smooth sine
-    const swingAngle = Math.sin(swingT * Math.PI * 2) // -1 to 1
+    // Pendulum angle: swings -70° to +70° (in radians from straight up)
+    const swingRad = Math.sin(swingT * Math.PI * 2) * (70 * Math.PI / 180)
 
     const robotX = W / 2
-    const robotY = processEnd - 8 // stands on the separator line
-    const bladeLen = W / 2 - railW - 6
-    const bladeAlpha = 0.7 + Math.sin(now * 0.01) * 0.2
+    const robotY = processEnd - 8
+    const bladeLen = 38
+    const handX = robotX
+    const handY = robotY - 5
 
-    // Blade tip position (swings horizontally)
-    const bladeTipX = robotX + swingAngle * bladeLen
-    const bladeTipY = robotY - 4 - Math.abs(swingAngle) * 8 // slight arc upward at extremes
+    // Blade tip from pivot rotation (0 = straight up, positive = right)
+    const bladeTipX = handX + Math.sin(swingRad) * bladeLen
+    const bladeTipY = handY - Math.cos(swingRad) * bladeLen
 
-    // Blade Y for collision detection (approximate — horizontal band)
-    const laserY = (robotY - 4 + bladeTipY) / 2
-    const laser2Y = laserY
+    // For collision: store blade line segment
+    const bladeAx = handX, bladeAy = handY
+    const bladeBx = bladeTipX, bladeBy = bladeTipY
 
     ctx.save()
 
     // ── Lightsaber blade (drawn behind robot) ──
-    // Glow
-    ctx.beginPath()
-    ctx.moveTo(robotX + 4 * Math.sign(swingAngle), robotY - 4)
-    ctx.lineTo(bladeTipX, bladeTipY)
-    ctx.strokeStyle = 'rgba(180,77,255,0.12)'
-    ctx.lineWidth = 10
-    ctx.stroke()
+    const bladeAlpha = 0.7 + Math.sin(now * 0.01) * 0.2
 
-    // Blade core
-    ctx.globalAlpha = bladeAlpha
+    // Glow trail (wider)
     ctx.beginPath()
-    ctx.moveTo(robotX + 3 * Math.sign(swingAngle), robotY - 4)
-    ctx.lineTo(bladeTipX, bladeTipY)
-    ctx.strokeStyle = '#d494ff'
-    ctx.lineWidth = 2.5
+    ctx.moveTo(bladeAx, bladeAy)
+    ctx.lineTo(bladeBx, bladeBy)
+    ctx.strokeStyle = 'rgba(180,77,255,0.1)'
+    ctx.lineWidth = 12
     ctx.lineCap = 'round'
     ctx.stroke()
 
-    // Blade bright center
-    ctx.strokeStyle = '#e8c0ff'
-    ctx.lineWidth = 1
+    // Blade outer
+    ctx.globalAlpha = bladeAlpha
     ctx.beginPath()
-    ctx.moveTo(robotX + 3 * Math.sign(swingAngle), robotY - 4)
-    ctx.lineTo(bladeTipX, bladeTipY)
+    ctx.moveTo(bladeAx, bladeAy)
+    ctx.lineTo(bladeBx, bladeBy)
+    ctx.strokeStyle = '#d494ff'
+    ctx.lineWidth = 3
+    ctx.stroke()
+
+    // Blade bright core
+    ctx.strokeStyle = '#e8c0ff'
+    ctx.lineWidth = 1.2
+    ctx.beginPath()
+    ctx.moveTo(bladeAx, bladeAy)
+    ctx.lineTo(bladeBx, bladeBy)
     ctx.stroke()
     ctx.lineCap = 'butt'
 
-    // Blade tip glow
+    // Blade tip spark
     ctx.beginPath()
-    ctx.arc(bladeTipX, bladeTipY, 3, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(180,77,255,0.25)'
+    ctx.arc(bladeBx, bladeBy, 3, 0, Math.PI * 2)
+    ctx.fillStyle = 'rgba(212,148,255,0.3)'
+    ctx.fill()
+    ctx.beginPath()
+    ctx.arc(bladeBx, bladeBy, 1.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#e8c0ff'
+    ctx.globalAlpha = bladeAlpha
     ctx.fill()
 
     ctx.globalAlpha = 1
 
-    // ── Robot body (pixel art, centered on separator) ──
-    // Legs (standing on separator)
+    // ── Robot body (pixel art) ──
+    // Legs
     ctx.fillStyle = '#3a3a4a'
     ctx.fillRect(robotX - 4, robotY + 1, 2, 4)
     ctx.fillRect(robotX + 2, robotY + 1, 2, 4)
@@ -310,11 +318,11 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillRect(robotX - 2, robotY - 4, 4, 4)
     ctx.globalAlpha = 1
 
-    // Head
+    // Head (tilts slightly with swing)
     ctx.fillStyle = '#5a5a6a'
     ctx.fillRect(robotX - 3, robotY - 11, 6, 5)
-    // Eyes (looks in swing direction)
-    const eyeOff = swingAngle > 0 ? 1 : -2
+    // Eye tracks blade direction
+    const eyeOff = swingRad > 0 ? 1 : -2
     ctx.fillStyle = '#ff4444'
     ctx.fillRect(robotX + eyeOff, robotY - 10, 2, 2)
     ctx.fillStyle = 'rgba(255,68,68,0.3)'
@@ -325,13 +333,9 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     ctx.fillStyle = '#b44dff'
     ctx.fillRect(robotX - 1, robotY - 15, 3, 2)
 
-    // Arm (points in blade direction)
-    ctx.fillStyle = '#4a4a5a'
-    const armDir = Math.sign(swingAngle) || 1
-    ctx.fillRect(robotX + armDir * 4, robotY - 5, armDir * 4, 2)
-    // Handle
+    // Handle (at hand position, rotated visually by being small enough)
     ctx.fillStyle = '#6a6a7a'
-    ctx.fillRect(robotX + armDir * 7, robotY - 6, 3, 4)
+    ctx.fillRect(handX - 1, handY - 2, 3, 4)
 
     ctx.restore()
 
@@ -389,12 +393,14 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
 
       // Asteroid hits lightsaber blade → shatter into dots
       if (p.phase === 'intake') {
-        // Check if asteroid is near the blade's Y position and within the swing arc
-        const bladeMinX = Math.min(robotX, bladeTipX) - 4
-        const bladeMaxX = Math.max(robotX, bladeTipX) + 4
-        const nearBladeY = Math.abs(p.y - laserY) < 6
-        const inBladeX = p.x > bladeMinX && p.x < bladeMaxX
-        if (nearBladeY && inBladeX && p.y > intakeEnd + 10) {
+        // Point-to-line-segment distance
+        const dx = bladeBx - bladeAx, dy = bladeBy - bladeAy
+        const lenSq = dx * dx + dy * dy
+        let t = lenSq > 0 ? ((p.x - bladeAx) * dx + (p.y - bladeAy) * dy) / lenSq : 0
+        t = Math.max(0, Math.min(1, t))
+        const closestX = bladeAx + t * dx, closestY = bladeAy + t * dy
+        const dist = Math.sqrt((p.x - closestX) ** 2 + (p.y - closestY) ** 2)
+        if (dist < p.size + 4 && p.y > intakeEnd + 5) {
           p.phase = 'process'
           // Spawn small dot particles
           const dotCount = 6 + Math.floor(Math.random() * 5)
