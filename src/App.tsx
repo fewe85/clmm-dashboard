@@ -6,7 +6,7 @@ import { WalletBox } from './components/WalletBox'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import {
   DEX,
-  APT_POOL_NAME, ELON_POOL_NAME,
+  ELON_POOL_NAME,
 } from './config'
 
 function formatUsd(v: number): string {
@@ -17,15 +17,15 @@ function formatUsd(v: number): string {
 
 function AppContent() {
   const {
-    apt, elon,
+    elon,
     botWallet, petraWallet,
     loading, countdown, refresh,
     priceChanges,
-    totalPositionValue, aptClmmVsHodl, elonClmmVsHodl, totalClmmVsHodl,
+    totalPositionValue, elonClmmVsHodl, totalClmmVsHodl,
     totalDailyEst, totalEarned,
   } = usePoolData()
 
-  const isLoading = loading && !apt.pool && !elon.pool
+  const isLoading = loading && !elon.pool
 
   return (
     <div className="min-h-screen p-3 md:p-6 max-w-[960px] mx-auto">
@@ -49,7 +49,7 @@ function AppContent() {
       </div>
 
       {/* Portfolio Summary — compact one-line */}
-      {(apt.pool || elon.pool) && (
+      {elon.pool && (
         <div
           className="flex flex-wrap gap-x-6 gap-y-1 text-xs mb-5 px-4 py-2.5 rounded-xl"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
@@ -69,7 +69,7 @@ function AppContent() {
             label="Est. Daily"
             value={totalDailyEst > 0 ? formatUsd(totalDailyEst) : '—'}
           />
-          <NextHarvestTimer apt={apt} elon={elon} />
+          <NextHarvestTimer elon={elon} />
         </div>
       )}
 
@@ -84,10 +84,9 @@ function AppContent() {
 
       {!isLoading && (
         <div className="space-y-5">
-          {/* Pool Cards — side by side on desktop */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <PoolCard pm={apt} poolName={APT_POOL_NAME} priceChange24h={priceChanges.APT} />
-            <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} aptPrice={apt.pool?.currentPrice} />
+          {/* Pool Card — single ELON/USDC pool */}
+          <div className="max-w-lg">
+            <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} aptPrice={elon.pool?.botState ? undefined : undefined} />
           </div>
 
           {/* Wallets */}
@@ -95,10 +94,12 @@ function AppContent() {
 
           {/* Performance Chart */}
           <PerformanceChart
-            aptSnapshots={apt.pool?.botState?.earningsSnapshots ?? []}
+            aptSnapshots={[]}
             elonSnapshots={elon.pool?.botState?.earningsSnapshots ?? []}
-            aptClmmVsHodl={aptClmmVsHodl}
+            aptClmmVsHodl={0}
             elonClmmVsHodl={elonClmmVsHodl}
+            totalInvested={elon.invested}
+            daysRunning={elon.daysRunning}
           />
         </div>
       )}
@@ -111,7 +112,7 @@ function AppContent() {
   )
 }
 
-function NextHarvestTimer({ apt, elon }: { apt: PoolMetrics; elon: PoolMetrics }) {
+function NextHarvestTimer({ elon }: { elon: PoolMetrics }) {
   const [now, setNow] = useState(Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -119,7 +120,6 @@ function NextHarvestTimer({ apt, elon }: { apt: PoolMetrics; elon: PoolMetrics }
   }, [])
 
   const timers = [
-    { name: 'APT', nextAt: apt.pool?.botState?.nextHarvestAt },
     { name: 'ELON', nextAt: elon.pool?.botState?.nextHarvestAt },
   ].filter(t => t.nextAt)
 

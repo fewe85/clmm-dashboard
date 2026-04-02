@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { PoolData, BotState, WalletBalance, HarvestEntry, RebalanceMetric } from '../types'
-import { fetchAptosPoolData } from '../services/aptos'
 import { fetchElonPoolData } from '../services/aptosElon'
-import { fetchThalaBotState, fetchElonBotState, fetchRebalanceMetrics, fetchElonRebalanceMetrics } from '../services/botState'
+import { fetchElonBotState, fetchElonRebalanceMetrics } from '../services/botState'
 import { fetchBotWallet, fetchPetraWallet } from '../services/wallet'
 import {
-  APT_INVESTED, APT_BOT_START, ELON_INVESTED, ELON_BOT_START,
+  ELON_INVESTED, ELON_BOT_START,
   REFRESH_INTERVAL,
 } from '../config'
 
@@ -88,7 +87,6 @@ export interface PoolMetrics {
   botStart: string
 }
 
-const APT_STORAGE_KEY = 'clmm_last_good_pool'
 const ELON_STORAGE_KEY = 'clmm_last_good_elon'
 
 function loadPersistedPool(key: string): PoolData | null {
@@ -135,7 +133,7 @@ function enrichPoolData(
   const effectiveInvested = invested + (botState?.externalDeposits ?? 0)
   data.invested = effectiveInvested
   const lpValue = data.positionValueUsd + data.pendingFeesUsd + data.pendingRewardsUsd
-  data.netProfit = lpValue + data.harvestedUsd - invested
+  data.netProfit = lpValue + data.harvestedUsd - effectiveInvested
   return data
 }
 
@@ -193,46 +191,26 @@ function derivePoolMetrics(pool: PoolData | null, metrics: RebalanceMetric[], in
 }
 
 export function usePoolData() {
-  const [aptPool, setAptPool] = useState<PoolData | null>(null)
   const [elonPool, setElonPool] = useState<PoolData | null>(null)
-  const [aptMetrics, setAptMetrics] = useState<RebalanceMetric[]>([])
   const [elonMetrics, setElonMetrics] = useState<RebalanceMetric[]>([])
   const [botWallet, setBotWallet] = useState<WalletBalance | null>(null)
   const [petraWallet, setPetraWallet] = useState<WalletBalance | null>(null)
   const [priceChanges, setPriceChanges] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
-  const lastGoodApt = useRef<PoolData | null>(loadPersistedPool(APT_STORAGE_KEY))
   const lastGoodElon = useRef<PoolData | null>(loadPersistedPool(ELON_STORAGE_KEY))
 
   const refresh = useCallback(async () => {
     setLoading(true)
 
-    // Fetch bot states first — we need the positionNftId for ELON pool lookup
-    // (staked NFTs can't be found via wallet/indexer queries)
-    const [aptState, elonState, aptRebalanceMetrics, elonRebalanceMetrics] = await Promise.all([
-      fetchThalaBotState(),
+    // Fetch ELON bot state — we need positionNftId for pool lookup
+    const [elonState, elonRebalanceMetrics] = await Promise.all([
       fetchElonBotState(),
-      fetchRebalanceMetrics(),
       fetchElonRebalanceMetrics(),
     ])
 
-    const [aptRaw, elonRaw] = await Promise.all([
-      fetchAptosPoolData().catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-      fetchElonPoolData(elonState?.positionNftId).catch((e: Error) => ({ error: String(e) }) as unknown as PoolData),
-    ])
-
-    // Handle APT pool errors
-    let aptData: PoolData
-    if (aptRaw.error) {
-      aptData = lastGoodApt.current
-        ? { ...lastGoodApt.current, stale: true, lastUpdated: Date.now(), error: aptRaw.error }
-        : aptRaw
-    } else {
-      aptData = aptRaw
-      lastGoodApt.current = aptData
-      persistPool(APT_STORAGE_KEY, aptData)
-    }
+    const elonRaw = await fetchElonPoolData(elonState?.positionNftId)
+      .catch((e: Error) => ({ error: String(e) }) as unknown as PoolData)
 
     // Handle ELON pool errors
     let elonData: PoolData
@@ -246,16 +224,26 @@ export function usePoolData() {
       persistPool(ELON_STORAGE_KEY, elonData)
     }
 
-    // APT price from APT pool
-    const aptPrice = aptData.currentPrice || 0.96
     const elonPrice = elonData.currentPrice || 0.12
 
-    // Price maps
-    const aptPriceMap: Record<string, number> = {
-      'APT': aptPrice, 'USDC': 1, 'thAPT': aptPrice, 'sthAPT': aptPrice, 'AptosCoin': aptPrice,
-    }
+    // APT price for thAPT reward valuation (fetch from CoinGecko)
+    let aptPrice = 0.86
+    try {
+      const cgRes = await fetch(
+        'https://api.coingecko.com/api/v3/simple/price?ids=aptos,echelon-prime&vs_currencies=usd&include_24hr_change=true',
+      )
+      if (cgRes.ok) {
+        const cgData = await cgRes.json()
+        aptPrice = cgData.aptos?.usd ?? aptPrice
+        setPriceChanges({
+          APT: cgData.aptos?.usd_24h_change ?? 0,
+          ELON: cgData['echelon-prime']?.usd_24h_change ?? 0,
+        })
+      }
+    } catch { /* CoinGecko unavailable — use fallback */ }
+
     const elonPriceMap: Record<string, number> = {
-      'ELON': elonPrice, 'USDC': 1, 'thAPT': aptPrice, 'sthAPT': aptPrice,
+      'ELON': elonPrice, 'USDC': 1, 'thAPT': aptPrice, 'sthAPT': aptPrice, 'APT': aptPrice, 'AptosCoin': aptPrice,
     }
 
     // Enrich ELON pool rewards with APT price (thAPT ≈ APT)
@@ -264,34 +252,15 @@ export function usePoolData() {
       elonData.compoundPending = elonData.pendingFeesUsd + elonData.pendingRewardsUsd
     }
 
-    // Enrich both pools
-    aptData = enrichPoolData(aptData, aptState, APT_INVESTED, APT_BOT_START, aptPriceMap)
     elonData = enrichPoolData(elonData, elonState, ELON_INVESTED, ELON_BOT_START, elonPriceMap)
 
-    // Wallets — shared, use combined price map
-    const combinedPrices: Record<string, number> = { ...aptPriceMap, ...elonPriceMap }
+    // Wallets
     const [bw, pw] = await Promise.all([
-      fetchBotWallet(combinedPrices).catch(() => null),
-      fetchPetraWallet(combinedPrices).catch(() => null),
+      fetchBotWallet(elonPriceMap).catch(() => null),
+      fetchPetraWallet(elonPriceMap).catch(() => null),
     ])
 
-    // Fetch 24h price changes from CoinGecko (best-effort)
-    try {
-      const cgRes = await fetch(
-        'https://api.coingecko.com/api/v3/simple/price?ids=aptos,echelon-prime&vs_currencies=usd&include_24hr_change=true',
-      )
-      if (cgRes.ok) {
-        const cgData = await cgRes.json()
-        setPriceChanges({
-          APT: cgData.aptos?.usd_24h_change ?? 0,
-          ELON: cgData['echelon-prime']?.usd_24h_change ?? 0,
-        })
-      }
-    } catch { /* CoinGecko unavailable — skip */ }
-
-    setAptPool(aptData)
     setElonPool(elonData)
-    setAptMetrics(aptRebalanceMetrics)
     setElonMetrics(elonRebalanceMetrics)
     setBotWallet(bw)
     setPetraWallet(pw)
@@ -312,16 +281,14 @@ export function usePoolData() {
     return () => clearInterval(timer)
   }, [])
 
-  // Per-pool metrics
-  const aptEffInvested = APT_INVESTED + (aptPool?.botState?.externalDeposits ?? 0)
+  // Pool metrics — ELON only (APT pool closed 2026-04-02)
   const elonEffInvested = ELON_INVESTED + (elonPool?.botState?.externalDeposits ?? 0)
-  const aptStart = aptPool?.botState?.resetAt ?? APT_BOT_START
   const elonStart = elonPool?.botState?.resetAt ?? ELON_BOT_START
 
   const apt: PoolMetrics = {
-    pool: aptPool,
-    metrics: aptMetrics,
-    ...derivePoolMetrics(aptPool, aptMetrics, aptEffInvested, aptStart),
+    pool: null,
+    metrics: [],
+    ...derivePoolMetrics(null, [], 0, ELON_BOT_START),
   }
 
   const elon: PoolMetrics = {
@@ -330,39 +297,34 @@ export function usePoolData() {
     ...derivePoolMetrics(elonPool, elonMetrics, elonEffInvested, elonStart),
   }
 
-  // Portfolio totals
-  const totalPositionValue = apt.positionValue + elon.positionValue
-  const totalPendingFees = apt.pendingFees + elon.pendingFees
-  const totalPendingRewards = apt.pendingRewards + elon.pendingRewards
-  const totalHarvested = apt.totalHarvested + elon.totalHarvested
-  const totalDailyEst = apt.dailyEst + elon.dailyEst
-  const maxDaysRunning = Math.max(apt.daysRunning, elon.daysRunning)
+  // Portfolio totals (single pool)
+  const totalPositionValue = elon.positionValue
+  const totalPendingFees = elon.pendingFees
+  const totalPendingRewards = elon.pendingRewards
+  const totalHarvested = elon.totalHarvested
+  const totalDailyEst = elon.dailyEst
+  const maxDaysRunning = elon.daysRunning
   const totalEarned = totalPendingFees + totalPendingRewards + totalHarvested
 
-  // CLMM vs HODL — clean comparison: total CLMM value vs what HODL would be worth
+  // CLMM vs HODL
   function calcPoolClmmVsHodl(pm: PoolMetrics, invested: number): number {
     const pool = pm.pool
     if (!pool || (!pool.botState?.centerPrice && !pool.botState?.priceAtReset) || invested <= 0) return 0
     const botState = pool.botState
     const tokenAPrice = pool.currentPrice || 0
-    // Use priceAtReset (stable across rebalances) if available, else fall back to centerPrice
     const resetPrice = botState.priceAtReset || 0
     const cp = resetPrice > 0 ? resetPrice : botState.centerPrice
     const entryPrice = Math.abs(cp - tokenAPrice) < Math.abs(1 / cp - tokenAPrice) ? cp : 1 / cp
     if (entryPrice <= 0) return 0
 
-    // pool.netProfit already includes swap costs (they reduced position value)
-    // Gas costs are external (paid from APT wallet), must be subtracted separately
-    const aptPrice = pool.tokenA === 'APT' ? tokenAPrice : (apt.pool?.currentPrice || 0.9)
     const gasApt = (botState?.gasUsedApt || 0) - (botState?.gasAtReset || 0)
-    const gasUsd = gasApt * aptPrice
-
+    const gasUsd = gasApt * 0.86 // APT price fallback
     const hodlReturn = invested * (tokenAPrice / entryPrice) - invested
     return pool.netProfit - gasUsd - hodlReturn
   }
-  const aptClmmVsHodl = calcPoolClmmVsHodl(apt, APT_INVESTED)
-  const elonClmmVsHodl = calcPoolClmmVsHodl(elon, ELON_INVESTED)
-  const totalClmmVsHodl = aptClmmVsHodl + elonClmmVsHodl
+  const aptClmmVsHodl = 0
+  const elonClmmVsHodl = calcPoolClmmVsHodl(elon, elonEffInvested)
+  const totalClmmVsHodl = elonClmmVsHodl
 
   return {
     apt,

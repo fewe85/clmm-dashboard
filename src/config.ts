@@ -5,14 +5,11 @@ export const BOT_WALLET = '0x89cd5907e16439a90c3661a72891667c3634ae6341820767490
 export const PETRA_WALLET = '0x469f005fa97b1dd229ace5a677955611a11e24d88a178770d5f9948b8c2eb211'
 export const REFRESH_INTERVAL = 120_000 // 2 min
 
-// ─── APT/USDC Pool ──────────────────────────────────────────────────────────
-export const APT_POOL_NAME = 'APT/USDC'
-export const APT_INVESTED = 131  // reset baseline 2026-03-30 (position value at reset)
-export const APT_BOT_START = '2026-03-30T16:00:00.000Z'  // P&L measurement reset
-// ─── ELON/USDC Pool ─────────────────────────────────────────────────────────
+// ─── ELON/USDC Pool (single pool since 2026-04-02 migration) ────────────────
+// APT/USDC pool closed, all capital migrated to ELON/USDC
 export const ELON_POOL_NAME = 'ELON/USDC'
-export const ELON_INVESTED = 216  // reset baseline 2026-03-30 (position value at reset)
+export const ELON_INVESTED = 347  // 216 (ELON) + 131 (APT migrated) baseline from 2026-03-30
 export const ELON_BOT_START = '2026-03-30T16:00:00.000Z'  // P&L measurement reset
 
 // ─── Totals ──────────────────────────────────────────────────────────────────
-export const INITIAL_CAPITAL = APT_INVESTED + ELON_INVESTED
+export const INITIAL_CAPITAL = ELON_INVESTED
