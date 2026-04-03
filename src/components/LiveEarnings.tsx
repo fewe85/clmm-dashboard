@@ -20,6 +20,8 @@ function getOreColor(positionValue: number, ratePerHour: number): string {
   return apr > 10000 ? '#b9f2ff' : apr > 5000 ? '#e0e0e0' : apr > 2000 ? '#ffd700' : apr > 500 ? '#c0c0c0' : '#9a9ab0'
 }
 
+const oreColorRef = { current: '#c0c0c0' } // shared between meter and canvas
+
 function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   positionValue: number; pendingTotal: number; initialRate: number
 }) {
@@ -38,6 +40,7 @@ function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   const apr = positionValue > 0 ? (rateRef.current * 24 * 365 / positionValue) * 100 : 0
   const tier = apr > 10000 ? '💎 DIAMOND' : apr > 5000 ? '⚪ PLATINUM' : apr > 2000 ? '🥇 GOLD' : apr > 500 ? '🥈 SILVER' : '🪨 STONE'
   const col = apr > 10000 ? '#b9f2ff' : apr > 5000 ? '#e0e0e0' : apr > 2000 ? '#ffd700' : apr > 500 ? '#c0c0c0' : '#9a9ab0'
+  oreColorRef.current = col // sync to canvas
   return (
     <div className="w-full flex-shrink-0 px-1">
       <div className="flex items-center justify-between">
@@ -301,8 +304,8 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       fillRef.current += (Math.min(curTotal / (harvestThreshold > 0 ? harvestThreshold : 200), 1) - fillRef.current) * 0.02
       c.clearRect(0, 0, W, H)
 
-      // Ore color based on current APR tier
-      const oreCol = getOreColor(positionValue, totalPerHour)
+      // Ore color synced from OreDensityMeter (uses faster pending-delta APR)
+      const oreCol = oreColorRef.current
 
       // ═══ FIXED Y POSITIONS ════════════════════════════════
       const B1Y = H * 0.08          // Band 1
