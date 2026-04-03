@@ -172,8 +172,19 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       />
       </div>{/* end left */}
 
-      {/* Right: Live Earnings drip tank */}
+      {/* Right: Live Earnings — desktop: side panel */}
       <div className="flex-shrink-0 hidden md:flex" style={{ borderLeft: '1px solid var(--border)', paddingLeft: 16 }}>
+        <LiveEarnings
+          snapshots={pool.botState?.earningsSnapshots ?? []}
+          pendingFees={pendingFees}
+          pendingRewards={pendingRewards}
+          nextHarvestAt={pool.botState?.nextHarvestAt ?? null}
+          harvestThreshold={harvestThreshold}
+          positionValue={pool.positionValueUsd}
+        />
+      </div>
+      {/* Mobile: Live Earnings below card content */}
+      <div className="md:hidden" style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 8, height: 320 }}>
         <LiveEarnings
           snapshots={pool.botState?.earningsSnapshots ?? []}
           pendingFees={pendingFees}
