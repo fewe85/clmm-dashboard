@@ -93,13 +93,13 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
             </linearGradient>
           </defs>
 
-          {/* Y-axis: cost per hour labels */}
+          {/* Y-axis: cost labels + horizontal grid lines */}
           {[0, 1, 2, 3].map(i => {
             const val = Math.round((maxBin * costPerReb) * (1 - i / 3))
             const y = 6 + (i / 3) * (baseline - 6)
             return <g key={`y${i}`}>
-              <line x1={yAxisW - 2} y1={y} x2={w} y2={y} stroke="var(--neon-green)" strokeWidth="0.15" opacity="0.08" />
-              {val > 0 && <text x={0} y={y + 3} fontSize="6" fill="#8892b0" fontFamily="JetBrains Mono">${val}</text>}
+              <line x1={yAxisW} y1={y} x2={w} y2={y} stroke="#8892b0" strokeWidth="0.5" opacity="0.15" strokeDasharray="3,4" />
+              {val > 0 && <text x={0} y={y + 3} fontSize="6" fill="#b0b8cc" fontFamily="JetBrains Mono">${val}</text>}
             </g>
           })}
           {/* X-axis: day markers with vertical lines */}
@@ -130,9 +130,8 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
           ))}
 
           {/* Baseline glow */}
-          <line x1={yAxisW} y1={baseline} x2={w} y2={baseline} stroke="var(--neon-green)" strokeWidth="0.4" opacity="0.2" />
-          {/* $0 label */}
-          <text x={0} y={baseline + 3} fontSize="6" fill="#8892b0" fontFamily="JetBrains Mono">$0</text>
+          <line x1={yAxisW} y1={baseline} x2={w} y2={baseline} stroke="#8892b0" strokeWidth="0.5" opacity="0.2" />
+          <text x={0} y={baseline + 3} fontSize="6" fill="#b0b8cc" fontFamily="JetBrains Mono">$0</text>
         </svg>
       </div>
 
