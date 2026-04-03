@@ -28,10 +28,10 @@ function AppContent() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-2xl font-bold glitch-text neon-value mono" style={{ color: 'var(--lavender)', letterSpacing: '0.15em' }}>
+          <h1 className="text-2xl font-bold glitch-text neon-value mono text-center" style={{ color: 'var(--lavender)', letterSpacing: '0.15em' }}>
             ◈ SPACE STATION ◈
           </h1>
-          <p className="mono font-medium" style={{ color: '#c77dff', fontSize: '11px', letterSpacing: '0.2em' }}>
+          <p className="mono font-medium text-center" style={{ color: '#c77dff', fontSize: '11px', letterSpacing: '0.2em' }}>
             ⟐ SECTOR THALA/APT ⟐
           </p>
         </div>
