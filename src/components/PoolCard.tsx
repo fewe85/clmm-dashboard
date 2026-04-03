@@ -58,7 +58,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
 
       {/* 1. Header: Pool Name + Status Badge */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold" style={{ color: 'var(--text-primary)' }}>{poolName}</h2>
+        <h2 className="text-base font-bold mono" style={{ color: 'var(--lavender)', textShadow: '0 0 8px rgba(199,125,255,0.4)' }}>{poolName}</h2>
         <span
           className={`text-xs px-2.5 py-1 rounded-full font-medium ${pool.inRange ? 'pulse-badge' : ''}`}
           style={{
