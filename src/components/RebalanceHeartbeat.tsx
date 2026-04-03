@@ -106,7 +106,7 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
           {Array.from({ length: DAYS }, (_, d) => {
             const x = yAxisW + ((d + 1) / DAYS) * (w - yAxisW)
             return <g key={`v${d}`}>
-              <line x1={x} y1="0" x2={x} y2={baseline} stroke="var(--neon-green)" strokeWidth="0.2" opacity="0.06" />
+              <line x1={x} y1="0" x2={x} y2={baseline} stroke="var(--neon-green)" strokeWidth="0.5" opacity="0.12" strokeDasharray="2,3" />
               <text x={x - 4} y={h - 1} fontSize="5.5" fill="#8892b0" fontFamily="JetBrains Mono" textAnchor="middle">{d + 1}d</text>
             </g>
           })}
