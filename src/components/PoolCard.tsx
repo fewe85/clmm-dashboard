@@ -149,24 +149,48 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 5. P&L Breakdown (collapsible) */}
       <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
 
-      {/* 8. Drill Calibration (directly under MISSION DETAILS) */}
-      <div
-        className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer"
-        style={{
-          background: 'rgba(199,125,255,0.12)',
-          borderTop: '1px solid rgba(199,125,255,0.2)',
-          borderBottom: '1px solid rgba(199,125,255,0.2)',
-        }}
-        onClick={() => setShowOpt(!showOpt)}
-      >
-        <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showOpt ? '▾' : '▸'}</span>
-        <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>DRILL CALIBRATION</span>
-      </div>
+      {/* 8. Drill Calibration with inline recommendation */}
+      {(() => {
+        // Quick recommendation calc
+        const sigma = (pool.botState?.sigmaDaily || 5) / 100
+        const avgC = pool.botState?.avgSwapCost || 0
+        const cP75 = avgC > 0 ? avgC / 100 : 0
+        const fBps = POOL_FEE_BPS[pool.tokenA] ?? 5
+        const rw = pool.currentPrice > 0 ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100 : 0
+        const curDelta = rw / 2
+        const fEff = fBps / 10000 + (pool.rewardsApr > 0 ? (pool.rewardsApr / 100 / 365) * (curDelta / 100) * 0.5 : 0)
+        const deltaFormula = cP75 > 0 && fEff > 0 ? (2 * cP75 * sigma ** 2) / fEff * 100 : 0
+        const riskAdj = deltaFormula * 1.6
+        let rec = '', recCol = '#8892b0'
+        if (cP75 <= 0) rec = '...'
+        else if (riskAdj > 0) {
+          const dev = Math.abs(curDelta - riskAdj) / riskAdj
+          if (dev <= 0.25) { rec = '✓ passt'; recCol = '#00ff88' }
+          else { rec = curDelta > riskAdj ? '↔ zu breit' : '↔ zu eng'; recCol = '#ffaa00' }
+        }
+        return (
+          <div
+            className="flex items-center justify-between px-2 py-1.5 cursor-pointer"
+            style={{
+              background: 'rgba(199,125,255,0.12)',
+              borderTop: '1px solid rgba(199,125,255,0.2)',
+              borderBottom: '1px solid rgba(199,125,255,0.2)',
+            }}
+            onClick={() => setShowOpt(!showOpt)}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showOpt ? '▾' : '▸'}</span>
+              <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>DRILL CALIBRATION</span>
+            </div>
+            <span className="mono" style={{ fontSize: '9px', color: recCol }}>{rec}</span>
+          </div>
+        )
+      })()}
       {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
 
-      {/* 9. Course Corrections (collapsible) */}
+      {/* 9. Course Corrections with last correction time */}
       <div
-        className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer"
+        className="flex items-center justify-between px-2 py-1.5 cursor-pointer"
         style={{
           background: 'rgba(199,125,255,0.12)',
           borderTop: '1px solid rgba(199,125,255,0.2)',
@@ -174,8 +198,13 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
         }}
         onClick={() => setShowRebalance(!showRebalance)}
       >
-        <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showRebalance ? '▾' : '▸'}</span>
-        <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>COURSE CORRECTIONS</span>
+        <div className="flex items-center gap-1.5">
+          <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showRebalance ? '▾' : '▸'}</span>
+          <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>COURSE CORRECTIONS</span>
+        </div>
+        <span className="mono" style={{ fontSize: '9px', color: '#8892b0' }}>
+          {pool.botState?.lastRebalanceAt ? `last ${fmtAgo(pool.botState.lastRebalanceAt)}` : ''}
+        </span>
       </div>
       {showRebalance && (
         <RebalanceHeartbeat
@@ -610,6 +639,13 @@ function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
+
+function fmtAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const h = Math.floor(diff / 3_600_000), m = Math.floor((diff % 3_600_000) / 60_000)
+  if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`
+  return `${h}h ${m}m`
+}
 
 function calcSwapCostTotal(pool: PoolData, pm: PoolMetrics): number {
   const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
