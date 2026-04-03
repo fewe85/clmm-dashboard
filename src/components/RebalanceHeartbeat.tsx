@@ -102,12 +102,12 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
               {val > 0 && <text x={0} y={y + 3} fontSize="6" fill="#8892b0" fontFamily="JetBrains Mono">${val}</text>}
             </g>
           })}
-          {/* X-axis: day labels */}
-          {Array.from({ length: DAYS + 1 }, (_, d) => {
-            const x = yAxisW + (d / DAYS) * (w - yAxisW)
+          {/* X-axis: day markers with vertical lines */}
+          {Array.from({ length: DAYS }, (_, d) => {
+            const x = yAxisW + ((d + 1) / DAYS) * (w - yAxisW)
             return <g key={`v${d}`}>
-              <line x1={x} y1="0" x2={x} y2={h} stroke="var(--neon-green)" strokeWidth="0.15" opacity="0.08" />
-              {d < DAYS && <text x={x + 2} y={h - 1} fontSize="6" fill="#8892b0" fontFamily="JetBrains Mono">{d + 1}d</text>}
+              <line x1={x} y1="0" x2={x} y2={baseline} stroke="var(--neon-green)" strokeWidth="0.2" opacity="0.06" />
+              <text x={x - 4} y={h - 1} fontSize="5.5" fill="#8892b0" fontFamily="JetBrains Mono" textAnchor="middle">{d + 1}d</text>
             </g>
           })}
 
