@@ -29,6 +29,7 @@ function fmtSign(v: number): string {
 
 export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp }: PoolCardProps) {
   const [showOpt, setShowOpt] = useState(false)
+  const [showRebalance, setShowRebalance] = useState(false)
   const { pool } = pm
   if (!pool) return null
 
@@ -163,13 +164,27 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       </div>
       {showOpt && <RangeOptimization pool={pool} metrics={pm.metrics} />}
 
-      {/* 9. Rebalance Heartbeat */}
-      <RebalanceHeartbeat
-        metrics={pm.metrics}
-        totalRebalances={pm.totalRebalances}
-        lastRebalanceAt={pool.botState?.lastRebalanceAt ?? null}
-        swapCostTotal={calcSwapCostTotal(pool, pm)}
-      />
+      {/* 9. Course Corrections (collapsible) */}
+      <div
+        className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer"
+        style={{
+          background: 'rgba(199,125,255,0.12)',
+          borderTop: '1px solid rgba(199,125,255,0.2)',
+          borderBottom: '1px solid rgba(199,125,255,0.2)',
+        }}
+        onClick={() => setShowRebalance(!showRebalance)}
+      >
+        <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showRebalance ? '▾' : '▸'}</span>
+        <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>COURSE CORRECTIONS</span>
+      </div>
+      {showRebalance && (
+        <RebalanceHeartbeat
+          metrics={pm.metrics}
+          totalRebalances={pm.totalRebalances}
+          lastRebalanceAt={pool.botState?.lastRebalanceAt ?? null}
+          swapCostTotal={calcSwapCostTotal(pool, pm)}
+        />
+      )}
       </div>{/* end left */}
 
       {/* Right: Live Earnings — desktop: side panel */}
