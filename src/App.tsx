@@ -22,7 +22,7 @@ function AppContent() {
     loading, countdown, refresh,
     priceChanges,
     totalPositionValue, elonClmmVsHodl, totalClmmVsHodl,
-    totalDailyEst, totalEarned,
+    totalDailyEst,
   } = usePoolData()
 
   const isLoading = loading && !elon.pool
@@ -91,55 +91,7 @@ function AppContent() {
   )
 }
 
-function NextHarvestTimer({ elon }: { elon: PoolMetrics }) {
-  const [now, setNow] = useState(Date.now())
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [])
-
-  const timers = [
-    { name: 'ELON', nextAt: elon.pool?.botState?.nextHarvestAt },
-  ].filter(t => t.nextAt)
-
-  if (timers.length === 0) return null
-
-  const parts = timers.map(t => {
-    const ms = new Date(t.nextAt!).getTime() - now
-    if (ms <= 0) return { name: t.name, label: '0:00', color: 'var(--accent-green)' }
-    const min = Math.floor(ms / 60_000)
-    const sec = Math.floor((ms % 60_000) / 1000)
-    const label = `${min}:${sec.toString().padStart(2, '0')}`
-    const color = min < 5 ? 'var(--accent-yellow, #eab308)' : 'var(--text-primary)'
-    return { name: t.name, label, color }
-  })
-
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span style={{ color: '#8892b0' }}>EXTRACTION IN</span>
-      {parts.map((p, i) => (
-        <span key={p.name} className="mono font-semibold" style={{ color: p.color }}>
-          {i > 0 && <span style={{ color: 'var(--text-muted)' }}> · </span>}
-          {p.label}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-function SummaryItem({ label, value, color, sub, muted }: {
-  label: string; value: string; color?: string; sub?: string; muted?: boolean
-}) {
-  return (
-    <div className="flex items-baseline gap-1.5">
-      <span style={{ color: '#8892b0' }}>{label}</span>
-      <span className="mono font-semibold" style={{ color: color || (muted ? 'var(--text-muted)' : 'var(--text-primary)') }}>
-        {value}
-      </span>
-      {sub && <span className="mono" style={{ color: 'var(--text-muted)' }}>{sub}</span>}
-    </div>
-  )
-}
+// Summary bar + helpers removed — redundant with Pool Card
 
 function App() {
   return (
