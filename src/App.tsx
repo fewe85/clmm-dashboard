@@ -40,10 +40,21 @@ function AppContent() {
             pointerEvents: 'none',
             zIndex: 0,
           }} />
-          <h1 className="text-2xl font-bold mono text-center relative" style={{ color: '#e0d0ff', letterSpacing: '0.15em', textShadow: '0 0 8px rgba(255,50,120,1), 0 0 20px rgba(255,50,120,0.6), 0 0 50px rgba(200,60,180,0.4), 0 0 100px rgba(150,50,200,0.2)' }}>
+          <h1 className="text-2xl font-bold mono text-center relative" style={{
+            color: '#f0e4ff',
+            letterSpacing: '0.15em',
+            textShadow: '0 0 8px rgba(255,50,120,1), 0 0 20px rgba(255,50,120,0.6), 0 0 50px rgba(200,60,180,0.4), 0 0 100px rgba(150,50,200,0.2)',
+            WebkitTextStroke: '0.5px rgba(199,125,255,0.6)',
+          }}>
             ◈ SPACE STATION ◈
           </h1>
-          <p className="mono font-medium text-center relative" style={{ color: '#d0b8ff', fontSize: '11px', letterSpacing: '0.2em', textShadow: '0 0 6px rgba(255,50,120,0.8), 0 0 15px rgba(255,50,120,0.5), 0 0 40px rgba(150,50,200,0.3)' }}>
+          <p className="mono font-medium text-center relative" style={{
+            color: '#dcc8ff',
+            fontSize: '11px',
+            letterSpacing: '0.2em',
+            textShadow: '0 0 6px rgba(255,50,120,0.8), 0 0 15px rgba(255,50,120,0.5), 0 0 40px rgba(150,50,200,0.3)',
+            WebkitTextStroke: '0.3px rgba(199,125,255,0.5)',
+          }}>
             ⟐ SECTOR THALA/APT ⟐
           </p>
         </div>
