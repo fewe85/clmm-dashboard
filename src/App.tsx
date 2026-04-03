@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { usePoolData, type PoolMetrics } from './hooks/usePoolData'
+import { usePoolData } from './hooks/usePoolData'
 import { PoolCard } from './components/PoolCard'
 import { PerformanceChart } from './components/PerformanceChart'
 import { WalletBox } from './components/WalletBox'
@@ -9,11 +8,6 @@ import {
   ELON_POOL_NAME,
 } from './config'
 
-function formatUsd(v: number): string {
-  if (Math.abs(v) >= 1000) return `$${v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  if (Math.abs(v) >= 0.01) return `$${v.toFixed(2)}`
-  return `$${v.toFixed(4)}`
-}
 
 function AppContent() {
   const {
@@ -34,8 +28,12 @@ function AppContent() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-lg font-bold glitch-text neon-value" style={{ color: 'var(--lavender)' }}>SPACE STATION</h1>
-          <p className="text-xs hud-label" style={{ color: '#c77dff' }}>SECTOR THALA/APT</p>
+          <h1 className="text-2xl font-bold glitch-text neon-value mono" style={{ color: 'var(--lavender)', letterSpacing: '0.15em' }}>
+            ◈ SPACE STATION ◈
+          </h1>
+          <p className="mono font-medium" style={{ color: '#c77dff', fontSize: '11px', letterSpacing: '0.2em' }}>
+            ⟐ SECTOR THALA/APT ⟐
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <span className="text-xs tabular-nums" style={{ color: 'var(--text-muted)' }}>{countdown}s</span>
