@@ -93,15 +93,19 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
             </linearGradient>
           </defs>
 
-          {/* Y-axis: cost labels + horizontal grid lines */}
-          {[0, 1, 2, 3].map(i => {
-            const val = Math.round((maxBin * costPerReb) * (1 - i / 3))
-            const y = 6 + (i / 3) * (baseline - 6)
-            return <g key={`y${i}`}>
-              <line x1={yAxisW} y1={y} x2={w} y2={y} stroke="#8892b0" strokeWidth="0.5" opacity="0.15" strokeDasharray="3,4" />
-              {val > 0 && <text x={0} y={y + 3} fontSize="6" fill="#b0b8cc" fontFamily="JetBrains Mono">${val}</text>}
-            </g>
-          })}
+          {/* Y-axis: even $1 steps + visible horizontal grid lines */}
+          {(() => {
+            const maxCost = Math.ceil(maxBin * costPerReb)
+            const steps = Math.max(1, maxCost)
+            return Array.from({ length: steps + 1 }, (_, i) => {
+              const val = i
+              const y = baseline - (i / steps) * (baseline - 6)
+              return <g key={`y${i}`}>
+                {i > 0 && <line x1={yAxisW} y1={y} x2={w} y2={y} stroke="#b0b8cc" strokeWidth="0.8" opacity="0.12" />}
+                <text x={0} y={y + 3} fontSize="6.5" fill="#b0b8cc" fontFamily="JetBrains Mono">${val}</text>
+              </g>
+            })
+          })()}
           {/* X-axis: day markers with vertical lines */}
           {Array.from({ length: DAYS }, (_, d) => {
             const x = yAxisW + ((d + 1) / DAYS) * (w - yAxisW)
