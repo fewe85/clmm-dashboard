@@ -21,8 +21,7 @@ function AppContent() {
     botWallet, petraWallet,
     loading, countdown, refresh,
     priceChanges,
-    totalPositionValue, elonClmmVsHodl, totalClmmVsHodl,
-    totalDailyEst,
+    elonClmmVsHodl,
   } = usePoolData()
 
   const isLoading = loading && !elon.pool
