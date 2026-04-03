@@ -35,8 +35,8 @@ function AppContent() {
             left: '-40px',
             right: '-40px',
             bottom: '-30px',
-            background: 'radial-gradient(ellipse at 50% 50%, rgba(120,40,180,0.5) 0%, rgba(60,80,200,0.3) 25%, rgba(200,40,120,0.2) 50%, transparent 75%)',
-            filter: 'blur(20px)',
+            background: 'radial-gradient(ellipse at 50% 50%, rgba(140,40,200,0.7) 0%, rgba(80,60,220,0.5) 20%, rgba(220,40,140,0.35) 45%, rgba(60,100,200,0.15) 65%, transparent 80%)',
+            filter: 'blur(25px)',
             pointerEvents: 'none',
             zIndex: 0,
           }} />
