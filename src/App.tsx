@@ -28,10 +28,10 @@ function AppContent() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-2xl font-bold mono text-center" style={{ color: 'var(--lavender)', letterSpacing: '0.15em', textShadow: '0 0 12px rgba(199,125,255,0.5), 0 0 30px rgba(199,125,255,0.2)' }}>
+          <h1 className="text-2xl font-bold mono text-center" style={{ color: 'var(--lavender)', letterSpacing: '0.15em', textShadow: '0 0 4px rgba(255,42,109,0.8), 0 0 15px rgba(255,42,109,0.5), 0 0 40px rgba(255,42,109,0.3), 0 0 80px rgba(255,42,109,0.15)' }}>
             ◈ SPACE STATION ◈
           </h1>
-          <p className="mono font-medium text-center" style={{ color: '#c77dff', fontSize: '11px', letterSpacing: '0.2em', textShadow: '0 0 8px rgba(199,125,255,0.4), 0 0 20px rgba(199,125,255,0.15)' }}>
+          <p className="mono font-medium text-center" style={{ color: '#c77dff', fontSize: '11px', letterSpacing: '0.2em', textShadow: '0 0 3px rgba(255,42,109,0.6), 0 0 10px rgba(255,42,109,0.4), 0 0 30px rgba(255,42,109,0.2)' }}>
             ⟐ SECTOR THALA/APT ⟐
           </p>
         </div>
