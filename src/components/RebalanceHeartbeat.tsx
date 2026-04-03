@@ -101,7 +101,7 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
               const val = i
               const y = baseline - (i / steps) * (baseline - 6)
               return <g key={`y${i}`}>
-                {i > 0 && <line x1={yAxisW} y1={y} x2={w} y2={y} stroke="#b0b8cc" strokeWidth="0.8" opacity="0.12" />}
+                {i > 0 && <line x1={yAxisW} y1={y} x2={w} y2={y} stroke="#b0b8cc" strokeWidth="0.8" opacity="0.25" />}
                 <text x={0} y={y + 3} fontSize="6.5" fill="#b0b8cc" fontFamily="JetBrains Mono">${val}</text>
               </g>
             })
