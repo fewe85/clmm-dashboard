@@ -98,7 +98,10 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
           })}
           {Array.from({ length: DAYS + 1 }, (_, d) => {
             const x = (d / DAYS) * w
-            return <line key={`v${d}`} x1={x} y1="0" x2={x} y2={h} stroke="var(--neon-green)" strokeWidth="0.15" opacity="0.1" />
+            return <g key={`v${d}`}>
+              <line x1={x} y1="0" x2={x} y2={h} stroke="var(--neon-green)" strokeWidth="0.15" opacity="0.1" />
+              {d < DAYS && <text x={x + 2} y={h - 1} fontSize="6" fill="#8892b0" fontFamily="JetBrains Mono">{d + 1}d</text>}
+            </g>
           })}
 
           {/* Afterglow trace (wider, dimmer) */}
@@ -126,8 +129,11 @@ export function RebalanceHeartbeat({ metrics, totalRebalances, lastRebalanceAt, 
 
       {/* Stats row */}
       <div className="flex justify-between px-3 pb-2">
-        <span className="mono hud-label"><span className="earning-pulse" style={{ width: 4, height: 4, display: 'inline-block', verticalAlign: 'middle', marginRight: 4 }} />{totalRebalances} corrections · last {lastAgo}</span>
-        <span className="mono hud-label">~${swapCostTotal.toFixed(2)} fuel spent</span>
+        <span className="mono" style={{ fontSize: '9px', color: '#b0b8cc' }}>
+          <span className="earning-pulse" style={{ width: 4, height: 4, display: 'inline-block', verticalAlign: 'middle', marginRight: 4 }} />
+          {totalRebalances} corrections · last {lastAgo}
+        </span>
+        <span className="mono" style={{ fontSize: '9px', color: '#ff6b35' }}>~${swapCostTotal.toFixed(2)} fuel spent</span>
       </div>
     </div>
   )
