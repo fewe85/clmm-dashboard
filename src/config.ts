@@ -8,8 +8,8 @@ export const REFRESH_INTERVAL = 30_000 // 30 sec — fast refresh for live APR
 // ─── ELON/USDC Pool (single pool since 2026-04-02 migration) ────────────────
 // APT/USDC pool closed, all capital migrated to ELON/USDC
 export const ELON_POOL_NAME = 'MINE: [ELON/USDC]'
-export const ELON_INVESTED = 347  // 216 (ELON) + 131 (APT migrated) baseline from 2026-03-30
-export const ELON_BOT_START = '2026-03-30T16:00:00.000Z'  // P&L measurement reset
+export const ELON_INVESTED = 370  // Position value at migration 2026-04-02
+export const ELON_BOT_START = '2026-04-02T12:00:00.000Z'  // Migration reset
 
 // ─── Totals ──────────────────────────────────────────────────────────────────
 export const INITIAL_CAPITAL = ELON_INVESTED
