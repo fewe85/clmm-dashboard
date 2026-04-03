@@ -15,10 +15,6 @@ function calcRate(ss: Snapshot[]): number {
   return h < 1 ? 0 : Math.max(0, ((n.feesUsd - o.feesUsd) + (n.rewardsUsd - o.rewardsUsd)) / h)
 }
 
-function getOreColor(positionValue: number, ratePerHour: number): string {
-  const apr = positionValue > 0 ? (ratePerHour * 24 * 365 / positionValue) * 100 : 0
-  return apr > 10000 ? '#b9f2ff' : apr > 5000 ? '#e0e0e0' : apr > 2000 ? '#ffd700' : apr > 500 ? '#c0c0c0' : '#9a9ab0'
-}
 
 const oreColorRef = { current: '#ffd700' } // shared between meter and canvas — default gold
 
