@@ -20,7 +20,7 @@ function getOreColor(positionValue: number, ratePerHour: number): string {
   return apr > 10000 ? '#b9f2ff' : apr > 5000 ? '#e0e0e0' : apr > 2000 ? '#ffd700' : apr > 500 ? '#c0c0c0' : '#9a9ab0'
 }
 
-const oreColorRef = { current: '#c0c0c0' } // shared between meter and canvas
+const oreColorRef = { current: '#ffd700' } // shared between meter and canvas — default gold
 
 function OreDensityMeter({ positionValue, pendingTotal, initialRate }: {
   positionValue: number; pendingTotal: number; initialRate: number
@@ -304,7 +304,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
       fillRef.current += (Math.min(curTotal / (harvestThreshold > 0 ? harvestThreshold : 200), 1) - fillRef.current) * 0.02
       c.clearRect(0, 0, W, H)
 
-      // Ore color synced from OreDensityMeter (uses faster pending-delta APR)
+      // Ore color — always fresh from shared ref (set by OreDensityMeter on every React render)
       const oreCol = oreColorRef.current
 
       // ═══ FIXED Y POSITIONS ════════════════════════════════
