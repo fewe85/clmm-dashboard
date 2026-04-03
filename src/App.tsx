@@ -29,11 +29,16 @@ function AppContent() {
       <div className="flex items-center justify-between mb-3">
         <div className="relative">
           {/* Nebula glow behind text */}
-          <div className="absolute inset-0" style={{
-            background: 'radial-gradient(ellipse 120% 80% at 50% 50%, rgba(100,60,200,0.25) 0%, rgba(40,80,180,0.15) 30%, rgba(180,40,120,0.1) 60%, transparent 80%)',
-            filter: 'blur(12px)',
-            transform: 'scale(1.5, 2)',
+          <div style={{
+            position: 'absolute',
+            top: '-30px',
+            left: '-40px',
+            right: '-40px',
+            bottom: '-30px',
+            background: 'radial-gradient(ellipse at 50% 50%, rgba(120,40,180,0.5) 0%, rgba(60,80,200,0.3) 25%, rgba(200,40,120,0.2) 50%, transparent 75%)',
+            filter: 'blur(20px)',
             pointerEvents: 'none',
+            zIndex: 0,
           }} />
           <h1 className="text-2xl font-bold mono text-center relative" style={{ color: '#e0d0ff', letterSpacing: '0.15em', textShadow: '0 0 8px rgba(255,50,120,1), 0 0 20px rgba(255,50,120,0.6), 0 0 50px rgba(200,60,180,0.4), 0 0 100px rgba(150,50,200,0.2)' }}>
             ◈ SPACE STATION ◈
