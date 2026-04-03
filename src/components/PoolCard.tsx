@@ -149,25 +149,9 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 5. P&L Breakdown (collapsible) */}
       <PnlSection pool={pool} totalHarvested={pm.totalHarvested} feeBps={feeBps} tokenAPrice={tokenAPrice} aptPrice={aptPriceProp || (pool.tokenA === 'APT' ? tokenAPrice : 7)} />
 
-      {/* 8. Drill Calibration with inline recommendation */}
+      {/* 8. Drill Calibration with exact recommendation */}
       {(() => {
-        // Quick recommendation calc
-        const sigma = (pool.botState?.sigmaDaily || 5) / 100
-        const avgC = pool.botState?.avgSwapCost || 0
-        const cP75 = avgC > 0 ? avgC / 100 : 0
-        const fBps = POOL_FEE_BPS[pool.tokenA] ?? 5
-        const rw = pool.currentPrice > 0 ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100 : 0
-        const curDelta = rw / 2
-        const fEff = fBps / 10000 + (pool.rewardsApr > 0 ? (pool.rewardsApr / 100 / 365) * (curDelta / 100) * 0.5 : 0)
-        const deltaFormula = cP75 > 0 && fEff > 0 ? (2 * cP75 * sigma ** 2) / fEff * 100 : 0
-        const riskAdj = deltaFormula * 1.6
-        let rec = '', recCol = '#8892b0'
-        if (cP75 <= 0) rec = '...'
-        else if (riskAdj > 0) {
-          const dev = Math.abs(curDelta - riskAdj) / riskAdj
-          if (dev <= 0.25) { rec = '✓ passt'; recCol = '#00ff88' }
-          else { rec = curDelta > riskAdj ? '↔ zu breit' : '↔ zu eng'; recCol = '#ffaa00' }
-        }
+        const { rec, recColor } = calcDrillRec(pool, pm.metrics)
         return (
           <div
             className="flex items-center justify-between px-2 py-1.5 cursor-pointer"
@@ -182,7 +166,7 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
               <span className="mono" style={{ color: '#b0b8cc', fontSize: '10px' }}>{showOpt ? '▾' : '▸'}</span>
               <span className="mono font-bold" style={{ fontSize: '10px', color: '#b0b8cc' }}>DRILL CALIBRATION</span>
             </div>
-            <span className="mono" style={{ fontSize: '9px', color: recCol }}>{rec}</span>
+            <span className="mono" style={{ fontSize: '9px', color: recColor }}>{rec}</span>
           </div>
         )
       })()}
@@ -639,6 +623,37 @@ function ClmmVsHodl({ pool, botState, tokenAPrice, aptPrice }: {
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
+
+function calcDrillRec(pool: PoolData, metrics: RebalanceMetric[]): { rec: string; recColor: string } {
+  const botState = pool.botState
+  const feeBps = POOL_FEE_BPS[pool.tokenA] ?? 5
+  const tickSpacing = pool.tokenA === 'APT' ? 10 : 60
+  const rangeWidth = pool.currentPrice > 0 ? ((pool.priceUpper - pool.priceLower) / pool.currentPrice) * 100 : 0
+  const currentDelta = rangeWidth / 2
+  const sigmaDisp = botState && botState.sigmaDaily > 0 ? botState.sigmaDaily : (POOL_DEFAULT_SIGMA[pool.tokenA] ?? 5)
+  const cValues = metrics.map(m => m.cHalfRoundTrip ?? 0).filter(v => v > 0).sort((a, b) => a - b)
+  const cAvgDisp = botState?.avgSwapCost ?? 0
+  let cP75Disp = cValues.length >= 4 ? cValues[Math.floor(cValues.length * 0.75)] : cAvgDisp
+  const sigma = sigmaDisp / 100, cP75 = cP75Disp / 100, delta = currentDelta / 100
+  const fFee = feeBps / 10000
+  const fReward = pool.rewardsApr > 0 ? (pool.rewardsApr / 100 / 365) * delta : 0
+  const fEff = fFee + 0.5 * fReward
+  let deltaFormula = 0
+  if (cP75 > 0 && fEff > 0) deltaFormula = (2 * cP75 * sigma ** 2) / fEff
+  const deltaPolling = sigma / Math.sqrt(12)
+  const deltaTick = (tickSpacing * 4 * 0.01) / 100
+  const recommended = Math.max(deltaFormula, deltaPolling, deltaTick)
+  const riskAdjustedPct = recommended * 1.6 * 100
+  const recommendedPct = recommended * 100
+  if (cP75Disp <= 0) return { rec: '...', recColor: '#8892b0' }
+  if (riskAdjustedPct > 0) {
+    const dev = Math.abs(currentDelta - riskAdjustedPct) / riskAdjustedPct
+    if (dev <= 0.25) return { rec: `✓ passt (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#00ff88' }
+    if (currentDelta > recommendedPct) return { rec: `↔ zu breit (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#ffaa00' }
+    return { rec: `↔ zu eng (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#ff6b35' }
+  }
+  return { rec: '...', recColor: '#8892b0' }
+}
 
 function fmtAgo(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
