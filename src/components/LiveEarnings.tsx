@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Snapshot { t: string; feesUsd: number; rewardsUsd: number; posUsd: number }
 interface LiveEarningsProps {
@@ -8,11 +8,37 @@ interface LiveEarningsProps {
 
 const W = 140
 
-function calcRate(ss: Snapshot[]): number {
-  if (ss.length < 2) return 0
-  const n = ss[ss.length - 1], o = ss[ss.length - 2]
-  const h = (new Date(n.t).getTime() - new Date(o.t).getTime()) / 3_600_000
-  return h > 0.1 ? Math.max(0, ((n.feesUsd - o.feesUsd) + (n.rewardsUsd - o.rewardsUsd)) / h) : 0
+// Rolling rate: average $/h over last 20 samples (sampled every 30s via interval)
+function useRolling1hRate(pending: number): number {
+  const pendingRef = useRef(pending)
+  const ratesRef = useRef<number[]>([])
+  const [rate, setRate] = useState(0)
+
+  // Keep pending ref fresh
+  useEffect(() => { pendingRef.current = pending }, [pending])
+
+  // Sample every 30s independent of React renders
+  useEffect(() => {
+    let lastV = pendingRef.current
+    let lastT = Date.now()
+    const iv = setInterval(() => {
+      const now = Date.now()
+      const v = pendingRef.current
+      const dt = (now - lastT) / 3_600_000
+      const delta = v - lastV
+      if (dt > 0.001 && delta > 0) {
+        ratesRef.current.push(delta / dt)
+        if (ratesRef.current.length > 20) ratesRef.current.shift()
+      }
+      lastV = v
+      lastT = now
+      const r = ratesRef.current
+      setRate(r.length > 0 ? r.reduce((a, b) => a + b, 0) / r.length : 0)
+    }, 30_000)
+    return () => clearInterval(iv)
+  }, [])
+
+  return rate
 }
 
 
@@ -259,12 +285,17 @@ interface P {
   color: string; life: number; phase: number
 }
 
-export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarvestAt, harvestThreshold, positionValue }: LiveEarningsProps) {
-  const totalPerHour = useMemo(() => calcRate(snapshots), [snapshots])
+export function LiveEarnings({ pendingFees, pendingRewards, nextHarvestAt, harvestThreshold, positionValue }: LiveEarningsProps) {
+  const totalPerHour = useRolling1hRate(pendingFees + pendingRewards)
   const totalPerSec = totalPerHour / 3600
   const [displayTotal, setDisplayTotal] = useState(pendingFees + pendingRewards)
-  const baseRef = useRef({ value: pendingFees + pendingRewards, time: Date.now() })
-  useEffect(() => { baseRef.current = { value: pendingFees + pendingRewards, time: Date.now() } }, [pendingFees, pendingRewards])
+  const displayRef = useRef(pendingFees + pendingRewards)
+  const targetRef = useRef(pendingFees + pendingRewards)
+  const targetTimeRef = useRef(Date.now())
+  useEffect(() => {
+    targetRef.current = pendingFees + pendingRewards
+    targetTimeRef.current = Date.now()
+  }, [pendingFees, pendingRewards])
   const [harvestSec, setHarvestSec] = useState<number | null>(null)
   useEffect(() => {
     if (!nextHarvestAt) return
@@ -287,15 +318,17 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
   }, [])
 
   useEffect(() => {
-    if (totalPerHour <= 0) return
     let run = true
     const loop = () => {
       if (!run) return
       const cv = canvasRef.current; if (!cv) { requestAnimationFrame(loop); return }
       const c = cv.getContext('2d'); if (!c) { requestAnimationFrame(loop); return }
       const H = cv.height, now = Date.now()
-      const elapsed = (now - baseRef.current.time) / 1000
-      const curTotal = baseRef.current.value + elapsed * totalPerSec
+      // Extrapolate from last on-chain value using measured rate
+      const extrapolated = targetRef.current + totalPerSec * (now - targetTimeRef.current) / 1000
+      // Smooth lerp: ~3 seconds to converge (0.02 at 60fps ≈ 180 frames)
+      displayRef.current += (extrapolated - displayRef.current) * 0.02
+      const curTotal = displayRef.current
       setDisplayTotal(curTotal)
       fillRef.current += (Math.min(curTotal / (harvestThreshold > 0 ? harvestThreshold : 200), 1) - fillRef.current) * 0.02
       c.clearRect(0, 0, W, H)
@@ -609,12 +642,20 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
     loop(); return () => { run = false }
   }, [totalPerHour, totalPerSec, harvestThreshold])
 
-  if (totalPerHour <= 0) return null
+  if (totalPerHour <= 0 && (pendingFees + pendingRewards) <= 0) return null
   return (
     <div className="flex flex-col items-center justify-between relative" style={{ width: W, minHeight: '100%' }}>
-      <div className="text-center z-10 flex-shrink-0 w-full py-1">
-        <div className="mono text-xs font-bold neon-value" style={{ color: 'var(--lavender)' }}>${displayTotal.toFixed(4)}</div>
-        <div className="hud-label" style={{ fontSize: '7px', color: 'var(--lavender)', opacity: 0.6 }}>TOTAL EARNED</div>
+      <div
+        className="text-center z-10 flex-shrink-0 w-full py-1.5 mx-1"
+        style={{
+          background: 'rgba(199,125,255,0.08)',
+          border: '1px solid rgba(199,125,255,0.4)',
+          boxShadow: '0 0 6px rgba(199,125,255,0.2)',
+          borderRadius: '4px',
+        }}
+      >
+        <div className="mono text-xs font-bold" style={{ color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>${displayTotal.toFixed(3)}</div>
+        <div className="mono font-bold" style={{ fontSize: '7px', color: '#00ff88' }}>TOTAL EARNED</div>
       </div>
       <OreDensityMeter positionValue={positionValue} pendingTotal={pendingFees + pendingRewards} initialRate={totalPerHour} />
       <div ref={containerRef} className="relative flex-1 w-full" style={{ minHeight: 280 }}>
@@ -631,7 +672,19 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
           ${totalPerHour.toFixed(2)}/h
         </div>
         {harvestSec !== null && harvestSec > 0 && (
-          <div className="mono" style={{ color: harvestSec < 300 ? '#00ff88' : 'var(--text-muted)', fontSize: '9px' }}>
+          <div
+            className="mono font-bold"
+            style={{
+              fontSize: '10px',
+              color: '#00ff88',
+              background: 'rgba(199,125,255,0.08)',
+              border: '1px solid rgba(199,125,255,0.4)',
+              boxShadow: '0 0 6px rgba(199,125,255,0.2)',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              marginTop: '4px',
+            }}
+          >
             {Math.floor(harvestSec / 60)}:{String(Math.floor(harvestSec % 60)).padStart(2, '0')}
           </div>
         )}
