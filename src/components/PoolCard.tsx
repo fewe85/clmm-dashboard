@@ -27,7 +27,7 @@ function fmtSign(v: number): string {
 }
 
 
-export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp }: PoolCardProps) {
+export function PoolCard({ pm, poolName: _poolName, priceChange24h, aptPrice: aptPriceProp }: PoolCardProps) {
   const [showOpt, setShowOpt] = useState(false)
   const [showRebalance, setShowRebalance] = useState(false)
   const { pool } = pm
@@ -58,9 +58,9 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
 
       {/* 1. Header: Pool Name + Status Badge */}
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold mono" style={{ textShadow: '0 0 8px rgba(199,125,255,0.4)' }}>
-          <span style={{ color: 'var(--lavender)' }}>MINE: [</span>
-          <span style={{ color: '#c77dff' }}>ELON</span>
+        <h2 className="text-xl font-bold mono" style={{ textShadow: '0 0 8px rgba(199,125,255,0.4)' }}>
+          <span style={{ color: 'var(--lavender)' }}>🪐 MINE: [</span>
+          <span style={{ color: '#00d4ff' }}>ELON</span>
           <span style={{ color: 'var(--lavender)' }}>/</span>
           <span style={{ color: '#2775ca' }}>USDC</span>
           <span style={{ color: 'var(--lavender)' }}>]</span>
@@ -95,7 +95,14 @@ export function PoolCard({ pm, poolName, priceChange24h, aptPrice: aptPriceProp 
       {/* 3. Key Metrics 2×2 — with glow cards */}
       <div className="grid grid-cols-2 gap-2.5">
         <div className="rounded-lg px-3 py-2.5" style={{ background: '#050510', border: '1px solid var(--border)' }}>
-          <div className="hud-label mb-0.5">Position Value</div>
+          <div className="flex items-center justify-between mb-0.5">
+            <span className="hud-label">Position Value</span>
+            {pool.botState?.drillDominance != null && (
+              <span className="mono" style={{ fontSize: '9px', color: 'var(--neon-cyan)' }}>
+                DRILL DOMINANCE {pool.botState.drillDominance.toFixed(1)}%
+              </span>
+            )}
+          </div>
           <div className="mono text-xl font-bold neon-value" style={{ color: 'var(--lavender)' }}>
             {fmtUsd(pm.positionValue)}
           </div>
@@ -275,7 +282,7 @@ function VerticalRange({ pool, rangeWidth, ceMultiplier }: {
             </span>
           )
         })()}
-        <span className="mono font-bold neon-value" style={{ color: 'var(--lavender)', fontSize: '10px' }}>COORD: [${currentPrice.toFixed(4)}]</span>
+        <span className="mono font-bold neon-value" style={{ color: 'var(--lavender)', fontSize: '10px' }}>COORD: [${((priceLower + priceUpper) / 2).toFixed(4)}]</span>
         <span className="hud-label" style={{ color: 'var(--lavender)' }}>
           ±{(rangeWidth / 2).toFixed(1)}% · {ceMultiplier.toFixed(0)}x CE
         </span>
@@ -650,12 +657,11 @@ function calcDrillRec(pool: PoolData, metrics: RebalanceMetric[]): { rec: string
   const deltaTick = (tickSpacing * 4 * 0.01) / 100
   const recommended = Math.max(deltaFormula, deltaPolling, deltaTick)
   const riskAdjustedPct = recommended * 1.6 * 100
-  const recommendedPct = recommended * 100
   if (cP75Disp <= 0) return { rec: '...', recColor: '#8892b0' }
   if (riskAdjustedPct > 0) {
     const dev = Math.abs(currentDelta - riskAdjustedPct) / riskAdjustedPct
     if (dev <= 0.25) return { rec: `✓ passt (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#00ff88' }
-    if (currentDelta > recommendedPct) return { rec: `↔ zu breit (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#ffaa00' }
+    if (currentDelta > riskAdjustedPct) return { rec: `↔ zu breit (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#ffaa00' }
     return { rec: `↔ zu eng (±${riskAdjustedPct.toFixed(1)}%)`, recColor: '#ff6b35' }
   }
   return { rec: '...', recColor: '#8892b0' }
@@ -758,15 +764,18 @@ function RangeOptimization({ pool, metrics }: { pool: PoolData; metrics: Rebalan
   } else if (riskAdjustedPct > 0) {
     const dev = Math.abs(currentDelta - riskAdjustedPct) / riskAdjustedPct
     if (dev <= 0.25) { rec = 'Range passt'; recColor = 'var(--accent-green)' }
-    else if (dev <= 0.75) { rec = currentDelta > recommendedPct ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-yellow, #eab308)' }
-    else { rec = currentDelta > recommendedPct ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-red)' }
+    else if (dev <= 0.75) { rec = currentDelta > riskAdjustedPct ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-yellow, #eab308)' }
+    else { rec = currentDelta > riskAdjustedPct ? 'Range zu breit' : 'Range zu eng'; recColor = 'var(--accent-red)' }
   }
 
   const bindingLabel: Record<string, string> = {
     formula: 'Formel', polling: 'Reb-Cap', tick: 'Tick-Min',
   }
 
+  const dominance = botState?.drillDominance
+
   const rows: [string, string, string?][] = [
+    ['Drill Dominance', dominance != null ? `${dominance.toFixed(1)}%` : '—'],
     ['Aktuelle Range', `±${currentDelta.toFixed(1)}%`],
     [`σ_daily (${sigmaSource})`, `${sigmaDisp.toFixed(2)}%`],
     [`c (${cSource})`, cSource !== 'none' ? `${cP75Disp.toFixed(2)}%` : '—',

@@ -42,6 +42,7 @@ export async function fetchThalaBotState(): Promise<BotState | null> {
     nextHarvestAt: data.nextHarvestAt || null,
     gasUsedApt: Number(data.gasUsedApt || 0),
     gasAtReset: Number(data.gasAtReset || 0),
+    drillDominance: data.drillDominance != null ? Number(data.drillDominance) : null,
   }
 }
 
@@ -77,6 +78,7 @@ export async function fetchElonBotState(): Promise<BotState | null> {
     nextHarvestAt: data.nextHarvestAt || null,
     gasUsedApt: Number(data.gasUsedApt || 0),
     gasAtReset: Number(data.gasAtReset || 0),
+    drillDominance: data.drillDominance != null ? Number(data.drillDominance) : null,
   }
 }
 

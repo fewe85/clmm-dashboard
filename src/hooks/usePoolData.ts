@@ -1,11 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import type { PoolData, BotState, WalletBalance, HarvestEntry, RebalanceMetric } from '../types'
+import type { EchelonSummary } from '../services/echelon'
 import { fetchElonPoolData } from '../services/aptosElon'
 import { fetchElonBotState, fetchElonRebalanceMetrics } from '../services/botState'
 import { fetchBotWallet, fetchPetraWallet } from '../services/wallet'
+import { fetchEchelonPositions } from '../services/echelon'
+import { recordTreasurySnapshot, type TreasurySnapshot } from '../components/PerformanceChart'
 import {
   ELON_INVESTED, ELON_BOT_START,
-  REFRESH_INTERVAL,
+  REFRESH_INTERVAL, PETRA_WALLET,
 } from '../config'
 
 function calcRolling24hApr(
@@ -143,36 +146,40 @@ function derivePoolMetrics(pool: PoolData | null, metrics: RebalanceMetric[], in
   const pendingRewards = pool?.pendingRewardsUsd ?? 0
   const totalHarvested = pool?.harvestedUsd ?? 0
   const netProfit = pool?.netProfit ?? 0
-  const netProfitPct = invested > 0 ? (netProfit / invested) * 100 : 0
   const daysRunning = Math.max(1, (Date.now() - new Date(botStart).getTime()) / (1000 * 60 * 60 * 24))
-  const realizedApr = invested > 0 ? (netProfit / invested) * (365 / daysRunning) * 100 : 0
+
+  // Time-weighted average capital from snapshots (accounts for mid-stream deposits)
+  const snaps = pool?.botState?.earningsSnapshots
+  let avgCapital = invested
+  if (snaps && snaps.length >= 2) {
+    const posValues = snaps.map(s => s.posUsd ?? 0).filter(v => v > 0)
+    if (posValues.length > 0) avgCapital = posValues.reduce((a, b) => a + b, 0) / posValues.length
+  }
+  const netProfitPct = avgCapital > 0 ? (netProfit / avgCapital) * 100 : 0
+  const realizedApr = avgCapital > 0 ? (netProfit / avgCapital) * (365 / daysRunning) * 100 : 0
 
   let dailyEst = 0
-  const totalEarnings = totalHarvested + pendingFees + pendingRewards
-  if (daysRunning >= 1 && totalEarnings > 0) {
-    // Stable: total earnings over full run period
-    dailyEst = totalEarnings / daysRunning
+  const snapshots = pool?.botState?.earningsSnapshots
+  if (snapshots && snapshots.length >= 2) {
+    // Rolling window: newest - oldest earnings, scaled to 24h
+    const oldest = snapshots[0]
+    const newest = snapshots[snapshots.length - 1]
+    const hoursSpan = (new Date(newest.t).getTime() - new Date(oldest.t).getTime()) / (1000 * 60 * 60)
+    if (hoursSpan >= 1) {
+      const feesEarned = newest.feesUsd - oldest.feesUsd
+      const rewardsEarned = newest.rewardsUsd - oldest.rewardsUsd
+      dailyEst = ((feesEarned + rewardsEarned) / hoursSpan) * 24
+    }
   } else if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
-    // Fallback for first day: project from current pending
+    // Fallback: project from current pending
     const hoursSince = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
     if (hoursSince >= 0.5) {
       dailyEst = ((pendingFees + pendingRewards) / hoursSince) * 24
     }
   }
 
-  // Harvest rate: extrapolate current earnings velocity to 24h
-  // Uses pending fees+rewards accumulated since last harvest/rebalance
-  let harvestRate7d = 0
-  if (pool?.lastCollectAt && (pendingFees + pendingRewards) > 0) {
-    const hoursSinceCollect = (Date.now() - new Date(pool.lastCollectAt).getTime()) / (1000 * 60 * 60)
-    if (hoursSinceCollect >= 0.5) {
-      harvestRate7d = ((pendingFees + pendingRewards) / hoursSinceCollect) * 24
-    }
-  }
-  // Fallback: total earnings / days running
-  if (harvestRate7d === 0 && totalHarvested > 0) {
-    harvestRate7d = (totalHarvested + pendingFees + pendingRewards) / daysRunning
-  }
+  // Harvest rate: rolling 24h from snapshots (same source as dailyEst)
+  let harvestRate7d = dailyEst
   const totalRebalances = (pool?.botState?.totalRebalances ?? 0) - (pool?.botState?.rebalancesAtReset ?? 0)
   const now = Date.now()
   const rebalances24h = metrics.filter(m => now - new Date(m.timestamp).getTime() < 86400_000).length
@@ -196,6 +203,8 @@ export function usePoolData() {
   const [botWallet, setBotWallet] = useState<WalletBalance | null>(null)
   const [petraWallet, setPetraWallet] = useState<WalletBalance | null>(null)
   const [priceChanges, setPriceChanges] = useState<Record<string, number>>({})
+  const [echelon, setEchelon] = useState<EchelonSummary | null>(null)
+  const [treasurySnapshots, setTreasurySnapshots] = useState<TreasurySnapshot[]>([])
   const [loading, setLoading] = useState(true)
   const [countdown, setCountdown] = useState(REFRESH_INTERVAL / 1000)
   const lastGoodElon = useRef<PoolData | null>(loadPersistedPool(ELON_STORAGE_KEY))
@@ -254,16 +263,26 @@ export function usePoolData() {
 
     elonData = enrichPoolData(elonData, elonState, ELON_INVESTED, ELON_BOT_START, elonPriceMap)
 
-    // Wallets
-    const [bw, pw] = await Promise.all([
+    // Wallets + Echelon
+    const [bw, pw, ech] = await Promise.all([
       fetchBotWallet(elonPriceMap).catch(() => null),
       fetchPetraWallet(elonPriceMap).catch(() => null),
+      fetchEchelonPositions(PETRA_WALLET).catch(() => null),
     ])
 
     setElonPool(elonData)
     setElonMetrics(elonRebalanceMetrics)
     setBotWallet(bw)
     setPetraWallet(pw)
+    setEchelon(ech)
+
+    // Record hourly treasury snapshot
+    const posValue = (elonData.positionValueUsd || 0) + (elonData.pendingFeesUsd || 0) + (elonData.pendingRewardsUsd || 0)
+    const walletsValue = (bw?.totalUsd ?? 0) + (pw?.totalUsd ?? 0)
+    const echelonValue = ech?.netUsd ?? 0
+    const snaps = recordTreasurySnapshot(posValue, walletsValue, echelonValue)
+    setTreasurySnapshots(snaps)
+
     setLoading(false)
     setCountdown(REFRESH_INTERVAL / 1000)
   }, [])
@@ -331,6 +350,8 @@ export function usePoolData() {
     elon,
     botWallet,
     petraWallet,
+    echelon,
+    treasurySnapshots,
     loading,
     countdown,
     refresh,

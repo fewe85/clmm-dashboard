@@ -31,6 +31,7 @@ export interface BotState {
   nextHarvestAt: string | null
   gasUsedApt: number
   gasAtReset: number
+  drillDominance: number | null
 }
 
 export interface HarvestEntry {
@@ -80,6 +81,26 @@ export interface PoolData {
   lastUpdated: number
   error?: string
   stale?: boolean
+}
+
+export interface EchelonPosition {
+  asset: string
+  market: string
+  supplied: number
+  borrowed: number
+  supplyUsd: number
+  borrowUsd: number
+  price: number
+  supplyApr: number
+  borrowApr: number
+}
+
+export interface EchelonData {
+  positions: EchelonPosition[]
+  totalSupplyUsd: number
+  totalBorrowUsd: number
+  netUsd: number
+  healthFactor: number
 }
 
 export interface RebalanceMetric {

@@ -9,10 +9,10 @@ interface LiveEarningsProps {
 const W = 140
 
 function calcRate(ss: Snapshot[]): number {
-  if (ss.length < 3) return 0
-  const r = ss.slice(-6), o = r[0], n = r[r.length - 1]
+  if (ss.length < 2) return 0
+  const n = ss[ss.length - 1], o = ss[ss.length - 2]
   const h = (new Date(n.t).getTime() - new Date(o.t).getTime()) / 3_600_000
-  return h < 1 ? 0 : Math.max(0, ((n.feesUsd - o.feesUsd) + (n.rewardsUsd - o.rewardsUsd)) / h)
+  return h > 0.1 ? Math.max(0, ((n.feesUsd - o.feesUsd) + (n.rewardsUsd - o.rewardsUsd)) / h) : 0
 }
 
 
@@ -628,7 +628,7 @@ export function LiveEarnings({ snapshots, pendingFees, pendingRewards, nextHarve
         )}
         <div className="hud-label" style={{ fontSize: '7px', color: '#00ff88' }}>REFINING RATE</div>
         <div className="mono text-xs font-bold" style={{ color: '#00ff88', textShadow: '0 0 6px rgba(0,255,136,0.4)' }}>
-          ${(totalPerHour * 24).toFixed(2)}/d
+          ${totalPerHour.toFixed(2)}/h
         </div>
         {harvestSec !== null && harvestSec > 0 && (
           <div className="mono" style={{ color: harvestSec < 300 ? '#00ff88' : 'var(--text-muted)', fontSize: '9px' }}>

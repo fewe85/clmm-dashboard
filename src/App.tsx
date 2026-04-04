@@ -12,10 +12,10 @@ import {
 function AppContent() {
   const {
     elon,
-    botWallet, petraWallet,
+    botWallet, petraWallet, echelon,
+    treasurySnapshots,
     loading, countdown, refresh,
     priceChanges,
-    elonClmmVsHodl,
   } = usePoolData()
 
   const isLoading = loading && !elon.pool
@@ -88,17 +88,19 @@ function AppContent() {
           <PoolCard pm={elon} poolName={ELON_POOL_NAME} priceChange24h={priceChanges.ELON} />
 
           {/* Wallets */}
-          <WalletBox botWallet={botWallet} petraWallet={petraWallet} />
+          <WalletBox botWallet={botWallet} petraWallet={petraWallet} echelon={echelon} />
 
-          {/* Performance Chart */}
+          {/* Fleet Treasury Chart */}
           <PerformanceChart
-            aptSnapshots={[]}
-            elonSnapshots={elon.pool?.botState?.earningsSnapshots ?? []}
-            aptClmmVsHodl={0}
-            elonClmmVsHodl={elonClmmVsHodl}
-            totalInvested={elon.invested}
-            daysRunning={elon.daysRunning}
-            netProfit={elon.netProfit}
+            snapshots={treasurySnapshots}
+            currentPos={(elon.pool?.positionValueUsd ?? 0) + elon.pendingFees + elon.pendingRewards}
+            currentWallets={(botWallet?.totalUsd ?? 0) + (petraWallet?.totalUsd ?? 0)}
+            currentEchelon={echelon?.netUsd ?? 0}
+            currentTotal={
+              (elon.pool?.positionValueUsd ?? 0) + elon.pendingFees + elon.pendingRewards
+              + (botWallet?.totalUsd ?? 0) + (petraWallet?.totalUsd ?? 0)
+              + (echelon?.netUsd ?? 0)
+            }
           />
         </div>
       )}
